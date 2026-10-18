@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L18 · Inode Architecture & File System Layouts</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  .badge-cyan { color: #67E8F9; border-color: #06B6D4; background: rgba(6,182,212,0.08); }
+  .badge-orange { color: #FDBA74; border-color: #F97316; background: rgba(249,115,22,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-violet { border-color: #8B5CF6; background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.cyan h3 { color: #67E8F9; } .card.cyan { border-color: #164E63; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .inode-struct { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5vw; max-width: 900px; width: 100%; margin: 2vh auto; font-family: "SF Mono", monospace; font-size: 0.85rem; }
+  .inode-field { padding: 0.8vh 1vw; background: #111C33; border: 1px solid #1E293B; border-radius: 4px; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+  .inode-field .name { color: #60A5FA; font-weight: 700; }
+  .inode-field .value { color: #FBBF24; }
+  .inode-field.meta { border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .inode-field.pointer { border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .tree-diagram { display: flex; flex-direction: column; align-items: center; gap: 1vh; max-width: 1000px; width: 100%; margin: 2vh auto; }
+  .inode-box { padding: 2vh 2vw; border-radius: 10px; border: 2px solid #3B82F6; background: rgba(59,130,246,0.08); text-align: center; font-family: "SF Mono", monospace; font-weight: 800; font-size: 0.9rem; color: #60A5FA; min-width: 260px; }
+  .pointer-row { display: flex; gap: 0.5vw; justify-content: center; flex-wrap: wrap; margin: 1vh 0; }
+  .pointer-box { padding: 0.8vh 0.8vw; border-radius: 4px; font-family: "SF Mono", monospace; font-size: 0.7rem; font-weight: 700; text-align: center; min-width: 55px; }
+  .pointer-direct { background: rgba(59,130,246,0.15); border: 1px solid #3B82F6; color: #60A5FA; }
+  .pointer-single { background: rgba(245,158,11,0.15); border: 1px solid #F59E0B; color: #FBBF24; }
+  .pointer-double { background: rgba(139,92,246,0.15); border: 1px solid #8B5CF6; color: #A78BFA; }
+  .pointer-triple { background: rgba(239,68,68,0.15); border: 1px solid #EF4444; color: #F87171; }
+  .capacity-table { width: 100%; max-width: 900px; margin: 2vh auto; border-collapse: collapse; font-family: "SF Mono", monospace; font-size: clamp(0.8rem, 1vw, 0.95rem); }
+  .capacity-table th { background: #1E293B; color: #60A5FA; padding: 1.2vh 1vw; text-align: left; font-weight: 800; }
+  .capacity-table td { padding: 1vh 1vw; border-bottom: 1px solid #1E293B; color: #CBD5E1; }
+  .capacity-table tr:last-child td { border-bottom: none; }
+  .capacity-total { background: rgba(16,185,129,0.08); color: #34D399; font-weight: 800; }
+  .formula-card { max-width: 850px; padding: 2.5vh 2vw; border-radius: 12px; background: rgba(59,130,246,0.06); border: 2px solid #3B82F6; text-align: left; margin: 2vh auto; }
+  .formula-card h4 { color: #60A5FA; font-size: 1.15rem; margin-bottom: 1.2vh; }
+  .formula-card p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.7; }
+  .formula-card .formula { color: #FBBF24; font-family: "SF Mono", monospace; font-weight: 800; font-size: clamp(0.95rem, 1.2vw, 1.1rem); display: block; margin: 1vh 0; padding: 1.2vh 1.2vw; background: rgba(245,158,11,0.08); border-left: 3px solid #F59E0B; border-radius: 4px; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .inode-struct { grid-template-columns: 1fr; } .pointer-box { min-width: 40px; font-size: 0.6rem; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L18</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-violet">🔰 START HERE // L18 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#8B5CF6"></div>
+  <p class="subtitle">Calculate maximum file scale size capacities for an inode architecture layout featuring direct, single indirect, and double indirect block pointer pointers.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> L17 handed us an inode number — but the inode itself is a <em>tiny fixed-size struct</em> (only 128 bytes in ext2). How can a 128-byte index node possibly address a multi-gigabyte file? The answer is a hierarchical pointer tree that multiplies capacity at every level: 12 direct pointers, then a block of pointers, then blocks of blocks of pointers. How much file size can 128 bytes index?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L17 Path Resolution</h3><p>Directory-as-file, path walker, and how the walk produces an inode number as its final output. L18 starts exactly where L17 ends.</p></div>
+    <div class="card amber"><h3>02 · L16 Disk Geometry</h3><p>Physical block/sector geometry. Every "pointer" in the inode refers to a physical block on disk whose size (typically 4 KB) sets the capacity limits.</p></div>
+    <div class="card amber"><h3>03 · Powers of 2 and Byte Math</h3><p>Converting 4 KB to 4096, 4096 bytes to 1024 pointers, and multiplying multi-level factors cleanly. L18 is entirely byte arithmetic.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> This is the <em>capacity mathematics</em> lecture. Students will compute exactly how much file data a 128-byte inode can address. When they finish, they will realize a modest inode reaches terabytes — and they will understand why the 12+1+1+1 asymmetry was chosen over a uniform design.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎒 EVERYDAY SIMPLIFIED: THE LIBRARY LEDGER CARD</span>
+  <h2>The Inode Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📚📋🔍</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The book text is the <em>data</em>. The library ledger card taped inside the front cover is the <em>inode</em>. The card does not contain any story lines; it holds the metadata: who owns the book (owner ID), who may read it (permissions), its character length (file size), and — critically — a list of shelf coordinate numbers telling you exactly where each chapter is stored on the library floor (<em>block pointers</em>).</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The ledger card is fixed-size; the book can grow. When the book outgrows the direct shelves, the card adds a coordinate to a <em>second</em> ledger box (an indirect pointer), which itself contains hundreds of shelf coordinates.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This maps directly to <code>struct inode</code> containing metadata fields plus a pointer array that branches into indirect tables.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎒 EVERYDAY SIMPLIFIED: THE SHELF AT ARM'S REACH</span>
+  <h2>The Direct Pointer Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📖✋📚</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The 12 direct pointers are the shelf right at your arm's reach. You can grab any of those 12 books instantly — no walking, no searching, no second index. For small files, this is all you need.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Direct pointers map to data with <em>one</em> inode lookup, <em>one</em> block read. Fastest path for the common case: small files, opening quickly.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>File systems optimize the common case — small files dominate real workloads, so the direct pointer rows are the hot path.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎒 EVERYDAY SIMPLIFIED: THE CARD CATALOG</span>
+  <h2>The Single Indirect Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🗂️📋📖</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>When 12 books are not enough, you walk to a card catalog drawer (a whole block of pointer cards). Each card in the drawer points to another book on a shelf. One walk to the catalog drawer unlocks 1024 additional books.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>A single-indirect pointer adds one memory lookup to the data access path — one extra step for 1024× the addressable size.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Single indirect is the <em>one-level</em> indirection that unlocks up to 4 MB (with 4 KB blocks). Beyond that, the structure grows deeper.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎒 EVERYDAY SIMPLIFIED: THE CATALOG OF CATALOGS</span>
+  <h2>The Double Indirect Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🗂️🗂️🗂️</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>When even 1024 + 12 books are not enough, you use a catalog <em>of</em> catalogs: the top-level drawer points to hundreds of secondary drawers, each of which contains hundreds of pointer cards. One inode pointer unlocks a million book addresses.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Double indirect adds <em>two</em> memory lookups before the data block — 1024 × 1024 = 1,048,576 blocks addressable.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the tier at which files cross into gigabyte territory — and where modern file systems (ext4, XFS) introduce <em>extent trees</em> to replace the classic 4-tier pointer model entirely.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE POINTER BRANCHING SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card emerald"><h3>📏 Flat Addressable File</h3><p>Small file (up to 48 KB) uses only the 12 direct pointers. One inode lookup, one block read, done.</p></div>
+    <div class="card violet"><h3>🌳 Multi-Level Indexed File</h3><p>Huge file (up to 4 TB) branches into single, double, and triple indirect tiers. Each tier adds one memory hop but multiplies capacity by 1024×.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">The elegant trick: an asymmetric 12+1+1+1 pointer layout reaches ~4 TB with 4 KB blocks, in a <strong>128-byte inode</strong>. Small files are fast, huge files are possible, and the inode itself never grows.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">💻 SYSTEMS COHESION: THE METADATA LEDGER</span>
+  <h2>The Unix Inode Structure</h2>
+  <div class="inode-struct">
+    <div class="inode-field meta"><span class="name">i_mode</span><span class="value">file type + permissions</span></div>
+    <div class="inode-field meta"><span class="name">i_uid</span><span class="value">owner user ID</span></div>
+    <div class="inode-field meta"><span class="name">i_size</span><span class="value">file size in bytes</span></div>
+    <div class="inode-field meta"><span class="name">i_atime</span><span class="value">last access time</span></div>
+    <div class="inode-field meta"><span class="name">i_ctime</span><span class="value">creation time</span></div>
+    <div class="inode-field meta"><span class="name">i_mtime</span><span class="value">modification time</span></div>
+    <div class="inode-field meta"><span class="name">i_links_count</span><span class="value">hard link count</span></div>
+    <div class="inode-field meta"><span class="name">i_blocks</span><span class="value"># of 512-byte blocks allocated</span></div>
+    <div class="inode-field pointer" style="grid-column: span 2"><span class="name">i_block[15]</span><span class="value">the pointer tree: 12 direct + 3 indirect</span></div>
+  </div>
+  <div class="callout callout-violet" style="margin-top:3vh">
+    <strong>The Verdict:</strong> An inode stores <em>everything</em> about a file <em>except</em> its name and its data. The name lives in the directory (L17); the data lives in blocks pointed at by the inode. Fifteen pointer slots — 12 direct, 1 single-indirect, 1 double-indirect, 1 triple-indirect — are all the inode has room for. The entire file-size capacity of Unix follows from this asymmetry.
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">💻 SYSTEMS COHESION: THE ASYMMETRIC POINTER TREE</span>
+  <h2>The 12 + 1 + 1 + 1 Pointer Layout</h2>
+  <div class="tree-diagram">
+    <div class="inode-box">Inode (128 bytes)<br><span style="font-size:0.7rem;color:#94A3B8">i_block[15]</span></div>
+    <div class="pointer-row">
+      <div class="pointer-box pointer-direct">d0</div>
+      <div class="pointer-box pointer-direct">d1</div>
+      <div class="pointer-box pointer-direct">d2</div>
+      <div class="pointer-box pointer-direct">d3</div>
+      <div class="pointer-box pointer-direct">d4</div>
+      <div class="pointer-box pointer-direct">d5</div>
+      <div class="pointer-box pointer-direct">d6</div>
+      <div class="pointer-box pointer-direct">d7</div>
+      <div class="pointer-box pointer-direct">d8</div>
+      <div class="pointer-box pointer-direct">d9</div>
+      <div class="pointer-box pointer-direct">d10</div>
+      <div class="pointer-box pointer-direct">d11</div>
+      <div class="pointer-box pointer-single">1×</div>
+      <div class="pointer-box pointer-double">2×</div>
+      <div class="pointer-box pointer-triple">3×</div>
+    </div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Allocation</h3>
+      <p><strong>12 Direct pointers:</strong> Each points directly to a data block. Covers 12 × 4 KB = <strong>48 KB</strong>.</p>
+      <p><strong>1 Single-indirect pointer:</strong> Points to a block of pointers. That block holds <code>block_size / pointer_size</code> entries.</p>
+      <p><strong>1 Double-indirect pointer:</strong> Two levels deep.</p>
+      <p><strong>1 Triple-indirect pointer:</strong> Three levels deep.</p>
+    </div>
+    <div class="card amber">
+      <h3>Why Asymmetric?</h3>
+      <p>The asymmetry is <em>deliberate</em>: direct pointers optimize the small-file case (which dominates real workloads), while each successive indirect pointer scales the file ceiling by 1024×.</p>
+      <p style="margin-top:1vh;color:#FBBF24">Small files pay only one memory hop. Huge files pay 3–4 hops — but the OS never sacrifices the common case for the rare one.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">💻 SYSTEMS COHESION: CAPACITY DERIVATION</span>
+  <h2>The Pointer Capacity Formula</h2>
+  <div class="formula-card">
+    <h4>The Capacity Equation</h4>
+    <p>The capacity at each tier follows a general formula:</p>
+    <p class="formula">Pointers_per_block = block_size / pointer_size</p>
+    <p class="formula">Capacity_n_direct = n × block_size</p>
+    <p class="formula">Capacity_single_indirect = pointers_per_block × block_size</p>
+    <p class="formula">Capacity_double_indirect = pointers_per_block² × block_size</p>
+    <p class="formula">Capacity_triple_indirect = pointers_per_block³ × block_size</p>
+    <p style="margin-top:1.5vh"><strong>Variable Breakdown:</strong></p>
+    <p>· <strong>block_size:</strong> The physical storage block, typically 4096 bytes.</p>
+    <p>· <strong>pointer_size:</strong> The disk address width, typically 4 bytes (32-bit) or 8 bytes (64-bit).</p>
+    <p>· <strong>pointers_per_block:</strong> The branching factor at each indirect tier.</p>
+  </div>
+  <div class="callout callout-violet" style="margin-top:2vh">
+    <strong>The Verdict:</strong> For 4 KB blocks with 4-byte pointers, the branching factor is 1024. Four tiers stack to 1024³ × 4 KB = 4 TB of maximum addressable file size — all from a 128-byte inode.
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">💻 SYSTEMS COHESION: MAXIMUM FILE SIZE CALCULATION</span>
+  <h2>The Worked Capacity Example</h2>
+  <div class="formula-card">
+    <h4>The Setup</h4>
+    <p>Assume 12 direct, 1 single-indirect, 1 double-indirect, and 1 triple-indirect. Block size = 4 KB. Pointer size = 4 bytes.</p>
+    <p>Pointers per indirect block = 4096 / 4 = <strong>1024</strong>.</p>
+  </div>
+  <table class="capacity-table">
+    <tr><th>Pointer Type</th><th>Formula</th><th>Capacity</th></tr>
+    <tr><td>12 Direct</td><td>12 × 4 KB</td><td>48 KB</td></tr>
+    <tr><td>1 Single Indirect</td><td>1024 × 4 KB</td><td>4 MB</td></tr>
+    <tr><td>1 Double Indirect</td><td>1024² × 4 KB</td><td>4 GB</td></tr>
+    <tr><td>1 Triple Indirect</td><td>1024³ × 4 KB</td><td>4 TB</td></tr>
+    <tr class="capacity-total"><td colspan="2">TOTAL MAXIMUM FILE SIZE</td><td>≈ 4.004 TB</td></tr>
+  </table>
+  <div class="callout callout-emerald" style="margin-top:2vh">
+    <strong>The Verdict:</strong> Without triple indirect, a 128-byte inode already addresses over 4 GB. Adding triple indirect extends the ceiling to ~4 TB — enough to hold most enterprise datasets on a single file.
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">💻 SYSTEMS COHESION: MODERN EXTENTS EVOLUTION</span>
+  <h2>Extents vs. Classic Indirect Blocks</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson">
+      <h3>Classic Weaknesses</h3>
+      <p><strong>Fragmented large files</strong> require enormous numbers of pointer blocks — a 1 GB file needs over 250,000 pointer entries.</p>
+      <p><strong>Sequential access</strong> must traverse the tree at every indirect level.</p>
+      <p style="margin-top:1vh">For a 100 GB file, the triple-indirect tier is 25,000 separate block pointers — all needing to be read to access the last byte.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Modern Replacement — Extents</h3>
+      <p>A single extent entry describes a <em>contiguous range</em> of blocks: <code>{logical_offset, physical_block, length}</code>.</p>
+      <p style="margin-top:1vh">Modern file systems (ext4, XFS, Btrfs) use <strong>extent trees</strong> where a single 16-byte extent descriptor can cover up to 128 MB of contiguous blocks.</p>
+      <p style="margin-top:1vh;color:#34D399">This is what makes modern file systems fast on both HDDs and SSDs.</p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>The Verdict:</strong> Extents are the natural sequel to the 12+1+1+1 story — they preserve the <em>spirit</em> of the pointer tree (branching from inode to blocks) while achieving O(1)-ish contiguous-file lookup rather than O(n) per-block traversal.
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON DIRECTORY LOOKUPS</span>
+  <h2>Core System Cohesion — Relies On L17</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L17's Final Output</h3><p>Path resolution produces an inode number as its final output. That inode number is the direct input to L18: from inode number, the kernel loads the inode block, reads the pointer tree, and can finally retrieve file data.</p></div>
+    <div class="card"><h3>The Sequential Pipeline</h3><p>Path resolution and inode traversal are <em>sequential</em> — the walker cannot proceed to the data blocks until the inode has been loaded and its pointer table parsed.</p><p style="margin-top:1vh;color:#A78BFA">This is why <code>open()</code> (L17) is separate from <code>read()</code> — the resolution happens once at open time.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>Without L17's path walk, we never get an inode number. Without L18's inode pointer tree, we never get from the inode number to the actual data blocks. Both are required for every single file read.</p></div>
+    <div class="card emerald"><h3>Feeds Into L19</h3><p>Every metadata mutation (create, write, delete, truncate) requires journaling to survive power loss. L19's journal design depends on the exact pointer tree we build in L18.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO JOURNALING ENGINE</span>
+  <h2>Core System Cohesion — Feeds Into L19</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Metadata Mutations</h3><p>Every write to a file that grows or shrinks triggers inode updates: <code>i_size</code>, <code>i_blocks</code>, and pointer-tree allocations. Each of these is a metadata mutation that must be journaled in L19.</p></div>
+    <div class="card"><h3>Allocation Complexity</h3><p>Allocating a new block for a growing file may require: extending the direct pointer array, allocating an indirect block, allocating a double-indirect block. Each allocation is a metadata change that must be journaled atomically.</p></div>
+    <div class="card violet"><h3>The Journaling Dependency</h3><p>L19's write-ahead log records these pointer-tree changes so that on a crash, the filesystem can be recovered to a consistent state — no partially-updated inode trees, no orphaned blocks.</p></div>
+    <div class="card emerald"><h3>The Full Pipeline</h3><p>L17 → inode number → L18 → data blocks → L19 protects the metadata mutations. Every file operation flows through all three layers.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: INODE ARCHITECTURE</span>
+  <h2>Inode Layouts Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Inodes</h3><p>A single, fixed inode struct with the 12+1+1+1 pointer layout baked into the filesystem format (classic ext2/ext3). Kernel code knows the exact layout; extremely fast, but inflexible — changing the inode format requires a new filesystem driver.</p></div>
+    <div class="card emerald"><h3>Microkernel Inodes</h3><p>The filesystem server runs in user space and defines the inode entirely internally. FUSE filesystems fall here — the inode layout is whatever the FUSE daemon chooses. Maximum flexibility, at IPC overhead cost.</p></div>
+    <div class="card amber"><h3>Layered Inodes</h3><p>The VFS layer defines an abstract inode interface (<code>struct inode</code> with operation function pointers), while concrete filesystems implement their own inode semantics beneath. This is the actual Linux model — ext4, XFS, Btrfs all provide different on-disk layouts through the same VFS inode API.</p></div>
+    <div class="card"><h3>Modular Inodes</h3><p>Core VFS knows only <code>struct inode</code>, and each filesystem module exports <code>inode_operations</code>. Hot-swappable filesystems can bring entirely new inode layouts, loaded dynamically at mount time.</p></div>
+    <div class="card violet"><h3>Hybrid Inodes</h3><p>Traditional indirect-block inodes for HDDs, extent-tree inodes for SSDs, with the VFS selecting the layout per-filesystem. This is why ext4 supports both legacy indirect blocks and modern extents — a transitional hybrid design.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE INODE VOCABULARY</span>
+  <h2>Base Inode Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Inode</h3>
+      <p>The foundational data structure in Unix file systems tracking a single file's complete metadata metrics and physical disk block locations; fixed-size in kernel memory and on disk, indexed by inode number, and containing no filename and no file data. Everything the OS needs to know about a file — except its name and its data — lives in the inode.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The library ledger card that lists metadata and shelf coordinates but not the story itself.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Direct Pointer</h3>
+      <p>An internal inode array address slot that points directly to a real physical block holding file data bytes; when the file is small enough, all data is reached in a single block read from the inode. The 12 direct pointers cover up to 48 KB of file data — the fast path for the vast majority of files.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The 12 books on the shelf at arm's reach.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE INODE VOCABULARY</span>
+  <h2>Advanced Indirection Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Indirect Pointer</h3>
+      <p>An array slot inside an inode that points to a sector block allocated exclusively to hold additional address tracking pointers; adds one level of indirection per tier (single, double, triple) to the data-access path while multiplying addressable capacity by 1024× at each tier. Required for files larger than 48 KB.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The card catalog drawer that lists shelf coordinates of books, rather than the books themselves.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Extent</h3>
+      <p>A range descriptor in modern file systems specifying a contiguous sequence of physical blocks as a single entry <code>{logical_offset, physical_start, length}</code>; replaces the per-block pointer granularity of classic indirect blocks with range granularity, dramatically reducing metadata overhead for large files.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(One line saying "chapters 1–400 are on shelf 6, row 3" instead of 400 separate shelf-coordinate cards.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Metadata</h3>
+      <p>Structural descriptive data about a file (permissions, sizing, timestamps, pointer tables) rather than the literal file contents; stored in the inode and manipulated by the filesystem separately from the data blocks themselves. Metadata mutations are what journaling (L19) protects.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The "About This Book" card in the front cover — page count, publication date, owner name — not the prose.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">💻 CODE DISSECTION: C INODE CAPACITY SIMULATOR</span>
+  <h2>Calculating Maximum File Size from Inode Layout</h2>
+  <pre class="code-block"><span class="cm">// Calculating maximum file size from a Unix inode pointer layout</span>
+<span class="cm">// Compile: gcc -o inode inode.c -lm &amp;&amp; ./inode</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;math.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">calculate_inode_capacity</span>(<span class="kw">int</span> direct_count,
+                              <span class="kw">int</span> block_size,
+                              <span class="kw">int</span> pointer_size) {
+    <span class="cm">// Calculate pointers per indirect block</span>
+    <span class="kw">long</span> pointers_per_block = block_size / pointer_size;
+
+    <span class="cm">// Compute each tier's capacity</span>
+    <span class="kw">double</span> direct_cap    = (<span class="kw">double</span>) direct_count * block_size;
+    <span class="kw">double</span> single_cap    = (<span class="kw">double</span>) pointers_per_block * block_size;
+    <span class="kw">double</span> double_cap    = (<span class="kw">double</span>) <span class="fn">pow</span>(pointers_per_block, <span class="num">2</span>) * block_size;
+    <span class="kw">double</span> triple_cap    = (<span class="kw">double</span>) <span class="fn">pow</span>(pointers_per_block, <span class="num">3</span>) * block_size;
+
+    <span class="kw">double</span> total_cap = direct_cap + single_cap + double_cap + triple_cap;
+
+    <span class="fn">printf</span>(<span class="str">"=== Inode Layout Capacity Analysis ===\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"Block size: %d bytes | Pointer size: %d bytes\n"</span>,
+           block_size, pointer_size);
+    <span class="fn">printf</span>(<span class="str">"Pointers per indirect block: %ld\n\n"</span>, pointers_per_block);
+
+    <span class="fn">printf</span>(<span class="str">"Direct (%d ptrs):       %.2f KB\n"</span>, direct_count,
+           direct_cap / <span class="num">1024.0</span>);
+    <span class="fn">printf</span>(<span class="str">"Single indirect:     %.2f MB\n"</span>, single_cap / (<span class="num">1024.0</span> * <span class="num">1024.0</span>));
+    <span class="fn">printf</span>(<span class="str">"Double indirect:     %.2f GB\n"</span>,
+           double_cap / (<span class="num">1024.0</span> * <span class="num">1024.0</span> * <span class="num">1024.0</span>));
+    <span class="fn">printf</span>(<span class="str">"Triple indirect:     %.2f TB\n"</span>,
+           triple_cap / (<span class="num">1024.0</span> * <span class="num">1024.0</span> * <span class="num">1024.0</span> * <span class="num">1024.0</span>));
+    <span class="fn">printf</span>(<span class="str">"\nTOTAL MAX FILE SIZE: %.2f TB\n\n"</span>,
+           total_cap / (<span class="num">1024.0</span> * <span class="num">1024.0</span> * <span class="num">1024.0</span> * <span class="num">1024.0</span>));
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="cm">// Classic Unix: 12 direct, 4 KB blocks, 4-byte pointers</span>
+    <span class="fn">calculate_inode_capacity</span>(<span class="num">12</span>, <span class="num">4096</span>, <span class="num">4</span>);
+
+    <span class="cm">// Modern ext4-style: 12 direct, 4 KB blocks, 8-byte pointers</span>
+    <span class="fn">calculate_inode_capacity</span>(<span class="num">12</span>, <span class="num">4096</span>, <span class="num">8</span>);
+
+    <span class="cm">// Larger block size: 12 direct, 8 KB blocks, 8-byte pointers</span>
+    <span class="fn">calculate_inode_capacity</span>(<span class="num">12</span>, <span class="num">8192</span>, <span class="num">8</span>);
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">💻 CODE DISSECTION: TRACING POINTER TREE GROWTH</span>
+  <h2>Walking the Capacity Arithmetic</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>pointers_per_block = block_size / pointer_size</h3><p><strong>The branching factor.</strong> <code>4096 / 4 = 1024</code> in classic Unix. <code>4096 / 8 = 512</code> with 64-bit pointers. This single ratio determines the growth rate at every tier.</p></div>
+    <div class="card"><h3>direct_cap = 12 × 4096 = 48 KB</h3><p><strong>The fast path.</strong> Small files stay in the direct tier. One inode read, one block read, done. No indirection, no extra lookups.</p></div>
+    <div class="card emerald"><h3>single_cap = 1024 × 4096 = 4 MB</h3><p><strong>One memory hop.</strong> Files between 48 KB and 4 MB incur exactly one extra memory read (to fetch the indirect block) before the data read.</p></div>
+    <div class="card violet"><h3>double_cap = 1024² × 4096 = 4 GB</h3><p><strong>Two memory hops.</strong> Files between 4 MB and 4 GB — the typical range for videos, ISOs, and databases — incur two extra memory reads.</p></div>
+    <div class="card crimson"><h3>triple_cap = 1024³ × 4096 = 4 TB</h3><p><strong>Three memory hops.</strong> Files above 4 GB — huge datasets, backups — incur three extra reads. Still dramatically faster than any disk access.</p></div>
+    <div class="card amber"><h3>64-bit pointer consequence</h3><p>With 8-byte pointers, <code>pointers_per_block = 512</code>. Triple tier drops to <code>512³ × 4096 = 512 GB</code>. This is why modern filesystems needed extents — the 64-bit address space broke the classic 4-tier design.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎯 INTERACTIVE WORKSHOP: THE INODE POINTER TREE CONSTRUCTION</span>
+  <h2>The Human Pointer Tree Walk</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Student 01 · Inode</h3><p>Holds a flashcard with 12 direct arrows plus 3 indirect arrows drawn on it. Given a target byte offset, they compute which pointer tier is needed.</p></div>
+    <div class="card"><h3>Students 02–13 · Direct Data Blocks</h3><p>Each holds a "data block" card at the front of the room. If the inode requests a direct pointer, the matching student steps forward.</p></div>
+    <div class="card"><h3>Student 14 · Single Indirect</h3><p>Holds a card with 4 pointers (simplified from 1024) to additional data block students.</p></div>
+    <div class="card"><h3>Student 15 · Double Indirect</h3><p>Holds a card pointing to two more indirect-block students, each of which points to data blocks.</p></div>
+    <div class="card"><h3>The Challenge</h3><p>Given "offset 5000" — compute <code>5000 / 4096 = block 1</code> → direct pointer 1 → Student 02. Given "offset 5,000,000,000" — compute the double-indirect tier and walk the multi-hop chain.</p></div>
+    <div class="card emerald"><h3>The Insight</h3><p>Students feel the number of memory hops grow with file size: 1 for direct, 2 for single, 3 for double, 4 for triple. This is the price of scale.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">💻 TRY IT LIVE: AUDITING REAL INODES ON DISK</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> stat /etc/passwd                          <span class="out"># Inode metadata dump</span>
+<span class="cmd">$</span> stat -f /etc/passwd                       <span class="out"># Filesystem-level stats</span>
+<span class="cmd">$</span> sudo debugfs -R "stat &lt;inode_number&gt;" /dev/sda1  <span class="out"># Raw inode inspection</span>
+<span class="cmd">$</span> df -i                                     <span class="out"># Inode count and availability</span>
+<span class="cmd">$</span> ls -li                                    <span class="out"># Inode numbers alongside names</span>
+<span class="cmd">$</span> tune2fs -l /dev/sda1 | grep -i inode      <span class="out"># Filesystem inode count</span>
+<span class="cmd">$</span> filefrag -v /var/log/syslog              <span class="out"># Extent layout inspection</span>
+<span class="cmd">$</span> xfs_info /mnt/                           <span class="out"># XFS extent geometry</span></pre>
+  <p class="hint"><code>debugfs</code> dumps the raw inode block pointer table (direct + indirect) exactly as described in L18. <code>filefrag</code> shows the extents that replaced classic indirect blocks in modern filesystems.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 5: File &amp; Storage Management
+        └── <span class="active">L18: Inode Architecture &amp; File System Layouts (ACTIVE NODE 🌟)</span>
+              ├── Metadata Blocks &amp; 12+1+1+1 Pointer Asymmetry
+              └── Direct/Indirect Capacity Mathematics &amp; Modern Extents</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>An <strong>inode</strong> is a fixed-size struct containing all file metadata plus a 15-slot pointer array. The file's <em>name</em> lives in a directory (L17); the <em>data</em> lives in blocks pointed at by the inode. Everything the OS knows about a file — except its name and its data — is in the inode.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>The <strong>12 + 1 + 1 + 1 asymmetric pointer tree</strong> multiplies addressable capacity at each tier. With 4 KB blocks and 4-byte pointers, a 128-byte inode reaches roughly 4 TB — all without growing the inode itself. Direct pointers optimize the small-file case; indirect pointers scale the file ceiling by 1024×.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>Modern file systems replace classic indirect blocks with <strong>extents</strong> — range descriptors that cover contiguous block runs in a single 16-byte entry. Extents preserve the branching spirit of L18 while achieving O(1)-ish contiguous-file lookup. This is what makes ext4, XFS, and Btrfs fast on modern storage.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 19 — Crash Consistency &amp; The Journaling Engine (Module 5 Finale)</strong><br><br>
+    Every inode pointer update and every block allocation we studied today creates a <em>window of vulnerability</em> — if power is lost midway through the multi-step write, the inode can point to freed blocks, or the pointer tree can be half-updated. We will dissect the <strong>Write-Ahead Logging pipeline</strong>, trace the <strong>four crash points</strong> of a journal transaction, and learn how modern file systems guarantee crash consistency without sacrificing performance. This is the final and most important lecture in Module 5 — the one that makes all the preceding file system structures <em>survivable</em>.
+  </div>
+  <p class="hint">File: L19.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
