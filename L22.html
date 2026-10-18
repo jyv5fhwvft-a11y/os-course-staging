@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L22 · Access Control</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  .badge-cyan { color: #67E8F9; border-color: #06B6D4; background: rgba(6,182,212,0.08); }
+  .badge-orange { color: #FDBA74; border-color: #F97316; background: rgba(249,115,22,0.08); }
+  .badge-teal { color: #5EEAD4; border-color: #14B8A6; background: rgba(20,184,166,0.08); }
+  .badge-sky { color: #7DD3FC; border-color: #0EA5E9; background: rgba(14,165,233,0.08); }
+  .badge-lime { color: #BEF264; border-color: #84CC16; background: rgba(132,204,22,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-lime { border-color: #84CC16; background: rgba(132,204,22,0.06); color: #BEF264; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.lime h3 { color: #BEF264; } .card.lime { border-color: #365314; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .matrix-table { width: 100%; max-width: 900px; margin: 2vh auto; border-collapse: collapse; font-family: "SF Mono", monospace; font-size: clamp(0.8rem, 1vw, 0.95rem); }
+  .matrix-table th { background: #1E293B; color: #FBBF24; padding: 1.2vh 1vw; text-align: center; font-weight: 800; }
+  .matrix-table th.subject { background: #0EA5E9; color: #020617; }
+  .matrix-table td { padding: 1vh 1vw; border-bottom: 1px solid #1E293B; color: #CBD5E1; text-align: center; }
+  .matrix-table td.subject { background: rgba(14,165,233,0.15); color: #7DD3FC; font-weight: 800; text-align: left; }
+  .matrix-allow { color: #34D399; font-weight: 800; }
+  .matrix-deny { color: #475569; }
+  .sparsity-visual { display: flex; align-items: center; justify-content: center; gap: 2vw; max-width: 900px; width: 100%; margin: 2vh auto; flex-wrap: wrap; }
+  .sparsity-side { padding: 2.5vh 2vw; border-radius: 10px; border: 2px solid; text-align: left; min-width: 260px; flex: 1; }
+  .sparsity-side h4 { font-size: 1.05rem; font-weight: 800; margin-bottom: 1vh; }
+  .sparsity-side p { font-size: clamp(0.8rem, 1vw, 0.9rem); line-height: 1.55; }
+  .sparse-acl { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .sparse-acl h4 { color: #FBBF24; }
+  .sparse-cap { border-color: #8B5CF6; background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  .sparse-cap h4 { color: #A78BFA; }
+  .sparsity-arrow { font-size: 2rem; color: #475569; }
+  .acl-table { max-width: 700px; width: 100%; margin: 2vh auto; background: #111C33; border-radius: 10px; padding: 2vh 2vw; border: 2px solid #F59E0B; }
+  .acl-entry { display: flex; justify-content: space-between; align-items: center; padding: 1.2vh 1vw; border-bottom: 1px solid #1E293B; font-family: "SF Mono", monospace; font-size: clamp(0.8rem, 1vw, 0.9rem); }
+  .acl-entry:last-child { border-bottom: none; }
+  .acl-user { color: #FBBF24; font-weight: 700; }
+  .acl-perms { color: #34D399; font-weight: 800; font-family: "SF Mono", monospace; }
+  .acl-header { text-align: center; color: #FBBF24; font-weight: 800; margin-bottom: 1.5vh; font-size: 1rem; }
+  .capability-box { max-width: 700px; width: 100%; margin: 2vh auto; background: #111C33; border-radius: 10px; padding: 2.5vh 2vw; border: 2px solid #8B5CF6; font-family: "SF Mono", monospace; font-size: clamp(0.8rem, 1vw, 0.9rem); line-height: 1.7; text-align: left; }
+  .capability-box .cap-kw { color: #C084FC; font-weight: 800; }
+  .capability-box .cap-field { color: #60A5FA; }
+  .capability-box .cap-value { color: #FBBF24; }
+  .capability-box .cap-sig { color: #34D399; }
+  .mode-columns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.2vw; max-width: 1000px; width: 100%; margin: 2vh auto; }
+  .mode-col { padding: 2.5vh 1.8vw; border-radius: 10px; border: 2px solid; text-align: center; }
+  .mode-col h4 { font-size: 1.1rem; font-weight: 800; margin-bottom: 1.5vh; }
+  .mode-col .trio { font-family: "SF Mono", monospace; font-size: 1.4rem; font-weight: 800; letter-spacing: 0.3em; }
+  .mode-col p { font-size: clamp(0.75rem, 0.95vw, 0.85rem); line-height: 1.5; margin-top: 1.5vh; }
+  .mode-owner { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .mode-owner h4 { color: #FBBF24; }
+  .mode-group { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .mode-group h4 { color: #60A5FA; }
+  .mode-other { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .mode-other h4 { color: #34D399; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .sparsity-visual { flex-direction: column; } .mode-columns { grid-template-columns: 1fr; } .matrix-table { font-size: 0.7rem; } .matrix-table th, .matrix-table td { padding: 0.6vh 0.4vw; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L22</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-lime">🔰 START HERE // L22 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#84CC16"></div>
+  <p class="subtitle">Apply an access control matrix and distinguish an Access Control List (ACL) from a capability token.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> A modern operating system contains thousands of users and millions of resource objects — files, devices, sockets, shared memory segments. The full Access Control Matrix mapping every user to every object would require trillions of entries. But almost all of those entries are <em>empty</em> — User Alice has no permission to touch User Bob's photo, User Carol's database, or most of the system's memory. How do we store and enforce this matrix without physically allocating quadrillions of bits?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L17 Inodes</h3><p>File abstraction, inode metadata, and the <code>chmod</code>/<code>chown</code>-manipulated permission bit fields stored in the inode.</p></div>
+    <div class="card amber"><h3>02 · L02 Dual-Mode Barrier</h3><p>Ring 0 vs. Ring 3 hardware isolation — access control is enforceable only because user code cannot rewrite its own permission bits.</p></div>
+    <div class="card amber"><h3>03 · L21 /dev Nodes</h3><p>Device nodes protected by standard file permission bits, which we will formalize mathematically as ACLs today.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> Access control only works because it is enforced <em>below</em> user code. In Ring 3, an app cannot modify its own ACL entry or capability token — that would defeat the entire design. The dual-mode barrier from L02 is the physical substrate; access control is the policy running on it.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-lime">🎒 EVERYDAY SIMPLIFIED: THE OFFICE DIRECTORY BOARD</span>
+  <h2>The Access Control Matrix Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢📋✅</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Imagine a giant directory board at an office building's entrance. The rows list every employee's name; the columns list every room's number. Each cell has a checkmark (allowed) or an X (denied). To decide whether Alice may enter the server room, the security guard checks row "Alice," column "Server Room." This is the <strong>Access Control Matrix</strong> — the <em>complete theoretical model</em> of who can access what.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Every security policy is, mathematically, an entry in this matrix. The matrix is the <em>specification</em>; the entire challenge of access control is how to <em>store and query</em> it efficiently.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The matrix itself is the abstract concept — the next two slides show how it is actually implemented in practice.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-lime">🎒 EVERYDAY SIMPLIFIED: THE HOTEL ROOM DOOR REGISTRY</span>
+  <h2>The ACL Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🚪📋👥</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Instead of a giant directory at the entrance, each hotel room simply has a registry card attached to its own door. The card lists every person allowed into <em>this specific room</em>. When someone walks up and swipes their keycard, the door checks the registry. If your name is on the card, you enter. If not, the door stays locked.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>An <strong>Access Control List (ACL)</strong> stores permissions <em>on the resource itself</em>. It is a column of the access matrix — every row for one resource, stored locally at that resource.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>ACLs are resource-centric: the check happens at the resource, and the resource knows its allowed list.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-lime">🎒 EVERYDAY SIMPLIFIED: THE PHYSICAL KEYCARD</span>
+  <h2>The Capability Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🎫🔑🚪</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Instead of every door keeping a registry, the <em>employee</em> carries a keycard that lists every room they may enter. Door 204 does not know who Alice is — it just knows that the card presented has been cryptographically signed by the hotel manager as "authorized for 204." Doors do not check registries; they check <em>tokens</em>.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>A <strong>Capability</strong> stores permissions <em>with the user or process</em>. It is a row of the access matrix — every column for one subject, stored with that subject.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Capabilities are subject-centric: the check happens when the subject presents the token, and the resource trusts the token's authority.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-lime">🎒 EVERYDAY SIMPLIFIED: THE TRAFFIC LIGHT TRIAD</span>
+  <h2>The Permission Bit Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🚦📁🔢</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Unix took the theoretically-infinite access matrix and compressed it into a beautifully simple nine-bit vector: three permissions (read, write, execute) times three classes (owner, group, others). This is not the full matrix — but it captures 99% of real-world use cases in <em>nine bits per file</em>.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p><code>rwxr-xr--</code> decodes to "owner read/write/execute, group read/execute, others read only." The kernel checks the current process's uid/gid against the file's owner/group to pick which triplet to enforce.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is Unix's pragmatic concession: rather than the full access matrix, it stores a small, fast, sufficient approximation.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE ACCESS CONTROL DUALITY SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>🚪 Resource-Side (ACL)</h3><p>Policy is stored at the <em>resource</em>. The resource knows who may access it. Column-oriented access matrix.</p></div>
+    <div class="card emerald"><h3>🎫 Subject-Side (Capability)</h3><p>Policy is stored with the <em>subject</em>. The subject presents a token proving authorization. Row-oriented access matrix.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Access control has exactly two implementation strategies. Both are valid. Both enforce the same abstract matrix. The choice depends on which side scales better for the use case — and real systems often <strong>blend both</strong>.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-lime">💻 SYSTEMS COHESION: THE FORMAL PERMISSION GRID</span>
+  <h2>The Access Control Matrix Foundation</h2>
+  <table class="matrix-table">
+    <tr>
+      <th style="background:#0EA5E9;color:#020617">Subject</th>
+      <th>file1</th>
+      <th>file2</th>
+      <th>/dev/sda</th>
+      <th>Shared Memory</th>
+    </tr>
+    <tr>
+      <td class="subject">Alice</td>
+      <td class="matrix-allow">R, W</td>
+      <td class="matrix-allow">R</td>
+      <td class="matrix-deny">—</td>
+      <td class="matrix-deny">—</td>
+    </tr>
+    <tr>
+      <td class="subject">Bob</td>
+      <td class="matrix-allow">R</td>
+      <td class="matrix-allow">R, W</td>
+      <td class="matrix-allow">R</td>
+      <td class="matrix-deny">—</td>
+    </tr>
+    <tr>
+      <td class="subject">Charlie</td>
+      <td class="matrix-deny">—</td>
+      <td class="matrix-allow">R</td>
+      <td class="matrix-deny">—</td>
+      <td class="matrix-allow">R, W, X</td>
+    </tr>
+    <tr>
+      <td class="subject">System Daemon</td>
+      <td class="matrix-deny">—</td>
+      <td class="matrix-allow">R</td>
+      <td class="matrix-allow">R, W</td>
+      <td class="matrix-deny">—</td>
+    </tr>
+  </table>
+  <div class="card-grid grid-2" style="margin-top:2vh">
+    <div class="card">
+      <h3>The Matrix Structure</h3>
+      <p><strong>Rows (Subjects):</strong> Every user, process, or protection domain.</p>
+      <p><strong>Columns (Objects):</strong> Every protected resource. Files, directories, devices, sockets, shared memory.</p>
+      <p><strong>Cells:</strong> The permission set the subject has on that object.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Verdict</h3>
+      <p>Every permission check in every OS is, mathematically, a lookup in this matrix.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>The design question is <em>how</em> to store and query it.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-lime">💻 SYSTEMS COHESION: WHY THE MATRIX CANNOT FIT IN MEMORY</span>
+  <h2>The Sparsity Problem</h2>
+  <div class="sparsity-visual">
+    <div class="sparsity-side sparse-acl">
+      <h4>📊 The Full Matrix (Impossible)</h4>
+      <p>10,000 users × 10,000,000 files = 10¹¹ (100 billion) cells.</p>
+      <p style="margin-top:1vh">At 1 byte per cell: 100 GB just for permissions.</p>
+      <p style="margin-top:1vh;color:#F87171"><strong>Almost all cells are empty.</strong></p>
+    </div>
+    <div class="sparsity-arrow">vs</div>
+    <div class="sparsity-side sparse-cap">
+      <h4>✅ Compact Storage</h4>
+      <p><strong>ACL (column-oriented):</strong> Store only the non-empty cells for each <em>object</em>.</p>
+      <p><strong>Capability (row-oriented):</strong> Store only the non-empty cells for each <em>subject</em>.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>The same matrix, stored sparsely.</strong></p>
+    </div>
+  </div>
+  <div class="callout callout-lime" style="margin-top:2vh">
+    <strong>The Verdict:</strong> The entire history of access control is a design choice between two compact representations, each optimized for a different query pattern. There is no way around the sparsity — the matrix must be <em>compressed</em>.
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-lime">💻 SYSTEMS COHESION: THE RESOURCE-SIDE ENFORCEMENT</span>
+  <h2>Access Control List Internals</h2>
+  <div class="acl-table">
+    <div class="acl-header">/etc/passwd ACL (conceptual)</div>
+    <div class="acl-entry"><span class="acl-user">user:alice:</span><span class="acl-perms">rw-</span></div>
+    <div class="acl-entry"><span class="acl-user">user:bob:</span><span class="acl-perms">r--</span></div>
+    <div class="acl-entry"><span class="acl-user">group:devs:</span><span class="acl-perms">rwx</span></div>
+    <div class="acl-entry"><span class="acl-user">other:</span><span class="acl-perms">r--</span></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:2vh">
+    <div class="card">
+      <h3>The Lookup Algorithm</h3>
+      <p>When a process requests access, the kernel walks the ACL list looking for the <em>first matching entry</em> — user, then group memberships, then "other."</p>
+      <p style="margin-top:1vh"><strong>The most specific match wins.</strong></p>
+    </div>
+    <div class="card emerald">
+      <h3>The Unix Permission Bits</h3>
+      <p>The classic <code>rwxr-xr--</code> in every inode is just a <em>compressed ACL</em> with exactly three entries: owner, group, and others.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>POSIX ACLs extend this with per-user and per-group entries stored in extended inodes.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-lime">💻 SYSTEMS COHESION: THE SUBJECT-SIDE ENFORCEMENT</span>
+  <h2>Capability Token Internals</h2>
+  <div class="capability-box">
+<span class="cap-kw">struct</span> capability {<br>
+    &nbsp;&nbsp;<span class="cap-field">object_id</span>:   <span class="cap-value">0x0042A1</span>;     <span style="color:#475569">// Unforgeable resource ID</span><br>
+    &nbsp;&nbsp;<span class="cap-field">permissions</span>: <span class="cap-value">R | W | X</span>;    <span style="color:#475569">// Rights granted</span><br>
+    &nbsp;&nbsp;<span class="cap-field">signature</span>:   <span class="cap-sig">0xC0FFEE</span>;      <span style="color:#475569">// Kernel-signed proof</span><br>
+};
+  </div>
+  <div class="card-grid grid-2" style="margin-top:2vh">
+    <div class="card">
+      <h3>The Verification Algorithm</h3>
+      <p>When the process presents a capability, the resource trusts it because the <em>kernel signed it</em>. The resource does not consult any registry — it validates the signature.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Capability Invariants</h3>
+      <p><strong>Unforgeable:</strong> A user process cannot construct a new capability.</p>
+      <p><strong>Transferable:</strong> Capabilities can optionally be passed between cooperating processes.</p>
+      <p><strong>Revocable with difficulty:</strong> Removing a capability from a running process is notoriously hard.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-lime">💻 SYSTEMS COHESION: REAL-WORLD ACL AND CAPABILITY HYBRID</span>
+  <h2>Unix Permission Bits and setcap</h2>
+  <div class="mode-columns">
+    <div class="mode-col mode-owner">
+      <h4>Owner</h4>
+      <div class="trio">rwx</div>
+      <p>The UID that owns the file. Full control.</p>
+    </div>
+    <div class="mode-col mode-group">
+      <h4>Group</h4>
+      <div class="trio">r-x</div>
+      <p>Members of the file's GID. Read and execute.</p>
+    </div>
+    <div class="mode-col mode-other">
+      <h4>Others</h4>
+      <div class="trio">r--</div>
+      <p>Everyone else. Read only.</p>
+    </div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>File Permissions (ACL)</h3>
+      <p><code>chmod</code>, <code>chown</code> — every file's <code>rwxr-xr--</code> bits are a compressed ACL. POSIX ACLs (<code>setfacl</code>) extend this for granular per-user entries.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Linux Capabilities (Capability)</h3>
+      <p>The kernel can grant fine-grained privileges to specific binaries. Instead of "root can do anything," <code>setcap cap_net_bind_service+ep /usr/bin/myapp</code> grants only "bind to low ports" to one binary.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>Modern Linux uses both models simultaneously — ACL for files, capabilities for privileged operations.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON HARDWARE ENFORCEMENT</span>
+  <h2>Core System Cohesion — Relies On L02</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L02's Barrier</h3><p>Access control is only enforceable because the check runs at a <em>higher privilege level</em> than the requester. In Ring 3, an app cannot rewrite its own ACL entry or capability token — the kernel enforces the matrix from Ring 0.</p></div>
+    <div class="card"><h3>The Architectural Bond</h3><p>If the dual-mode barrier were absent, an app could simply rewrite the permission bits it needed and bypass all security. The hardware barrier <em>is</em> the security foundation; the software ACL is the policy running on it.</p></div>
+    <div class="card violet"><h3>Feeds Into L23</h3><p>ACLs require <em>verified identity</em> — you cannot check "who is asking" against "who is allowed" without proven identity. This is why L23 (authentication) follows immediately.</p></div>
+    <div class="card emerald"><h3>Feeds Into L27</h3><p>Containers (L27) wrap every process's capabilities into a namespace-scoped security domain — the ultimate generalization of the ACL model.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO AUTH AND ISOLATION</span>
+  <h2>Core System Cohesion — Feeds Into L23 &amp; L27</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L23 (Authentication)</h3><p>ACLs are meaningless without identity verification. Every permission check compares "who is asking" against "who is allowed" — but the "who" must be provable. Passwords, biometrics, hardware tokens.</p></div>
+    <div class="card"><h3>L24 (Exploits)</h3><p>Buffer overflow exploits (L24) attempt to <em>bypass</em> ACLs by hijacking execution inside Ring 0. Every mitigation (ASLR, canaries, NX) is a defense against ACL bypass.</p></div>
+    <div class="card"><h3>L25 (Encryption)</h3><p>Encryption protects data in transit — but the resource that <em>decrypts</em> it must still enforce its ACLs. Encryption is the confidentiality layer; ACLs are the authorization layer.</p></div>
+    <div class="card emerald"><h3>L27 (Isolation)</h3><p>Containers extend the ACL model to entire process groups via namespaces and cgroups — the ultimate generalized access control framework.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: ACCESS CONTROL STRATEGIES</span>
+  <h2>Access Control Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Access Control</h3><p>SELinux and standard Unix permissions live entirely in Ring 0. Every <code>open()</code> syscall triggers a check against the file's ACL and, if SELinux is active, against a policy database. Centralized and fast, but policy changes require reloading from Ring 0.</p></div>
+    <div class="card emerald"><h3>Microkernel Access Control</h3><p>Capability-based microkernels (seL4, EROS, Coyotos) use an <em>all-capability</em> model — no ACLs, only unforgeable tokens. Every IPC channel and memory region access requires holding the right capability. Provably secure, but unforgiving.</p></div>
+    <div class="card amber"><h3>Layered Access Control</h3><p>Strict tier separation — hardware sandboxing (Ring 0/Ring 3) → OS ACLs (kernel) → application-level access control (e.g., database GRANT). Each layer enforces the same policy from a different trust level.</p></div>
+    <div class="card"><h3>Modular Access Control</h3><p>Linux's actual model — the base ACL check is in the kernel, but LSM (Linux Security Modules) hooks let pluggable modules like SELinux, AppArmor, and Smack inject additional policy checks at each syscall point.</p></div>
+    <div class="card lime"><h3>Hybrid Access Control</h3><p>Standard Unix ACLs for common use, plus Linux capabilities for privilege reduction, plus SELinux for mandatory access control. Modern enterprise systems run all three simultaneously.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE SECURITY VOCABULARY</span>
+  <h2>Base Access Control Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Access Control Matrix</h3>
+      <p>A conceptual grid mapping user or process protection domains (rows) against system resource objects (columns) to define structural read, write, and execute permissions; the mathematical specification that every access control mechanism — ACLs and capabilities alike — approximates. Enormous in theory (10¹¹ cells on a typical system) but overwhelmingly sparse in practice.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The master office directory board listing who may enter which room.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Access Control List (ACL)</h3>
+      <p>A column-oriented optimization of the access control matrix where permissions are stored directly on the resource object; each resource maintains a list of <code>{subject, permissions}</code> entries, and lookups walk this list to determine whether a requester is allowed. The most common real-world implementation — every Unix file mode is a tiny compressed ACL.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The laminated card clipped to the door listing who is allowed inside.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE SECURITY VOCABULARY</span>
+  <h2>Advanced Access Control Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Capability</h3>
+      <p>A row-oriented security optimization where an unforgeable kernel-issued token is held by a subject process and presented to protected resources to prove authorization; the resource trusts the token without consulting any registry, and the token cannot be forged or duplicated by user code. Provides stronger guarantees than ACLs at the cost of harder revocation.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The employee's signed keycard listing which rooms they may enter.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Protection Domain</h3>
+      <p>The bounded execution environment profile that determines which operations a thread is permitted to perform across various system objects; typically defined by the process's uid, gid, supplementary groups, and its capability set. Every thread in a process shares the same protection domain unless explicitly changed.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The employee's badge color — blue for engineering, red for security, gold for executives.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Privilege Escalation</h3>
+      <p>An attack in which a process or user obtains permissions beyond those granted by the access control policy; may be <em>vertical</em> (user → root) or <em>horizontal</em> (user A → user B). Often the target of exploits against misconfigured ACLs, leaked capabilities, or buffer overflows (L24).</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Sneaking into a room whose door card you were not given.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-lime">💻 CODE DISSECTION: C ACL SIMULATOR</span>
+  <h2>Implementing a Minimal ACL Check in C</h2>
+  <pre class="code-block"><span class="cm">// Simulating a minimal resource-side ACL check in C</span>
+<span class="cm">// Compile: gcc -o acl acl.c &amp;&amp; ./acl</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string.h&gt;</span>
+
+<span class="kw">#define</span> MAX_ENTRIES <span class="num">8</span>
+
+<span class="kw">typedef</span> <span class="kw">enum</span> { PERM_NONE = <span class="num">0</span>, PERM_READ = <span class="num">1</span>, PERM_WRITE = <span class="num">2</span>,
+               PERM_EXEC = <span class="num">4</span> } Permission;
+
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    <span class="kw">char</span> username[<span class="num">32</span>];
+    Permission perms;
+} ACLEntry;
+
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    ACLEntry entries[MAX_ENTRIES];
+    <span class="kw">int</span> count;
+} ACL;
+
+<span class="kw">void</span> <span class="fn">acl_add</span>(ACL* acl, <span class="kw">const char</span>* user, Permission perms) {
+    <span class="kw">if</span> (acl-&gt;count &lt; MAX_ENTRIES) {
+        <span class="fn">strncpy</span>(acl-&gt;entries[acl-&gt;count].username, user, <span class="num">31</span>);
+        acl-&gt;entries[acl-&gt;count].perms = perms;
+        acl-&gt;count++;
+    }
+}
+
+<span class="kw">int</span> <span class="fn">acl_check</span>(ACL* acl, <span class="kw">const char</span>* user, Permission requested) {
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; acl-&gt;count; i++) {
+        <span class="kw">if</span> (<span class="fn">strcmp</span>(acl-&gt;entries[i].username, user) == <span class="num">0</span>) {
+            <span class="cm">// Match found — check if requested permission is present</span>
+            <span class="kw">return</span> (acl-&gt;entries[i].perms &amp; requested) == requested;
+        }
+    }
+    <span class="kw">return</span> <span class="num">0</span>;  <span class="cm">// User not in list — default deny</span>
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    ACL file_acl = { .count = <span class="num">0</span> };
+    <span class="fn">acl_add</span>(&amp;file_acl, <span class="str">"alice"</span>, PERM_READ | PERM_WRITE);
+    <span class="fn">acl_add</span>(&amp;file_acl, <span class="str">"bob"</span>,   PERM_READ);
+    <span class="fn">acl_add</span>(&amp;file_acl, <span class="str">"carol"</span>, PERM_READ | PERM_WRITE | PERM_EXEC);
+
+    <span class="fn">printf</span>(<span class="str">"ACL CHECK RESULTS:\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"Alice read:  %s\n"</span>,
+        <span class="fn">acl_check</span>(&amp;file_acl, <span class="str">"alice"</span>, PERM_READ) ? <span class="str">"GRANTED"</span> : <span class="str">"DENIED"</span>);
+    <span class="fn">printf</span>(<span class="str">"Alice write: %s\n"</span>,
+        <span class="fn">acl_check</span>(&amp;file_acl, <span class="str">"alice"</span>, PERM_WRITE) ? <span class="str">"GRANTED"</span> : <span class="str">"DENIED"</span>);
+    <span class="fn">printf</span>(<span class="str">"Alice exec:  %s\n"</span>,
+        <span class="fn">acl_check</span>(&amp;file_acl, <span class="str">"alice"</span>, PERM_EXEC) ? <span class="str">"GRANTED"</span> : <span class="str">"DENIED"</span>);
+    <span class="fn">printf</span>(<span class="str">"Bob   write: %s\n"</span>,
+        <span class="fn">acl_check</span>(&amp;file_acl, <span class="str">"bob"</span>, PERM_WRITE) ? <span class="str">"GRANTED"</span> : <span class="str">"DENIED"</span>);
+    <span class="fn">printf</span>(<span class="str">"Eve   read:  %s\n"</span>,
+        <span class="fn">acl_check</span>(&amp;file_acl, <span class="str">"eve"</span>, PERM_READ) ? <span class="str">"GRANTED"</span> : <span class="str">"DENIED"</span>);
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-lime">💻 CODE DISSECTION: TRACING ACL VERIFICATION WEIGHTS</span>
+  <h2>Walking the ACL Check Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>acl_add(&amp;file_acl, "alice", PERM_READ | PERM_WRITE)</h3><p><strong>Column-oriented write.</strong> Adds a specific subject-permission pair to the <em>resource's</em> ACL. We are modifying one column (this file) of the access matrix.</p></div>
+    <div class="card"><h3>acl_check(&amp;file_acl, "alice", PERM_READ)</h3><p><strong>Linear scan + bitmask check.</strong> Walks the ACL entries, finds Alice's, checks her <code>PERM_READ</code> bit. <strong>GRANTED</strong> — bit is set. This is a <em>resource-side</em> check.</p></div>
+    <div class="card emerald"><h3>acl_check(&amp;file_acl, "alice", PERM_EXEC)</h3><p><strong>Same scan, bit not set.</strong> Alice's permissions lack <code>PERM_EXEC</code>. <strong>DENIED</strong>.</p></div>
+    <div class="card crimson"><h3>acl_check(&amp;file_acl, "eve", PERM_READ)</h3><p><strong>Not in list → default deny.</strong> <code>eve</code> is not in the list; the function falls through to <code>return 0</code>. The <em>default-deny principle</em> is the correct security posture: no ACL entry = no access.</p></div>
+    <div class="card"><h3>perms &amp; requested</h3><p><strong>The critical permission check.</strong> The <code>&amp;</code> operator tests whether every requested bit is present. This is why permissions are <em>bitmasks</em> — it makes the check a single instruction.</p></div>
+    <div class="card amber"><h3>The Verdict</h3><p>ACLs are astonishingly simple — a linear list of <code>{user, bitmask}</code> entries with a default-deny rule. <strong>This is what protects every <code>/dev</code> device, every <code>/etc</code> config file, and every <code>/home</code> directory on a Unix system.</strong></p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎯 INTERACTIVE WORKSHOP: THE PHYSICAL ACCESS MATRIX</span>
+  <h2>The Human Access Control Matrix</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Students 01–03 · The Resources</h3><p>Each holds an index card listing their ACL — e.g., Resource A: <code>{Alice: read}</code>, Resource B: <code>{Alice: read+write, Bob: read}</code>, Resource C: <code>{}</code> (empty).</p></div>
+    <div class="card amber"><h3>Students 04–06 · The Subjects</h3><p>Each is told their identity — Alice, Bob, Eve.</p></div>
+    <div class="card emerald"><h3>Student 07 · The Kernel Guardian</h3><p>Receives each request and must physically walk to the correct resource student to perform the check.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>The Execution:</strong> Call out a sequence of requests ("Alice reads Resource B", "Eve writes Resource A", "Bob executes Resource C"). The Kernel Guardian must walk to the correct Resource, ask "is this allowed?", and return the verdict. Have students draw a live tally sheet of GRANTED/DENIED results.</p>
+  <p class="hint" style="margin-top:2vh">Later, discuss: which requests would have been flipped if we were using capabilities instead (subjects carrying their permissions rather than resources storing them)?</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-lime">💻 TRY IT LIVE: AUDITING REAL ACCESS CONTROL</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> ls -l /etc/passwd /etc/shadow /dev/sda  <span class="out"># Compare rwx bits across files</span>
+<span class="cmd">$</span> stat -c "%A %U:%G %n" /etc/passwd       <span class="out"># Symbolic + numeric owner</span>
+<span class="cmd">$</span> getfacl /home/user 2&gt;/dev/null          <span class="out"># POSIX ACLs on a directory</span>
+<span class="cmd">$</span> setfacl -m u:alice:rw /tmp/testfile     <span class="out"># Grant Alice read+write</span>
+<span class="cmd">$</span> getfacl /tmp/testfile                   <span class="out"># Verify the new ACL entry</span>
+<span class="cmd">$</span> getcap /usr/bin/ping                   <span class="out"># Kernel capabilities on a binary</span>
+<span class="cmd">$</span> sudo setcap cap_net_raw+ep /usr/bin/ping  <span class="out"># Grant raw socket capability</span>
+<span class="cmd">$</span> capsh --print                          <span class="out"># Show current shell's capabilities</span></pre>
+  <p class="hint"><code>getfacl</code> reveals the full POSIX ACL for a file — including per-user and per-group entries that extend the basic <code>rwx</code> bits. <code>capsh --print</code> lists the current process's Linux capabilities.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 7: Security &amp; Protection
+        └── <span class="active">L22: Access Control (ACTIVE NODE 🌟)</span>
+              ├── The Sparsity Problem &amp; Two Storage Strategies
+              └── Resource ACLs (Column-Oriented) vs Subject Capabilities (Row-Oriented)</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>The complete <strong>access control matrix</strong> is theoretically enormous (10¹¹ cells on a typical system) but overwhelmingly sparse. Real systems use one of two compact representations to store only the non-empty cells — never the full matrix.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p><strong>ACLs</strong> (column-oriented) store permissions on the resource; <strong>capabilities</strong> (row-oriented) store them with the subject. Unix's <code>rwxr-xr--</code> bits are a compressed ACL; Linux's <code>setcap</code> grants capabilities. Modern systems blend both — the same abstract matrix enforced from both sides.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>Access control is only enforceable because the check runs in Ring 0 (per L02), above the requesting user's privilege level. The <strong>hardware dual-mode barrier</strong> is the physical substrate; the <strong>access matrix</strong> is the policy running on it.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 23 — Authentication</strong><br><br>
+    Access control presumes the ability to <em>prove identity</em> — you cannot check whether Alice may read a file if you cannot verify that the caller actually <em>is</em> Alice. We will explore the three authentication factor classes — knowledge (passwords), possession (hardware keys), and inherence (biometrics) — trace how salted cryptographic hashing defends against database theft, and dissect the fundamental irreversibility problem that makes biometric compromise far more catastrophic than a leaked password.
+  </div>
+  <p class="hint">File: L23.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
