@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L25 · Encryption Fundamentals</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  .badge-indigo { color: #A5B4FC; border-color: #6366F1; background: rgba(99,102,241,0.08); }
+  .badge-pink { color: #F9A8D4; border-color: #EC4899; background: rgba(236,72,153,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-pink { border-color: #EC4899; background: rgba(236,72,153,0.06); color: #F9A8D4; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.pink h3 { color: #F9A8D4; } .card.pink { border-color: #831843; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .crypto-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 2vw; max-width: 1100px; width: 100%; margin: 2vh auto; }
+  .crypto-side { padding: 3vh 2vw; border-radius: 12px; border: 2px solid; text-align: left; }
+  .crypto-side .icon { font-size: 2.5rem; margin-bottom: 1.5vh; }
+  .crypto-side h4 { font-size: 1.3rem; font-weight: 800; margin-bottom: 1.2vh; }
+  .crypto-side p { font-size: clamp(0.85rem, 1.05vw, 0.95rem); line-height: 1.55; margin-bottom: 0.8vh; }
+  .crypto-side .verdict { margin-top: 1.5vh; padding: 1.2vh 1vw; border-radius: 4px; font-family: "SF Mono", monospace; font-size: 0.8rem; font-weight: 800; text-align: center; }
+  .crypto-sym { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .crypto-sym h4 { color: #34D399; }
+  .crypto-sym .verdict { background: rgba(16,185,129,0.15); color: #34D399; }
+  .crypto-asym { border-color: #8B5CF6; background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  .crypto-asym h4 { color: #A78BFA; }
+  .crypto-asym .verdict { background: rgba(139,92,246,0.15); color: #A78BFA; }
+  .handshake-flow { display: flex; flex-direction: column; gap: 1.2vh; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .handshake-step { display: flex; gap: 1.5vw; align-items: center; padding: 2vh 2vw; border-radius: 10px; border: 2px solid; text-align: left; }
+  .handshake-step .num { font-size: 1.8rem; font-weight: 900; min-width: 60px; }
+  .handshake-step p { font-size: clamp(0.85rem, 1.05vw, 0.95rem); line-height: 1.5; }
+  .hs-1 { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .hs-2 { border-color: #8B5CF6; background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  .hs-3 { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .hs-4 { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .cert-chain { display: flex; flex-direction: column; align-items: center; gap: 1vh; max-width: 700px; width: 100%; margin: 2vh auto; }
+  .cert-node { padding: 2.5vh 2vw; border-radius: 10px; border: 2px solid; text-align: center; font-family: "SF Mono", monospace; font-weight: 800; font-size: 0.95rem; min-width: 260px; }
+  .cert-root { border-color: #10B981; background: rgba(16,185,129,0.08); color: #34D399; }
+  .cert-inter { border-color: #3B82F6; background: rgba(59,130,246,0.08); color: #60A5FA; }
+  .cert-leaf { border-color: #F59E0B; background: rgba(245,158,11,0.08); color: #FBBF24; }
+  .cert-arrow { font-size: 1.5rem; color: #475569; }
+  .cert-label { font-size: 0.85rem; color: #94A3B8; margin-top: 1vh; text-align: center; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .crypto-compare { grid-template-columns: 1fr; } .handshake-step { flex-direction: column; text-align: center; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L25</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-pink">🔰 START HERE // L25 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#EC4899"></div>
+  <p class="subtitle">Distinguish symmetric from asymmetric encryption architectures, and name where each shows up in modern computer networks.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> L24 taught us that defending <em>code</em> is hard — but even perfectly written code exposes data in transit: passwords, credit cards, medical records, session tokens. Encryption solves this — but with a fatal engineering problem: symmetric encryption is incredibly fast, yet it requires both parties to share a secret in advance. Asymmetric encryption solves the key distribution problem, but is astronomically slow. <strong>How do real systems get the best of both?</strong>
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L23 Authentication</h3><p>Salted hashes, the three factor classes, and the critical distinction between <em>hashing</em> (one-way) and <em>encryption</em> (two-way).</p></div>
+    <div class="card amber"><h3>02 · L21 Network Interfaces</h3><p>The socket API and how encrypted data travels through network sockets. Every HTTPS connection is a socket on port 443.</p></div>
+    <div class="card amber"><h3>03 · Number Theory Intuition</h3><p>Prime numbers, modular arithmetic, and the concept of a mathematical <em>trapdoor function</em> — easy forward, hard to reverse.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> The <em>hard part</em> of encryption is not the math — it is <em>key management</em>. Every real cryptographic break in history has been a <em>key management failure</em> (stolen keys, weak keys, reused keys), not a mathematical attack on the cipher itself.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-pink">🎒 EVERYDAY SIMPLIFIED: THE SHARED HOUSE KEY</span>
+  <h2>The Symmetric Encryption Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🔑🏠🔑</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Alice and Bob each hold an identical copy of the same house key. When Alice locks the door, she uses her key. When Bob wants to enter, he uses his identical copy. The key that <em>locks</em> is the same key that <em>unlocks</em>. Beautiful and efficient — until Alice needs to give her key to a <em>new</em> friend, Charlie. Now she has to physically meet Charlie in advance, hand him a key, and hope he does not lose it — because <em>anyone with the key</em> can lock or unlock the house.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Symmetric encryption uses one shared secret key for both encryption and decryption. The key must be shared securely in advance. Extremely fast (AES runs at gigabytes per second) but does not scale to billions of users.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the classic "two people, one key" model, with the fundamental problem of <em>key distribution</em>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-pink">🎒 EVERYDAY SIMPLIFIED: THE MAILBOX SLOT</span>
+  <h2>The Asymmetric Encryption Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📮✉️🔐</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A street mailbox has an open slot on the front — anyone in the world can push a sealed letter through it. But once inside, the letters are trapped. Only the person holding the <em>back key</em> can open the back panel and retrieve them. The "public" side (the slot) can <em>encrypt</em> messages by adding them to the mailbox; the "private" side (the key) is required to <em>decrypt</em> them.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Asymmetric encryption uses a <em>key pair</em>: a public key that anyone can use to encrypt, and a private key that only the recipient holds to decrypt. No secret sharing is required in advance — the public key can be published freely.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This solves the key distribution problem — but the math is much slower, so it is reserved for short messages (like key exchanges, not bulk data).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-pink">🎒 EVERYDAY SIMPLIFIED: THE SAFE DELIVERY</span>
+  <h2>The Hybrid Encryption Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📮🔑📦</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>For a large delivery, the post office uses a two-step protocol. First, they use the <em>slow, secure</em> mailbox (asymmetric) to send you a small key. Then you use that small key to unlock a <em>large, fast</em> shipping container (symmetric) where they send the actual cargo. The container is much faster than the mailbox — but only works because the key was safely delivered through the mailbox first.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Hybrid encryption combines both: asymmetric encryption (RSA/ECDH) is used only to negotiate a shared symmetric session key; then symmetric encryption (AES) handles the bulk data. This is exactly how TLS/HTTPS works.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the actual architecture of every secure internet connection today — the "best of both worlds" design.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-pink">🎒 EVERYDAY SIMPLIFIED: THE TWO-PADLOCK TRICK</span>
+  <h2>The Key Exchange Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🔒📦🔓</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Alice has a padlock (public key) that she freely gives out, but only she holds the matching key (private key). Bob writes a message, puts it in a box, and locks it with Alice's padlock. He then returns the box. Now, <em>no one except Alice</em> can open the box — not even Bob himself. This is a beautiful property: Bob could not read the message if he changed his mind.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>In practice, this is the asymmetric encryption operation itself. Alice sends Bob her public key; Bob encrypts a message with it; Alice decrypts with her private key. This is exactly what happens in the first phase of an HTTPS handshake.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the specific interaction pattern that defines how asymmetric encryption works <em>in practice</em> — padlocks go one way, private keys stay home.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE CRYPTOGRAPHIC DUALITY SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card violet"><h3>🐢 Slow, Secure Handshake</h3><p>Asymmetric encryption (RSA/ECDH). Solves the key distribution problem. Slow (~1000× slower than symmetric).</p></div>
+    <div class="card emerald"><h3>⚡ Fast Bulk Data</h3><p>Symmetric encryption (AES). Handles gigabytes per second. Requires a shared key negotiated in the handshake.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">The entire history of practical encryption is a story of <strong>combining the two</strong>: use the slower, safer asymmetric algorithm to bootstrap trust, then switch to the faster symmetric algorithm for the actual data. Neither alone would work at internet scale; together, they power every secure connection on Earth.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-pink">💻 SYSTEMS COHESION: ONE-KEY BLOCK CIPHER</span>
+  <h2>Symmetric Encryption — The AES Foundation</h2>
+  <div class="crypto-compare">
+    <div class="crypto-side crypto-sym">
+      <div class="icon">🔑</div>
+      <h4>AES (Advanced Encryption Standard)</h4>
+      <p><strong>Key sizes:</strong> 128, 192, or 256 bits.</p>
+      <p><strong>Transformation:</strong> Repeated rounds of byte substitution, permutation, and XOR with key-derived material.</p>
+      <p><strong>Encryption:</strong> Same cipher runs forward with the key.</p>
+      <p><strong>Decryption:</strong> Same cipher runs in reverse with the <em>same</em> key.</p>
+      <div class="verdict">THROUGHPUT: GB/s</div>
+    </div>
+    <div class="crypto-side crypto-sym">
+      <div class="icon">⚡</div>
+      <h4>Where It Is Used</h4>
+      <p><strong>Disk encryption:</strong> LUKS, BitLocker, FileVault.</p>
+      <p><strong>VPN traffic:</strong> WireGuard, IPSec.</p>
+      <p><strong>HTTPS bulk transfer:</strong> Every TLS session after handshake.</p>
+      <p><strong>Modern CPUs have AES-NI hardware acceleration:</strong> AES is nearly free in terms of CPU cycles.</p>
+      <div class="verdict">UNIVERSAL STANDARD</div>
+    </div>
+  </div>
+  <div class="callout callout-emerald" style="margin-top:2vh">
+    <strong>The Verdict:</strong> AES is the universal choice for bulk data. It is fast enough to encrypt everything from your hard drive to your network traffic, and has been mathematically vetted for 25+ years.
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-pink">💻 SYSTEMS COHESION: THE FUNDAMENTAL SCALING BARRIER</span>
+  <h2>The Key Distribution Problem</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson">
+      <h3>The N(N-1)/2 Scaling Problem</h3>
+      <p><strong>N users:</strong> If every pair needs a unique symmetric key, the total number of keys required is <strong>N(N-1)/2</strong>.</p>
+      <p style="margin-top:1vh">· <strong>1,000 users:</strong> ~500,000 keys</p>
+      <p>· <strong>1 billion users (internet scale):</strong> ~500 quadrillion keys</p>
+      <p style="margin-top:1vh"><strong>Physically impossible to distribute, store, or rotate.</strong></p>
+    </div>
+    <div class="card amber">
+      <h3>The Other Problems</h3>
+      <p><strong>Secure initial channel:</strong> How do two parties who have never met safely agree on a key? If they already had a secure channel, they would not need encryption.</p>
+      <p style="margin-top:1vh"><strong>Compromise blast radius:</strong> If one user's key is compromised, every party they communicated with is potentially compromised.</p>
+      <p style="margin-top:1vh"><strong>Rotation cost:</strong> Changing keys requires re-negotiating with every peer.</p>
+    </div>
+  </div>
+  <div class="callout callout-crimson" style="margin-top:2vh">
+    <strong>The Verdict:</strong> Symmetric encryption alone cannot scale to the internet. This scaling problem is precisely what asymmetric encryption solves.
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-pink">💻 SYSTEMS COHESION: THE TWO-KEY TRAPDOOR</span>
+  <h2>Asymmetric Encryption — The RSA Mechanism</h2>
+  <div class="crypto-compare">
+    <div class="crypto-side crypto-asym">
+      <div class="icon">🔓</div>
+      <h4>The Key Pair</h4>
+      <p><strong>Public Key:</strong> Widely published. Used for encryption (and signature verification).</p>
+      <p><strong>Private Key:</strong> Held secretly by one party. Used for decryption (and signing).</p>
+      <p><strong>Mathematical Link:</strong> The keys are derived together, but the private key cannot feasibly be computed from the public key.</p>
+    </div>
+    <div class="crypto-side crypto-asym">
+      <div class="icon">🔢</div>
+      <h4>The Trapdoor Function</h4>
+      <p><strong>RSA:</strong> Multiplying two large primes is easy (p × q); factoring the result back is computationally infeasible for &gt;2048-bit numbers.</p>
+      <p><strong>Encryption:</strong> <code>ciphertext = plaintext^e mod n</code></p>
+      <p><strong>Decryption:</strong> <code>plaintext = ciphertext^d mod n</code></p>
+      <div class="verdict">~1000× SLOWER THAN AES</div>
+    </div>
+  </div>
+  <div class="callout callout-crimson" style="margin-top:2vh">
+    <strong>The Verdict:</strong> Asymmetric is the <em>bootstrap</em> mechanism, not the <em>bulk</em> mechanism. Its role is to establish a shared symmetric key, not to carry bulk data.
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-pink">💻 SYSTEMS COHESION: BEST OF BOTH WORLDS</span>
+  <h2>The Hybrid Encryption Handshake</h2>
+  <div class="handshake-flow">
+    <div class="handshake-step hs-1">
+      <div class="num">1</div>
+      <p><strong>Client Hello:</strong> Client initiates connection, sends supported ciphers.</p>
+    </div>
+    <div class="handshake-step hs-2">
+      <div class="num">2</div>
+      <p><strong>Server Hello + Public Key:</strong> Server responds with its certificate (containing its public key, signed by a trusted certificate authority).</p>
+    </div>
+    <div class="handshake-step hs-3">
+      <div class="num">3</div>
+      <p><strong>Client Key Exchange:</strong> Client generates a random <em>session key</em>, encrypts it with the server's public key, sends the encrypted session key to the server.</p>
+    </div>
+    <div class="handshake-step hs-4">
+      <div class="num">4</div>
+      <p><strong>Session Established:</strong> Server decrypts the session key with its private key. Now both parties share the same symmetric key — securely, without ever transmitting it in the clear.</p>
+    </div>
+    <div class="handshake-step hs-4">
+      <div class="num">5</div>
+      <p><strong>Symmetric Bulk Transfer:</strong> All subsequent traffic uses AES (or ChaCha20) with the negotiated session key — fast, efficient, secure.</p>
+    </div>
+  </div>
+  <div class="callout callout-emerald" style="margin-top:2vh">
+    <strong>The Verdict:</strong> This is <em>the</em> architectural pattern. HTTPS, VPNs, SSH, and every secure messaging app use this exact design. It is the industry consensus.
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-pink">💻 SYSTEMS COHESION: THE TRUST CHAIN</span>
+  <h2>The Certificate Trust Problem</h2>
+  <div class="cert-chain">
+    <div class="cert-node cert-root">Root CA<br><span style="font-size:0.75rem">Trusted by your OS (preinstalled)</span></div>
+    <div class="cert-arrow">↓ signs</div>
+    <div class="cert-node cert-inter">Intermediate CA<br><span style="font-size:0.75rem">Signed by root, signs end servers</span></div>
+    <div class="cert-arrow">↓ signs</div>
+    <div class="cert-node cert-leaf">Server Certificate<br><span style="font-size:0.75rem">Contains server's public key</span></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:2vh">
+    <div class="card crimson">
+      <h3>The MITM Attack</h3>
+      <p>An attacker (Man-in-the-Middle) intercepts the connection, sends <em>their own</em> public key instead, decrypts your message with their private key, re-encrypts it with the real server's public key, and forwards it. You never notice.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Certificate Solution</h3>
+      <p><strong>Certificate Authority (CA):</strong> A trusted third party.</p>
+      <p><strong>Certificate:</strong> The server's public key bundled with its identity, <em>digitally signed</em> by the CA.</p>
+      <p><strong>Verification:</strong> Client checks the CA's signature. If valid, it trusts the server's public key.</p>
+      <p><strong>Trust Anchor:</strong> OS ships with a list of trusted root CAs. Trust propagates from these roots down.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON AUTH AND SOCKETS</span>
+  <h2>Core System Cohesion — Relies On L23 &amp; L21</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L23 (Authentication)</h3><p>A TLS handshake is fundamentally an <em>authentication protocol</em>. The certificate proves server identity; the session key protects subsequent authentication tokens (passwords, MFA codes). Without encryption, authentication credentials are visible on the wire.</p></div>
+    <div class="card"><h3>L21 (Network Stack)</h3><p>Encrypted traffic flows through network device drivers and socket APIs. Encryption lives <em>above</em> the driver layer but <em>below</em> the application layer.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>Encryption is not a standalone security feature — it is the transport layer's enforcement of confidentiality for L23's authentication and every subsequent data stream.</p></div>
+    <div class="card emerald"><h3>Feeds Into L26</h3><p>Encryption makes <em>content-based</em> inspection impossible. A firewall cannot see the URL in an HTTPS request; an IDS cannot detect a malicious payload inside a TLS session. This drives L26's shift toward metadata analysis.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO NETWORK SECURITY</span>
+  <h2>Core System Cohesion — Feeds Into L26</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>The Side Effect</h3><p>Encryption has a critical side effect on network security: it makes <em>content-based</em> inspection impossible. A firewall cannot see the URL in an HTTPS request; an IDS cannot detect a malicious payload inside a TLS session.</p></div>
+    <div class="card"><h3>The Shift</h3><p>This has driven the entire shift of L26 from deep packet inspection toward metadata analysis, TLS fingerprinting, and encrypted-traffic behavioral detection.</p></div>
+    <div class="card violet"><h3>The Endpoint Defense</h3><p>Once traffic is encrypted, the endpoint is the <em>only</em> place where the OS can inspect what is actually happening. The future of detection is host-based, not network-based.</p></div>
+    <div class="card emerald"><h3>The Zero-Trust Shift</h3><p>The perimeter model assumed "trusted inside, untrusted outside." Encryption + cloud has broken this assumption. This is why L27's isolation model is <em>mandatory</em> — there is no trusted interior anymore.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: KERNEL CRYPTO ARCHITECTURES</span>
+  <h2>Encryption Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Crypto</h3><p>Encryption is handled in-kernel by the Crypto API (<code>crypto/</code> subsystem in Linux). Kernel modules provide algorithm implementations (AES-NI, ChaCha20, RSA). Disk encryption, IPsec, and kernel networking use the in-kernel crypto API. Fastest — but a bug in kernel crypto is critical.</p></div>
+    <div class="card emerald"><h3>Microkernel Crypto</h3><p>Encryption is a user-space service. Keys are held by a crypto server; applications request encryption via IPC. Trust relies on a tiny kernel with a small attack surface — the cryptographic services are isolated, but every operation costs an IPC round-trip.</p></div>
+    <div class="card amber"><h3>Layered Crypto</h3><p>Encryption operations layer cleanly: hardware crypto accelerators at the bottom, kernel crypto API in the middle, userspace TLS libraries (OpenSSL, BoringSSL, LibreSSL) at the top. Each layer isolates concern; a flaw in one layer does not compromise the others.</p></div>
+    <div class="card"><h3>Modular Crypto</h3><p>Linux's actual model — crypto algorithms are pluggable kernel modules (<code>aesni_intel.ko</code>, <code>sha256_generic.ko</code>). Applications load and unload algorithms on demand. FIPS certification requires specific module combinations.</p></div>
+    <div class="card pink"><h3>Hybrid Crypto</h3><p>Hardware Security Modules (HSM) and Trusted Platform Modules (TPM 2.0) hold root keys in silicon; the kernel provides intermediate cryptographic services; user-space TLS libraries handle session-level encryption. Key material never leaves the hardware root — but the OS orchestrates the layers.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE CRYPTOGRAPHY VOCABULARY</span>
+  <h2>Base Cryptographic Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Symmetric Encryption (AES)</h3>
+      <p>A cryptographic model where a single, identical secret key handles both data scrambling and unscrambling pipelines; computationally fast and suitable for bulk data, but requires both parties to share the secret key in advance. The key distribution problem limits its scalability to small trusted groups, but its speed makes it essential for bulk transfer.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(One physical house key that both locks and unlocks — fast but hard to share safely.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Asymmetric Encryption (RSA)</h3>
+      <p>A dual-key architecture where data locked by a public key can only be unlocked by a matching private key; solves the key distribution problem (public keys are freely shared), but is orders of magnitude slower than symmetric encryption. The public key can be published to the entire world without compromising security — this is its defining advantage.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The mailbox with an open front slot and a locked back door — anyone can send, only the owner can receive.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE CRYPTOGRAPHY VOCABULARY</span>
+  <h2>Advanced Cryptographic Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Key Exchange</h3>
+      <p>The structural protocol dance where two distant computing systems securely establish a shared secret token over an insecure channel; typically implemented via asymmetric encryption (RSA key exchange) or Diffie-Hellman variants (ECDHE). Modern TLS uses ECDHE because it provides <em>forward secrecy</em> — if the server's private key is later compromised, past sessions remain secure.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The two-padlock trick for agreeing on a secret without ever having met.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Hybrid Encryption</h3>
+      <p>Combining asymmetric cryptography (for secure key exchange) with symmetric cryptography (for fast data stream processing); the industry-standard architecture because it captures both the security of asymmetric and the speed of symmetric. Every HTTPS connection, VPN session, and secure messaging app uses hybrid encryption.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The safe-mailbox-handshake then fast-container-for-cargo pattern.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Digital Certificate</h3>
+      <p>A data structure containing a public key bundled with an identity (hostname, organization) and a digital signature from a trusted Certificate Authority; enables clients to verify that a given public key genuinely belongs to a claimed identity, defeating man-in-the-middle attacks. The entire HTTPS trust model depends on certificates.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The notarized ID card that proves the public key belongs to whom it claims.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-pink">💻 CODE DISSECTION: C HYBRID CRYPTO SIMULATOR</span>
+  <h2>The Hybrid Encryption Handshake in C</h2>
+  <pre class="code-block"><span class="cm">// Simulating the hybrid encryption handshake concept in C</span>
+<span class="cm">// Compile: gcc -o hybrid hybrid.c &amp;&amp; ./hybrid</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string.h&gt;</span>
+
+<span class="cm">// Toy asymmetric: encrypt/decrypt session key</span>
+<span class="kw">unsigned long</span> <span class="fn">rsa_encrypt_toy</span>(<span class="kw">unsigned long</span> message, <span class="kw">unsigned long</span> pub_key) {
+    <span class="kw">return</span> (message ^ pub_key) % <span class="num">100003</span>;  <span class="cm">// Toy — real RSA uses huge primes</span>
+}
+<span class="kw">unsigned long</span> <span class="fn">rsa_decrypt_toy</span>(<span class="kw">unsigned long</span> cipher, <span class="kw">unsigned long</span> priv_key) {
+    <span class="kw">return</span> (cipher ^ priv_key) % <span class="num">100003</span>;
+}
+
+<span class="cm">// Toy symmetric: XOR bulk data with session key</span>
+<span class="kw">void</span> <span class="fn">aes_encrypt_toy</span>(<span class="kw">const char</span>* plaintext, <span class="kw">unsigned long</span> key, <span class="kw">char</span>* out) {
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; plaintext[i] != <span class="str">'\0'</span>; i++) {
+        out[i] = plaintext[i] ^ (key &amp; <span class="num">0xFF</span>);
+    }
+    out[<span class="fn">strlen</span>(plaintext)] = <span class="str">'\0'</span>;
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="cm">// Server's key pair (public, private)</span>
+    <span class="kw">unsigned long</span> server_public  = <span class="num">17</span>;
+    <span class="kw">unsigned long</span> server_private = <span class="num">11</span>;
+
+    <span class="cm">// --- Phase 1: Handshake (asymmetric) ---</span>
+    <span class="kw">unsigned long</span> session_key = <span class="num">42</span>;  <span class="cm">// Client generates random</span>
+    <span class="fn">printf</span>(<span class="str">"Client generates session key: %lu\n"</span>, session_key);
+
+    <span class="kw">unsigned long</span> encrypted_key = <span class="fn">rsa_encrypt_toy</span>(session_key, server_public);
+    <span class="fn">printf</span>(<span class="str">"Client encrypts session key with public key -&gt; %lu\n"</span>, encrypted_key);
+
+    <span class="kw">unsigned long</span> decrypted_key = <span class="fn">rsa_decrypt_toy</span>(encrypted_key, server_private);
+    <span class="fn">printf</span>(<span class="str">"Server decrypts session key with private key -&gt; %lu\n"</span>, decrypted_key);
+    <span class="fn">printf</span>(<span class="str">"Session key match: %s\n\n"</span>,
+           session_key == decrypted_key ? <span class="str">"YES"</span> : <span class="str">"NO"</span>);
+
+    <span class="cm">// --- Phase 2: Bulk transfer (symmetric) ---</span>
+    <span class="kw">const char</span>* message = <span class="str">"Secret data message!"</span>;
+    <span class="kw">char</span> ciphertext[<span class="num">64</span>], plaintext[<span class="num">64</span>];
+
+    <span class="fn">printf</span>(<span class="str">"Client encrypts bulk message with session key...\n"</span>);
+    <span class="fn">aes_encrypt_toy</span>(message, session_key, ciphertext);
+    <span class="fn">printf</span>(<span class="str">"  Ciphertext (hex): "</span>);
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; ciphertext[i]; i++) <span class="fn">printf</span>(<span class="str">"%02X "</span>, (<span class="kw">unsigned char</span>)ciphertext[i]);
+    <span class="fn">printf</span>(<span class="str">"\n"</span>);
+
+    <span class="fn">aes_encrypt_toy</span>(ciphertext, session_key, plaintext);  <span class="cm">// XOR is its own inverse</span>
+    <span class="fn">printf</span>(<span class="str">"Server decrypts with session key: '%s'\n"</span>, plaintext);
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-pink">💻 CODE DISSECTION: TRACING CRYPTOGRAPHIC WEIGHTS</span>
+  <h2>Walking the Hybrid Handshake Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>server_public = 17; server_private = 11</h3><p><strong>The server's key pair.</strong> The public key is widely published; the private key is kept secret. In real RSA, the public modulus is a 2048-bit number and the private exponent is derived from two large primes.</p></div>
+    <div class="card"><h3>rsa_encrypt_toy(session_key, server_public)</h3><p><strong>The asymmetric step.</strong> The client encrypts the session key using the server's <em>public</em> key. Anyone on the wire can see the ciphertext, but only the server can decrypt it.</p></div>
+    <div class="card emerald"><h3>rsa_decrypt_toy(encrypted_key, server_private)</h3><p><strong>The private-key recovery.</strong> The server decrypts the session key. Now both parties share the same secret — <strong>without ever having transmitted it in the clear</strong>.</p></div>
+    <div class="card"><h3>aes_encrypt_toy(message, session_key, ciphertext)</h3><p><strong>The symmetric step.</strong> The bulk message is XOR'd (in real AES, substituted and permuted) with the shared session key. This is fast — the same key decrypts it.</p></div>
+    <div class="card amber"><h3>The two-step structure</h3><p><strong>Asymmetric handles the key, symmetric handles the data.</strong> This is the essential architectural pattern of every secure internet connection.</p></div>
+    <div class="card violet"><h3>The invisible security</h3><p>At no point does the plaintext session key appear on the wire. It is always encrypted with the asymmetric public key during transmission. <strong>This is what makes hybrid encryption secure.</strong></p></div>
+  </div>
+  <p class="subtitle" style="margin-top:2vh;max-width:900px">The entire cryptographic architecture of HTTPS is visible in these ~40 lines of toy code. Real implementations add cryptographic hashing (SHA-256 for integrity), authenticated encryption (AES-GCM), and certificate chains — but the two-step key-then-data structure is exactly what we built here.</p>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎯 INTERACTIVE WORKSHOP: THE PHYSICAL TLS HANDSHAKE</span>
+  <h2>The Two-Key Handshake Roleplay</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Student 01 · The Client</h3><p>Holds a small flashcard labeled "Session Key: 42."</p></div>
+    <div class="card amber"><h3>Student 02 · The Server</h3><p>Holds a small box with a padlock on it (public key) and a small key (private key).</p></div>
+    <div class="card crimson"><h3>Student 03 · The Eavesdropper</h3><p>Stands in the middle of the room, able to hear every message passed between Client and Server.</p></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card violet"><h3>Phase 1 · The Handshake</h3><p>Client writes "Session Key: 42" on a paper, locks it in a box using Server's <em>padlock</em> (public key), and passes it to Server. Server opens the box with the <em>private key</em> — Eavesdropper cannot open it, because they only have the padlock, not the key. Now both parties share session key 42.</p></div>
+    <div class="card emerald"><h3>Phase 2 · Bulk Transfer</h3><p>Client writes a message, scrambles it with 42, sends it to Server, who unscrambles with 42. Now Eavesdropper <em>can</em> listen to the resulting ciphertext — but cannot decipher it without the key.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Compare the two phases:</strong> Phase 1 is slow (padlock for each handshake) but secure. Phase 2 is fast (symmetric) and secure. This is exactly the TLS hybrid architecture — asymmetric bootstraps trust, symmetric handles throughput.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-pink">💻 TRY IT LIVE: AUDITING LIVE ENCRYPTION</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> openssl version -a                          <span class="out"># OpenSSL version and build</span>
+<span class="cmd">$</span> openssl ciphers -v | grep TLSv1.3           <span class="out"># Supported TLS 1.3 cipher suites</span>
+<span class="cmd">$</span> openssl s_client -connect google.com:443 -tls1_3 -brief
+<span class="cmd">$</span> sudo tcpdump -i any -n 'tcp port 443' -c 5  <span class="out"># Raw captured bytes (encrypted)</span>
+<span class="cmd">$</span> curl -v https://www.google.com 2&gt;&amp;1 | head -20  <span class="out"># View handshake in the wild</span>
+<span class="cmd">$</span> sudo ssh-keygen -t ed25519 -f /tmp/testkey  <span class="out"># Generate a key pair</span>
+<span class="cmd">$</span> openssl x509 -in /etc/ssl/certs/ca-certificates.crt -text -noout | head -20
+<span class="cmd">$</span> openssl s_client -connect google.com:443 2&gt;&amp;1 | grep -i "Verify return"</pre>
+  <p class="hint"><code>tcpdump</code> captured bytes look like uniformly random data — AES encryption makes the ciphertext statistically indistinguishable from random. <code>openssl ciphers -v</code> lists every supported cipher suite with its symmetric algorithm, key exchange, and hash.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 7: Security &amp; Protection
+        └── <span class="active">L25: Encryption Fundamentals (ACTIVE NODE 🌟)</span>
+              ├── Symmetric (AES) vs Asymmetric (RSA) Duality
+              └── Hybrid TLS Handshakes &amp; Certificate Trust Chains</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p><strong>Symmetric encryption</strong> (AES) uses a single shared key, is extremely fast, and handles bulk data — but suffers from the key distribution problem at internet scale. <strong>Asymmetric encryption</strong> (RSA, ECC) uses a key pair, solves key distribution, but is orders of magnitude slower.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>Real systems use <strong>hybrid encryption</strong>: asymmetric crypto bootstraps a shared symmetric session key during the handshake, then all subsequent traffic uses fast symmetric ciphers. This is the exact architecture of HTTPS, SSH, VPNs, and secure messaging apps.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>Asymmetric encryption alone is vulnerable to man-in-the-middle attacks without <strong>digital certificates</strong> from trusted Certificate Authorities. The chain of trust — root CA → intermediate → server cert — is what allows an unknown server to prove its identity to your client. Every HTTPS connection depends on this trust chain.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 26 — Firewalls &amp; Intrusion Detection Systems</strong><br><br>
+    Encryption makes data confidential in transit — but it also <em>blocks inspection</em>. A firewall cannot see inside a TLS stream. This forces network security to shift from content inspection to behavioral analysis. We will explore the boundary filters (ports, IPs), the deep-packet inspectors (signature vs anomaly detection), and the modern reality that in an encrypted world, threat detection must happen at endpoints — where decryption is possible — not in the middle. This is the final lecture before we tie everything together with containers and the grand retrospection.
+  </div>
+  <p class="hint">File: L26.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
