@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L20 · The I/O Communication Matrix</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  .badge-cyan { color: #67E8F9; border-color: #06B6D4; background: rgba(6,182,212,0.08); }
+  .badge-orange { color: #FDBA74; border-color: #F97316; background: rgba(249,115,22,0.08); }
+  .badge-teal { color: #5EEAD4; border-color: #14B8A6; background: rgba(20,184,166,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-teal { border-color: #14B8A6; background: rgba(20,184,166,0.06); color: #5EEAD4; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.teal h3 { color: #5EEAD4; } .card.teal { border-color: #134E4A; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .strategy-matrix { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.2vw; max-width: 1100px; width: 100%; margin: 2vh auto; }
+  .strategy-card { padding: 3vh 1.8vw; border-radius: 12px; border: 2px solid; text-align: left; }
+  .strategy-card .icon { font-size: 2.2rem; margin-bottom: 1.5vh; }
+  .strategy-card h4 { font-size: 1.2rem; font-weight: 800; margin-bottom: 1.2vh; }
+  .strategy-card p { font-size: clamp(0.8rem, 1vw, 0.9rem); line-height: 1.55; margin-bottom: 0.6vh; }
+  .strategy-card .cost { margin-top: 1.5vh; padding: 1vh 1vw; border-radius: 4px; font-family: "SF Mono", monospace; font-size: 0.8rem; font-weight: 800; text-align: center; }
+  .strat-polling { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .strat-polling h4 { color: #F87171; }
+  .strat-polling .cost { background: rgba(239,68,68,0.15); color: #F87171; }
+  .strat-interrupt { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .strat-interrupt h4 { color: #FBBF24; }
+  .strat-interrupt .cost { background: rgba(245,158,11,0.15); color: #FBBF24; }
+  .strat-dma { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .strat-dma h4 { color: #34D399; }
+  .strat-dma .cost { background: rgba(16,185,129,0.15); color: #34D399; }
+  .register-trio { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1vw; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .reg-box { padding: 2.5vh 1.5vw; border-radius: 10px; border: 2px solid; text-align: left; }
+  .reg-box h4 { font-size: 1.1rem; font-weight: 800; margin-bottom: 1vh; font-family: "SF Mono", monospace; }
+  .reg-box p { font-size: clamp(0.8rem, 1vw, 0.9rem); line-height: 1.55; }
+  .reg-status { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .reg-status h4 { color: #60A5FA; }
+  .reg-command { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .reg-command h4 { color: #FBBF24; }
+  .reg-data { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .reg-data h4 { color: #34D399; }
+  .decision-matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5vh 1.5vw; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .decision-cell { padding: 2.5vh 2vw; border-radius: 10px; border: 2px solid; text-align: left; }
+  .decision-cell .device { font-size: 1.3rem; font-weight: 900; margin-bottom: 1vh; font-family: "SF Mono", monospace; }
+  .decision-cell .strategy-tag { display: inline-block; padding: 0.4vh 0.8vw; border-radius: 4px; font-size: 0.7rem; font-weight: 800; margin-bottom: 1vh; }
+  .decision-cell p { font-size: 0.85rem; line-height: 1.5; }
+  .dec-temp { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .dec-temp .device { color: #FBBF24; }
+  .dec-temp .strategy-tag { background: rgba(245,158,11,0.2); color: #FBBF24; }
+  .dec-keyboard { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .dec-keyboard .device { color: #FBBF24; }
+  .dec-keyboard .strategy-tag { background: rgba(245,158,11,0.2); color: #FBBF24; }
+  .dec-ethernet { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .dec-ethernet .device { color: #34D399; }
+  .dec-ethernet .strategy-tag { background: rgba(16,185,129,0.2); color: #34D399; }
+  .dec-ssd { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .dec-ssd .device { color: #34D399; }
+  .dec-ssd .strategy-tag { background: rgba(16,185,129,0.2); color: #34D399; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .strategy-matrix, .register-trio, .decision-matrix { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L20</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-teal">🔰 START HERE // L20 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#14B8A6"></div>
+  <p class="subtitle">Rank and select the optimal I/O communication strategy (Polling, Interrupts, or DMA) for a given hardware device profile based on data payload density and arrival frequency constraints.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> A 3 GHz processor executes three billion instructions every second. If the CPU had to <em>stop and check</em> whether the keyboard has a key pressed, check whether the network card has a packet, and check whether the disk has finished writing — three billion times per second — it would spend nearly all its time asking "are you done yet?" and almost no time doing actual work. How does the operating system talk to hardware without wasting the CPU's life on idle polling?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L03 Syscall Traps</h3><p>The interrupt vector table (IVT), the Ring 3 → Ring 0 trap transition, and how the CPU jumps to kernel handlers. Hardware IRQs share the same infrastructure.</p></div>
+    <div class="card amber"><h3>02 · L19 Journaling Writes</h3><p>The journaling writes we studied are the last mile of every write pipeline — they ultimately become physical disk I/O. L20 shows how those writes actually reach the disk.</p></div>
+    <div class="card amber"><h3>03 · Hardware Registers</h3><p>Command, Status, and Data registers inside an I/O controller, and the physical wires connecting the CPU bus to peripheral devices.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> Every keystroke, every network packet, and every disk completion signal enters the operating system through the mechanism this lecture describes. This is the "front door" of the kernel.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-teal">🎒 EVERYDAY SIMPLIFIED: THE MAILBOX CHECKER</span>
+  <h2>The Polling Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📬🏃📬</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>You are expecting an urgent package at your office. Instead of sitting and doing your work, you stop every five minutes, walk down the stairs, and check an empty mailbox. When the package finally arrives, you see it immediately — but you have wasted the entire day on empty walks.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Polling is a tight loop: read the Status register, check if the "ready" bit is set, loop if not. The CPU spins, burning cycles that could be spent on user code.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This maps directly to the <code>while (device_status &amp; BUSY)</code> spinlock pattern inside a device driver.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-teal">🎒 EVERYDAY SIMPLIFIED: THE DOORBELL</span>
+  <h2>The Interrupt Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🔔📦🏃</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Instead of checking the mailbox, you install a doorbell. The mail carrier physically rings the bell when a package arrives. You pause your work only when you hear the chime, handle the package, and immediately go back to work. The CPU is completely idle toward the device until the device <em>says something</em>.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The device controller fires a hardware electrical signal down a physical wire. The CPU catches it, pauses its instruction stream, saves the current register context, and jumps to the Interrupt Service Routine (ISR).</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the <em>asynchronous event</em> model — the CPU reacts to events only when they occur, freeing it for productive work between events.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-teal">🎒 EVERYDAY SIMPLIFIED: THE PRIVATE DELIVERY ASSISTANT</span>
+  <h2>The DMA Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📦🤖📚</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Even the doorbell becomes a problem for large deliveries — if a truck unloads 10,000 packages, ringing the bell 10,000 times would still paralyze your work. So you hire a private assistant (the DMA Controller) and give them a key. You tell them: <em>"Go wait for the truck, stack all 10,000 boxes on my shelf, and tap me on the shoulder only when the entire delivery is complete."</em></p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The CPU programs the DMA controller with the source device, destination RAM address, and byte count. The DMA chip transfers data directly between device and memory over the system bus, firing a single interrupt only when finished.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Direct Memory Access decouples the CPU from the per-byte cost of high-speed transfers. It is the third and highest tier of the I/O communication matrix.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-teal">🎒 EVERYDAY SIMPLIFIED: THREE DEVICES, THREE STRATEGIES</span>
+  <h2>The Device Taxonomy Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🌡️⌨️🌐</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Not every device deserves the same treatment. A slow temperature sensor that reports once every ten minutes — just check it during a scheduled task (polling). A keyboard that produces a keystroke at unpredictable intervals — use the doorbell (interrupts). A gigabit Ethernet adapter flooding the system at 125 MB/s — use the assistant (DMA).</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Device characteristics — arrival frequency, payload density, and predictability — determine the right strategy. There is no universal winner.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the <em>decision framework</em> for the entire lecture — how to classify a device and pick its optimal communication path.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE I/O COMMUNICATION SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson"><h3>❌ Busy Polling Corridor</h3><p>CPU burns cycles checking empty devices. Simple but wasteful. Only viable for fast, predictable devices.</p></div>
+    <div class="card emerald"><h3>✅ Event-Driven Corridor</h3><p>Interrupts + DMA. CPU idles between events. Data streams to memory directly. The modern standard.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">The history of I/O communication is the history of <strong>freeing the CPU</strong>. Polling wasted its time. Interrupts freed most of it. DMA freed the last of it — bringing CPU cost down from <em>per byte</em> to <em>per transfer</em>.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-teal">💻 SYSTEMS COHESION: HARDWARE REGISTER TOPOLOGY</span>
+  <h2>The Device Controller Interface</h2>
+  <div class="register-trio">
+    <div class="reg-box reg-command">
+      <h4>Command Register</h4>
+      <p>The CPU writes here to trigger an operation. Example: "write this buffer to disk sector 4096." Bit patterns map to opcodes.</p>
+    </div>
+    <div class="reg-box reg-status">
+      <h4>Status Register</h4>
+      <p>The CPU reads here to check state. The <code>BUSY</code> and <code>READY</code> bits indicate whether the device is free or mid-operation. The <code>ERROR</code> bit reports failure.</p>
+    </div>
+    <div class="reg-box reg-data">
+      <h4>Data Register</h4>
+      <p>The CPU reads/writes here to exchange bytes. Some controllers use a FIFO buffer instead of a single register for throughput.</p>
+    </div>
+  </div>
+  <div class="callout callout-teal" style="margin-top:3vh">
+    <strong>The Verdict:</strong> The register topology is the <em>interface contract</em> between OS and hardware. All three communication strategies — polling, interrupts, and DMA — are alternative ways to interact with these same registers.
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-teal">💻 SYSTEMS COHESION: THE CPU-BOUND WAITING LOOP</span>
+  <h2>The Polling Spinlock</h2>
+  <pre class="code-block"><span class="cm">// Polling pattern: CPU spins on the Status register</span>
+<span class="kw">while</span> (<span class="fn">inb</span>(DEVICE_STATUS_PORT) &amp; BUSY) {
+    <span class="cm">// CPU spins, burning clock cycles</span>
+}
+<span class="cm">// Device is ready</span>
+<span class="kw">uint32_t</span> data = <span class="fn">inb</span>(DEVICE_DATA_PORT);</pre>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson">
+      <h3>The Cost</h3>
+      <p>Polling is the simplest strategy — no interrupt wires, no ISR, no hardware support.</p>
+      <p style="margin-top:1vh">But its cost is <strong>complete CPU idleness during waiting</strong>. Every millisecond spent checking is a millisecond not spent executing user code.</p>
+    </div>
+    <div class="card emerald">
+      <h3>When It Makes Sense</h3>
+      <p>Only sensible for fast, predictable devices — for example, an SSD that completes in microseconds, or a CPU-local timer with a fixed schedule.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>The CPU cost of checking must be lower than the interrupt overhead.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-teal">💻 SYSTEMS COHESION: THE ASYNCHRONOUS EVENT PATH</span>
+  <h2>The Interrupt Service Routine</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Interrupt Pipeline</h3>
+      <p><strong>1. User code executes:</strong> The CPU is running a program.</p>
+      <p><strong>2. Device fires IRQ:</strong> A physical signal arrives on an interrupt line (e.g., IRQ 11 for a disk controller).</p>
+      <p><strong>3. CPU catches the interrupt:</strong> At the end of the current instruction, the CPU pushes the current register state onto the stack.</p>
+      <p><strong>4. Vector lookup:</strong> The CPU reads the Interrupt Vector Table to find the ISR address.</p>
+      <p><strong>5. ISR executes:</strong> The kernel's handler reads the data register, clears the interrupt flag, and processes the data.</p>
+      <p><strong>6. Context restore:</strong> The saved register state is popped; the CPU resumes user code.</p>
+    </div>
+    <div class="card amber">
+      <h3>The Trade-off</h3>
+      <p>Interrupts free the CPU, but their <strong>per-event overhead</strong> is significant — ~1–5 microseconds per interrupt including context save/restore.</p>
+      <p style="margin-top:1vh">For high-frequency events (network packets, disk sectors), they become the bottleneck.</p>
+      <p style="margin-top:1vh;color:#FBBF24">This is where DMA enters the picture.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-teal">💻 SYSTEMS COHESION: THE DMA BUS MASTER</span>
+  <h2>Direct Memory Access Programming</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The DMA Sequence</h3>
+      <p><strong>1. CPU programs the DMA controller:</strong> Writes source (device address), destination (RAM buffer), and byte count into DMA controller registers.</p>
+      <p><strong>2. CPU issues "start" and returns:</strong> The CPU sets a "go" bit, then continues executing user code.</p>
+      <p><strong>3. DMA controller takes over:</strong> It acquires bus mastership and streams bytes from device to RAM (or vice versa).</p>
+      <p><strong>4. DMA controller fires a single interrupt:</strong> When byte count reaches zero, it interrupts the CPU once.</p>
+      <p><strong>5. CPU handles completion:</strong> Reads a status register, then processes the completed RAM buffer.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Victory</h3>
+      <p>DMA reduces CPU cost from <em>per-byte</em> to <em>per-transfer</em>.</p>
+      <p style="margin-top:1vh">A 1 MB transfer on DMA costs the CPU one setup phase and one interrupt, instead of 1 million register reads.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>This is why modern disks, network cards, and audio devices all use DMA by default.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-teal">💻 SYSTEMS COHESION: SELECTING THE OPTIMAL PATH</span>
+  <h2>The I/O Strategy Decision Matrix</h2>
+  <div class="strategy-matrix">
+    <div class="strategy-card strat-polling">
+      <div class="icon">🔄</div>
+      <h4>Polling</h4>
+      <p><strong>When:</strong> Fast, frequent, predictable events. Low payload.</p>
+      <p><strong>Examples:</strong> CPU-local timers, high-speed SPI devices, embedded sensors.</p>
+      <div class="cost">CPU COST: O(WAIT TIME)</div>
+    </div>
+    <div class="strategy-card strat-interrupt">
+      <div class="icon">🔔</div>
+      <h4>Interrupts</h4>
+      <p><strong>When:</strong> Event-driven, infrequent, unpredictable. Moderate payload.</p>
+      <p><strong>Examples:</strong> Keyboards, mice, network control packets, individual disk sectors.</p>
+      <div class="cost">CPU COST: O(EVENT COUNT)</div>
+    </div>
+    <div class="strategy-card strat-dma">
+      <div class="icon">🤖</div>
+      <h4>DMA</h4>
+      <p><strong>When:</strong> High throughput, payload-dense. Bulk transfers.</p>
+      <p><strong>Examples:</strong> Disk block reads, network frame streams, framebuffer, audio buffers.</p>
+      <div class="cost">CPU COST: O(TRANSFER COUNT)</div>
+    </div>
+  </div>
+  <div class="callout callout-teal" style="margin-top:3vh">
+    <strong>The Verdict:</strong> There is no single correct strategy — the OS makes the choice per device based on the cost model. Modern kernels even <em>adapt</em> dynamically: hybrid strategies include "polling when busy, interrupts when idle" (NAPI in Linux networking).
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON HARDWARE TRAP HANDLING</span>
+  <h2>Core System Cohesion — Relies On L03</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>The Same Infrastructure</h3><p>Every hardware interrupt from L20 arrives through the <em>same</em> interrupt infrastructure as software syscall traps from L03. The Interrupt Vector Table contains entries for both: software traps (syscalls) and hardware IRQs (device events).</p></div>
+    <div class="card"><h3>Distinguishing Traps from IRQs</h3><p>The kernel can distinguish a hardware IRQ from a software trap by inspecting the IVT entry or a dedicated CPU flag. Both paths converge in Ring 0 for dispatch.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>L03 established the trap mechanism; L20 reuses it for hardware events. The same IVT, the same context save/restore, the same Ring 0 return path.</p></div>
+    <div class="card emerald"><h3>Feeds Into L21</h3><p>The interrupt and DMA mechanics of L20 are the <em>substrate</em> on which L21's device driver API (file_operations, <code>/dev</code> nodes) is built.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO DRIVERS AND DISK PIPELINE</span>
+  <h2>Core System Cohesion — Feeds Into L21 &amp; L19</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L19 Journaling's Last Mile</h3><p>When a journal transaction commits to disk, it is a DMA transfer of journal blocks followed by an interrupt signaling completion. L19's crash consistency would be impossible without L20's DMA mechanics.</p></div>
+    <div class="card"><h3>L21's Driver Abstraction</h3><p>L21's device drivers wrap this DMA + interrupt substrate in a unified file API. The driver's <code>read()</code> handler programs the DMA controller, blocks on the interrupt, and returns to the caller.</p></div>
+    <div class="card violet"><h3>The Chain</h3><p>L17 (path) → L18 (inode) → L19 (journal) → L20 (physical I/O). Every layer builds on the ones below.</p></div>
+    <div class="card emerald"><h3>The Real-World View</h3><p>When you <code>cat /var/log/syslog</code>, the shell reads the file via <code>read()</code> syscall → L17 resolves the path → L18 walks the inode → L20 issues a DMA disk read and waits for the completion interrupt.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: KERNEL I/O STRATEGIES</span>
+  <h2>I/O Communication Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic I/O</h3><p>Device drivers live in Ring 0 alongside the kernel. Interrupts are handled with the full authority of supervisor mode; DMA is set up directly by kernel code. Fastest path, but a buggy driver can crash the entire system.</p></div>
+    <div class="card emerald"><h3>Microkernel I/O</h3><p>Device drivers run as user-space servers. The kernel exposes raw IRQ and DMA capabilities to privileged driver servers via IPC. Interrupts become IPC messages. Slower due to message overhead but completely isolated.</p></div>
+    <div class="card amber"><h3>Layered I/O</h3><p>Strict VFS → block layer → device driver → hardware hierarchy. Interrupts propagate up the stack through a fixed protocol. Layer boundaries make the I/O path inspectable but add indirection overhead.</p></div>
+    <div class="card"><h3>Modular I/O</h3><p>Core I/O infrastructure in Ring 0, but device drivers load as kernel modules. IRQ registration is a runtime module operation. DMA buffers are allocated by module code. The actual Linux model.</p></div>
+    <div class="card violet"><h3>Hybrid I/O</h3><p>Interrupt and DMA mechanics in-kernel for latency; user-space I/O via <code>io_uring</code> and SPDK for high-throughput workloads. Modern data centers run NVMe SSDs directly from user space, bypassing the kernel block layer entirely.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE I/O VOCABULARY</span>
+  <h2>Base I/O Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Polling</h3>
+      <p>An I/O communication method where the CPU repeatedly inspects a hardware device's Status register in a tight loop to check whether an I/O operation has completed; the CPU burns cycles continuously until the operation succeeds. Simple, but wasteful — suitable only for fast, predictable devices.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Walking to the mailbox every five minutes to check for a package.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Interrupt</h3>
+      <p>An electronic signal sent by a hardware component that forces the processor to pause its current execution flow and jump to a specialized handler; the handler processes the event and returns control to the interrupted code. The CPU is fully idle toward the device until the device signals.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The doorbell — rings when a package arrives, otherwise silent.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE I/O VOCABULARY</span>
+  <h2>Advanced DMA and Dispatch Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Interrupt Service Routine (ISR)</h3>
+      <p>The low-level kernel code function triggered inside Ring 0 to process and clear a specific hardware interrupt vector; runs in interrupt context with restrictions (cannot sleep, must be fast) to preserve system responsiveness. Modern Linux splits ISRs into a fast "top half" and a deferred "bottom half" for extended processing.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The doormat where you briefly accept the package.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Direct Memory Access (DMA)</h3>
+      <p>A specialized hardware feature allowing peripheral controllers to read or write data blocks straight to main system RAM completely independent of the CPU, transferring bulk data over the system bus in bursts and firing a single completion interrupt when finished. Reduces CPU cost from per-byte to per-transfer.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The private assistant stacking boxes on your shelf while you keep working.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Interrupt Storm</h3>
+      <p>A pathological I/O state where a device generates interrupts faster than the CPU can service them, causing the CPU to spend nearly all cycles in ISR context and never reach user-space code; typically triggered by misconfigured network cards or SSD queue over-subscription. The reason NAPI polling was invented.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The doorbell ringing so often that you never return to your desk.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-teal">💻 CODE DISSECTION: C I/O COMMUNICATION SIMULATOR</span>
+  <h2>I/O Strategy Comparison in C</h2>
+  <pre class="code-block"><span class="cm">// Comparing polling, interrupt-style, and DMA-style I/O patterns in C</span>
+<span class="cm">// Compile: gcc -o io io.c &amp;&amp; ./io</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;time.h&gt;</span>
+
+<span class="cm">// Simulated hardware register</span>
+<span class="kw">static</span> <span class="kw">volatile</span> <span class="kw">int</span> device_status = <span class="num">0</span>;  <span class="cm">// bit 0 = BUSY, bit 1 = READY</span>
+
+<span class="kw">void</span> <span class="fn">simulate_device_work</span>(<span class="kw">int</span> delay_ns) {
+    <span class="kw">struct</span> timespec ts = {<span class="num">0</span>, delay_ns};
+    <span class="fn">nanosleep</span>(&amp;ts, NULL);
+    device_status = <span class="num">0x02</span>;  <span class="cm">// READY</span>
+}
+
+<span class="cm">// Strategy 1: Polling — CPU spins on status register</span>
+<span class="kw">void</span> <span class="fn">polling_read</span>() {
+    <span class="fn">printf</span>(<span class="str">"[POLLING] CPU enters spinloop...\n"</span>);
+    <span class="kw">long</span> cycles = <span class="num">0</span>;
+    <span class="kw">while</span> ((device_status &amp; <span class="num">0x02</span>) == <span class="num">0</span>) {
+        cycles++;  <span class="cm">// Simulated wasted work</span>
+    }
+    <span class="fn">printf</span>(<span class="str">"[POLLING] Done. CPU spun %ld wasted iterations.\n"</span>, cycles);
+}
+
+<span class="cm">// Strategy 2: Interrupt-style — simulate event notification</span>
+<span class="kw">void</span> <span class="fn">interrupt_read</span>() {
+    <span class="fn">printf</span>(<span class="str">"[INTERRUPT] CPU does other work, awaits event...\n"</span>);
+    <span class="cm">// In real hardware, CPU has no spin; device fires IRQ when ready.</span>
+    <span class="fn">printf</span>(<span class="str">"[INTERRUPT] Event received. Handle data once.\n"</span>);
+}
+
+<span class="cm">// Strategy 3: DMA-style — bulk transfer offloaded</span>
+<span class="kw">void</span> <span class="fn">dma_read</span>(<span class="kw">int</span> num_bytes) {
+    <span class="fn">printf</span>(<span class="str">"[DMA] CPU programs DMA controller for %d bytes.\n"</span>, num_bytes);
+    <span class="fn">printf</span>(<span class="str">"[DMA] CPU returns to user code. DMA transfers in background.\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"[DMA] Single completion interrupt fired. Transfer done.\n"</span>);
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="cm">// Simulate a slow device</span>
+    device_status = <span class="num">0x01</span>;  <span class="cm">// BUSY</span>
+    <span class="fn">simulate_device_work</span>(<span class="num">100</span>);
+    <span class="fn">polling_read</span>();
+
+    device_status = <span class="num">0x01</span>;
+    <span class="fn">simulate_device_work</span>(<span class="num">100</span>);
+    <span class="fn">interrupt_read</span>();
+
+    device_status = <span class="num">0x01</span>;
+    <span class="fn">simulate_device_work</span>(<span class="num">100</span>);
+    <span class="fn">dma_read</span>(<span class="num">1024</span> * <span class="num">1024</span>);  <span class="cm">// 1 MB transfer</span>
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-teal">💻 CODE DISSECTION: TRACING I/O STRATEGY WEIGHTS</span>
+  <h2>Walking the Strategy Cost Model</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>while ((device_status &amp; 0x02) == 0)</h3><p><strong>The polling spinloop.</strong> Every iteration is a wasted instruction. A real CPU would burn <em>billions</em> of these if the device is slow.</p></div>
+    <div class="card crimson"><h3>Polling Cost Analysis</h3><p>CPU cost scales <strong>linearly with wait time</strong>. For a 100 ms wait on a 3 GHz CPU, that is 300 million wasted instruction cycles — nearly 0.1 seconds of pure waste per operation.</p></div>
+    <div class="card emerald"><h3>interrupt_read()</h3><p><strong>The interrupt pattern.</strong> CPU is <em>free</em> between events, and processes the data once when the event arrives. CPU cost scales with <strong>event count</strong>, not with event latency.</p></div>
+    <div class="card"><h3>dma_read(1024*1024)</h3><p><strong>The DMA pattern.</strong> CPU programs the transfer (a few instructions), returns to work, and receives a single interrupt at completion. CPU cost scales with <strong>transfer count</strong>, not with bytes transferred.</p></div>
+    <div class="card amber"><h3>The Cost Model Summary</h3>
+      <p>· <strong>Polling</strong> = O(wait_time)</p>
+      <p>· <strong>Interrupts</strong> = O(event_count)</p>
+      <p>· <strong>DMA</strong> = O(transfer_count)</p>
+    </div>
+    <div class="card teal">
+      <h3>The Strategic Principle</h3>
+      <p><em>The CPU should never do in software what dedicated silicon can do in hardware.</em></p>
+      <p style="margin-top:1vh">DMA exists to convert per-byte CPU cost into per-transfer CPU cost. For 1 MB at 125 MB/s (8 ms), an interrupt-per-byte model would issue 1 million interrupts; DMA issues exactly one.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎯 INTERACTIVE WORKSHOP: THE HUMAN I/O COMMUNICATION DEMO</span>
+  <h2>The Physical I/O Strategy Simulation</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Student 01 · The CPU</h3><p>Sits at the front, doing "homework" (the user program). Must respond to device events while minimizing wasted work.</p></div>
+    <div class="card amber"><h3>Student 02 · The Device</h3><p>Holds a small envelope — will "produce" data after a delay signal.</p></div>
+    <div class="card emerald"><h3>Student 03 · The DMA Assistant</h3><p>Holds a stack of 20 envelopes, ready to deliver directly to the shelf.</p></div>
+  </div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card crimson"><h3>Phase A · Polling</h3><p>CPU student must look up every three seconds to ask "Are you ready yet?" while Device slowly counts to fifteen before holding up the envelope. Time how much homework gets done.</p></div>
+    <div class="card amber"><h3>Phase B · Interrupt</h3><p>Device rings a bell when ready. CPU student works continuously and stops only when the bell rings. Compare homework completion.</p></div>
+    <div class="card emerald"><h3>Phase C · DMA</h3><p>Device hands all 20 envelopes to the DMA Assistant, who delivers them to the shelf. CPU student glances up only when the assistant taps them at the end.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Pedagogic Takeaway:</strong> Physical intuition for the cost-model differences — polling wastes CPU cycles, interrupts free them, DMA amortizes them entirely.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-teal">💻 TRY IT LIVE: AUDITING REAL INTERRUPT ACTIVITY</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> cat /proc/interrupts              <span class="out"># Per-CPU interrupt counts per IRQ line</span>
+<span class="cmd">$</span> cat /proc/softirqs                <span class="out"># Deferred soft-IRQ processing counts</span>
+<span class="cmd">$</span> lspci -v | grep -i "irq\|dma"     <span class="out"># PCI device IRQ and DMA capabilities</span>
+<span class="cmd">$</span> watch -n 1 cat /proc/interrupts   <span class="out"># Live interrupt rate on keyboard/network</span>
+<span class="cmd">$</span> dmesg | grep -i "dma\|irq"        <span class="out"># Boot-time IRQ registration messages</span>
+<span class="cmd">$</span> cat /sys/kernel/debug/dma_engine/*/state 2&gt;/dev/null  <span class="out"># DMA engine state</span>
+<span class="cmd">$</span> ls /sys/class/dma/                <span class="out"># Enumerate DMA channels</span>
+<span class="cmd">$</span> ls /sys/class/net/eth0/queues/    <span class="out"># Network RX/TX queue IRQs</span></pre>
+  <p class="hint"><code>/proc/interrupts</code> is a live counter — typing on the keyboard visibly bumps the <code>i8042</code> counter. Streaming video bumps the <code>enp</code> counter. Disk activity bumps the <code>nvme</code> or <code>ata</code> counter.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 6: I/O Device Management
+        └── <span class="active">L20: The I/O Communication Matrix (ACTIVE NODE 🌟)</span>
+              ├── Polling Spinlocks vs Interrupt Service Routines
+              └── DMA Bus Masters &amp; The Per-Transfer Cost Model</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>Every I/O controller exposes the same trio of registers — <strong>Command, Status, and Data</strong>. All three communication strategies interact with the same hardware interface, differing only in how the CPU's attention is managed.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p><strong>Polling</strong> wastes CPU cycles in a tight spinloop; <strong>interrupts</strong> free the CPU by signaling only when events occur; <strong>DMA</strong> offloads bulk transfer entirely, dropping CPU cost from per-byte to per-transfer. The optimal choice depends on device arrival frequency and payload density.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>Modern kernels blend all three strategies dynamically — and add a critical detail: <strong>interrupt context is dangerous</strong> (cannot sleep, must be minimal). Linux splits interrupts into a "top half" (fast) and "bottom half" (deferred work), which we will touch on in L21.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 21 — Uniform Device Drivers &amp; The Linux /dev File Abstraction</strong><br><br>
+    We now know <em>how</em> the CPU talks to hardware — polling, interrupts, and DMA. But the operating system still faces a scaling problem: 10,000 different peripheral models, each with its own register layout. How does the kernel avoid embedding custom code for every device? The answer is the <strong>device driver abstraction</strong>: a unified file API (<code>open</code>, <code>read</code>, <code>write</code>, <code>ioctl</code>) that wraps every peripheral — block devices, character devices, and network devices — behind the same interface, and exposes them all through the <code>/dev</code> directory tree. We will dissect <code>struct file_operations</code>, categorize real hardware into block/char/net, and trace a <code>write()</code> call from user space all the way to a hardware register.
+  </div>
+  <p class="hint">File: L21.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
