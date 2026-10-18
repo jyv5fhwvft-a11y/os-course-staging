@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L14 · Race Conditions & Mutual Exclusion</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  .badge-cyan { color: #67E8F9; border-color: #06B6D4; background: rgba(6,182,212,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-rose { border-color: #F43F5E; background: rgba(244,63,94,0.06); color: #FDA4AF; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.rose h3 { color: #FB7185; } .card.rose { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .interleave { max-width: 1000px; width: 100%; margin: 2vh auto; }
+  .interleave-header { display: grid; grid-template-columns: 60px 1fr 1fr; gap: 0.5vw; margin-bottom: 1vh; }
+  .interleave-header div { color: #60A5FA; font-weight: 800; font-size: 0.85rem; text-align: center; }
+  .interleave-row { display: grid; grid-template-columns: 60px 1fr 1fr; gap: 0.5vw; margin-bottom: 0.5vh; }
+  .interleave-time { color: #475569; font-family: "SF Mono", monospace; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; }
+  .interleave-op { background: #111C33; border: 1px solid #1E293B; border-radius: 6px; padding: 1vh 1vw; font-family: "SF Mono", monospace; font-size: 0.8rem; color: #CBD5E1; text-align: left; }
+  .interleave-op.thread-a { border-color: #3B82F6; color: #93C5FD; }
+  .interleave-op.thread-b { border-color: #8B5CF6; color: #C4B5FD; }
+  .interleave-op.collision { background: rgba(239,68,68,0.15); border-color: #EF4444; color: #FCA5A5; font-weight: 800; }
+  .interleave-op.empty { background: transparent; border-color: transparent; color: transparent; }
+  .lock-visual { display: flex; align-items: center; justify-content: center; gap: 1.5vw; margin: 2vh auto; flex-wrap: wrap; }
+  .lock-box { padding: 2.5vh 2vw; border-radius: 12px; border: 2px solid #1E293B; background: #111C33; text-align: center; font-weight: 800; min-width: 140px; font-size: 0.95rem; }
+  .lock-box.locked { border-color: #EF4444; color: #FCA5A5; background: rgba(239,68,68,0.08); }
+  .lock-box.unlocked { border-color: #10B981; color: #6EE7B7; background: rgba(16,185,129,0.08); }
+  .lock-box.waiting { border-color: #F59E0B; color: #FCD34D; background: rgba(245,158,11,0.08); }
+  .lock-arrow { font-size: 1.8rem; color: #475569; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .interleave-header, .interleave-row { grid-template-columns: 40px 1fr 1fr; } .lock-visual { flex-direction: column; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L14</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-crimson">🔰 START HERE // L14 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#EF4444"></div>
+  <p class="subtitle">Identify a data race condition inside a multi-threaded code block and refactor the code to guarantee mutual exclusion using a POSIX mutex lock.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> Two threads share a single integer. Both read <code>100</code>, both add <code>1</code>, both write back <code>101</code>. Two additions happened — but the counter only moved by one. The system did not crash. No error was reported. Nothing in the logs indicates a problem. But the shared state is now <em>silently corrupted</em>. How does the OS prevent concurrent threads from destroying shared memory at the exact same microsecond?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L09 Threads</h3><p>The shared-memory model — threads share Heap and Data, have private Stacks. This is the foundation for understanding how a race even exists.</p></div>
+    <div class="card amber"><h3>02 · L06 Context Switch</h3><p>The scheduler can switch threads at any time, including in the middle of a multi-instruction operation. This is the mechanism that creates interleavings.</p></div>
+    <div class="card amber"><h3>03 · L05 PCB</h3><p>Registers, program counter, and process state. We will trace how two threads' register values can diverge from a shared memory location.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> L14 is the <em>correctness</em> lecture of Module 4. It introduces the single most important bug class in concurrent programming — the race condition — and the fundamental fix: mutual exclusion. If students do not internalize why <code>balance++</code> is dangerous, every subsequent multi-threaded program they write will be a source of silent, intermittent, hard-to-debug corruption.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">🎒 EVERYDAY SIMPLIFIED: THE SHARED DIGITAL PIGGY BANK</span>
+  <h2>The Race Condition Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🐷💰👥</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Two siblings share a digital piggy bank holding $100. Sibling A and B both want to add $1 at the exact same instant. Sibling A reads the balance ($100). Right before A can write $101, Sibling B barges in, reads the balance ($100), and writes $101. A then finishes and also writes $101. Two separate dollars were added — but the bank only went up by one. This is a <strong>race condition</strong>.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The read-modify-write sequence is <em>not</em> atomic. If the thread interleaving interleaves B's read between A's read and A's write, one update is lost.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This maps to the classic <code>balance++</code> race on a shared heap variable.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">🎒 EVERYDAY SIMPLIFIED: THE SINGLE BATHROOM KEY</span>
+  <h2>The Mutual Exclusion Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🔑🚪🧍</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Imagine an office with a single bathroom. Instead of "the honor system" (chaos), the office has exactly one physical key. Whoever holds the key is inside. Everyone else waits in line. When the keyholder exits, they return the key to the hook, and the next person in line gets it. No two people can ever be inside at once — guaranteed.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The single key is the <strong>mutex</strong>. <code>pthread_mutex_lock()</code> acquires it. <code>pthread_mutex_unlock()</code> returns it. The critical section is the "inside the room."</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Serialization removes interleaving — but it also caps throughput at one thread inside the protected region.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">🎒 EVERYDAY SIMPLIFIED: THE NARROW BRIDGE</span>
+  <h2>The Critical Section Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🌉🚗🚙</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A bridge is wide enough for exactly one car. Two cars arrive at the entrance simultaneously. One crosses, the other waits. The bridge is the <em>critical section</em> — the region of shared code or data that only one thread may occupy. The traffic signal at the entrance is the <em>mutex</em>.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The bridge crossing must complete uninterrupted. If a car stops mid-bridge, everyone behind it deadlocks — the exact setup for L15.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This introduces the critical section as a <em>named region of source code</em>, not just data.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">🎒 EVERYDAY SIMPLIFIED: THE INDIVISIBLE COIN</span>
+  <h2>The Atomicity Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🪙✂️❌</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Some operations can never be split. You cannot be "halfway" through flipping a light switch — either the contact is closed or it is open. Hardware provides special <strong>atomic</strong> instructions (Test-and-Set, Compare-and-Swap) that execute in a single, unbreakable clock cycle, even across multiple CPU cores.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Software locks are built on top of these hardware atomic primitives. Without atomicity at the hardware layer, no mutex could ever work reliably.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the crucial bridge between the analogy-level lock story and the actual CPU instruction set.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE CORRUPTED LEDGER FIX</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson"><h3>❌ Corrupted Ledger</h3><p>Concurrency without protection. Every write is subject to interleaving. Overlaps overwrite each other silently. Data corruption with zero error messages.</p></div>
+    <div class="card emerald"><h3>✅ Mutex-Protected Ledger</h3><p>Concurrency with a mutex. One serialized teller at the window: correct, if a bit slower. Throughput drops but invariants are preserved.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Races destroy invariants; mutexes restore them at a measurable cost. Choosing the right granularity of protection is the entire art of Module 4.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: THE INTERLEAVING MECHANISM</span>
+  <h2>Anatomy of a Race Condition</h2>
+  <div class="interleave">
+    <div class="interleave-header">
+      <div>Time</div>
+      <div>Thread A</div>
+      <div>Thread B</div>
+    </div>
+    <div class="interleave-row"><div class="interleave-time">1</div><div class="interleave-op thread-a">LOAD R1, [balance]</div><div class="interleave-op empty">·</div></div>
+    <div class="interleave-row"><div class="interleave-time">2</div><div class="interleave-op empty">·</div><div class="interleave-op thread-b">LOAD R1, [balance]</div></div>
+    <div class="interleave-row"><div class="interleave-time">3</div><div class="interleave-op thread-a">ADD R1, 1</div><div class="interleave-op empty">·</div></div>
+    <div class="interleave-row"><div class="interleave-time">4</div><div class="interleave-op empty">·</div><div class="interleave-op thread-b">ADD R1, 1</div></div>
+    <div class="interleave-row"><div class="interleave-time">5</div><div class="interleave-op thread-a">STORE [balance], R1</div><div class="interleave-op empty">·</div></div>
+    <div class="interleave-row"><div class="interleave-time">6</div><div class="interleave-op empty">·</div><div class="interleave-op thread-b">STORE [balance], R1</div></div>
+    <div class="interleave-row"><div class="interleave-time">Result</div><div class="interleave-op collision">balance = 101 (should be 102)</div><div class="interleave-op collision">One update LOST</div></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson">
+      <h3>What Went Wrong</h3>
+      <p>Between Time 1 (Thread A's LOAD) and Time 5 (Thread A's STORE), Thread B loaded and stored its own incremented value.</p>
+      <p>Thread A's STORE at Time 5 <strong>overwrites Thread B's STORE from Time 4</strong> — with the same value Thread B computed. The two increments both saw the value 100, both wrote 101.</p>
+    </div>
+    <div class="card amber">
+      <h3>The Formal Definition</h3>
+      <p>A <strong>race condition</strong> occurs when multiple threads access a shared variable and at least one performs a write, with the outcome dependent on the exact instruction interleaving.</p>
+      <p>The invariant <code>sum(increments) == final_balance</code> is violated. No error is raised — the corruption is silent.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: THE THREE REQUIREMENTS</span>
+  <h2>Critical Sections &amp; The Contract</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card emerald">
+      <h3>1 · Mutual Exclusion</h3>
+      <p>No two threads may execute inside their critical sections at the same time.</p>
+      <p style="margin-top:1vh">Failing this yields <em>corruption</em>.</p>
+    </div>
+    <div class="card amber">
+      <h3>2 · Progress</h3>
+      <p>If no thread is inside the critical section and some thread wants in, the selection cannot be postponed indefinitely.</p>
+      <p style="margin-top:1vh">Failing this yields <em>starvation</em>.</p>
+    </div>
+    <div class="card violet">
+      <h3>3 · Bounded Waiting</h3>
+      <p>There is a finite bound on the number of times a thread can be bypassed for entry.</p>
+      <p style="margin-top:1vh">Failing this yields <em>unfairness</em>.</p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>The contract:</strong> Any correct mutual exclusion solution must satisfy all three properties simultaneously. Each failing property yields a distinct pathology.
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: HARDWARE ATOMIC FOUNDATION</span>
+  <h2>Atomic Primitives</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Test-and-Set</h3>
+      <p>Atomically reads a memory word and writes <code>true</code> back, returning the old value — the classic "test the lock, and claim it if free" in one breath.</p>
+      <p style="margin-top:1vh;color:#60A5FA">Foundation of spinlocks.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Compare-and-Swap (CAS)</h3>
+      <p>Atomically compares a word to an expected value and replaces it only on match — the foundation of lock-free data structures.</p>
+      <p style="margin-top:1vh;color:#34D399">Foundation of modern lock-free algorithms.</p>
+    </div>
+    <div class="card amber">
+      <h3>Fetch-and-Add</h3>
+      <p>Atomically increments a counter and returns the old value — the basis for ticket locks.</p>
+      <p style="margin-top:1vh;color:#FBBF24">Foundation of fair queues.</p>
+    </div>
+  </div>
+  <div class="callout callout-crimson" style="margin-top:3vh">
+    <strong>Critical insight:</strong> These instructions execute as indivisible units on the memory bus, immune to preemption. Every software mutex is built on top of one of these hardware primitives.
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: PTHREAD_MUTEX MECHANICS</span>
+  <h2>The POSIX Mutex Lock</h2>
+  <div class="lock-visual">
+    <div class="lock-box unlocked">🔓 UNLOCKED</div>
+    <div class="lock-arrow">→</div>
+    <div class="lock-box locked">🔒 LOCKED<br><span style="font-size:0.75rem;color:#FCA5A5">Waiter 1, Waiter 2...</span></div>
+    <div class="lock-arrow">→</div>
+    <div class="lock-box unlocked">🔓 UNLOCKED<br><span style="font-size:0.75rem;color:#6EE7B7">Waiter 1 promoted</span></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Three Primitives</h3>
+      <p><strong><code>pthread_mutex_lock(&amp;m)</code>:</strong> Try to atomically claim the flag. On failure, block the calling thread on the wait queue.</p>
+      <p><strong><code>pthread_mutex_unlock(&amp;m)</code>:</strong> Atomically clear the flag and (optionally) wake one waiter.</p>
+      <p><strong><code>PTHREAD_MUTEX_INITIALIZER</code>:</strong> Static initialization at compile time.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Verdict</h3>
+      <p>A mutex is the <em>mechanism</em>; the critical section is the <em>policy</em> placed between lock and unlock.</p>
+      <p style="margin-top:1vh">Modern mutexes are usually <strong>futex</strong>-based on Linux — uncontended lock/unlock is entirely userspace (a few atomic instructions), and only contended paths trap into the kernel.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: COUNTING vs BINARY</span>
+  <h2>Semaphores vs. Mutexes</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Mutex (Binary)</h3>
+      <p>Boolean state — locked or unlocked.</p>
+      <p><strong>Ownership:</strong> Only the thread that locked it may unlock it.</p>
+      <p><strong>Use case:</strong> Exclusive access to a single resource.</p>
+      <p style="margin-top:1vh;color:#60A5FA">Analogy: the single bathroom key.</p>
+    </div>
+    <div class="card amber">
+      <h3>Semaphore (Counting)</h3>
+      <p>Integer counter — initialized to N, <code>wait()</code> (P) decrements and blocks at 0, <code>post()</code> (V) increments and wakes.</p>
+      <p><strong>Ownership:</strong> No ownership — any thread can post.</p>
+      <p><strong>Use case:</strong> Signaling between threads, resource counting (Producer-Consumer in L15).</p>
+      <p style="margin-top:1vh;color:#FBBF24">Analogy: the ticket dispenser at a deli — N simultaneous patrons.</p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>Choose by role:</strong> Use mutexes for <em>exclusion</em>, semaphores for <em>signaling</em> and <em>resource counting</em>.
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON SHARED VIRTUAL MEMORY</span>
+  <h2>Core System Cohesion — Relies On L09 &amp; L11</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L09 (Threads)</h3><p>Race conditions exist <em>only</em> because threads share the same virtual memory pages (Heap, Data, Text). Without that sharing, no race could occur — but also, no fast cooperation.</p></div>
+    <div class="card"><h3>L11 (Paging)</h3><p>Shared heap pages are mapped into multiple threads' address spaces via the same page table entries. When <code>pthread_mutex_lock()</code> blocks a thread, the kernel deschedules it without touching the shared page tables — the shared memory remains live and dangerous the entire time.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>L14 is not a new concept — it is the <em>consequence</em> of the shared-memory model introduced in L09. Every subsequent module (L15 deadlock, L18-19 journaling, L27 isolation) is built on the foundation laid here.</p></div>
+    <div class="card emerald"><h3>Feeds Into L15</h3><p>Introducing <em>one</em> mutex is safe. Introducing <em>many</em> creates dependency graphs — the exact setup for deadlock in L15.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO DEADLOCK &amp; FILE LOCKS</span>
+  <h2>Core System Cohesion — Feeds Into L15 &amp; Module 5</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L15 (Deadlock)</h3><p>Adding a second mutex creates the possibility of circular wait. Module 4's second lecture is entirely about the pathologies introduced by <em>multiple</em> locks.</p></div>
+    <div class="card"><h3>Module 5 (File Locks)</h3><p>File systems wrap every inode write in nested kernel locks. A process holding a <code>write()</code> lock on one file who opens a second file to log can deadlock with a peer doing the reverse.</p></div>
+    <div class="card"><h3>Module 7 (Security)</h3><p>Race conditions are a security vulnerability class — TOCTOU (Time-of-Check to Time-of-Use) attacks exploit races between permission check and permission use.</p></div>
+    <div class="card emerald"><h3>The Universal Substrate</h3><p>Every subsystem after L14 — the scheduler (L07's run queue), the page fault handler (L13), the journaling engine (L19) — requires synchronization. L14 introduces the tools that make all of them correct.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: SYNCHRONIZATION STRATEGIES</span>
+  <h2>Sync Strategies Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Sync</h3><p>A single global lock (like the old Linux Big Kernel Lock) serializes all kernel entry. Simple, correct, catastrophically unscalable on multicore.</p></div>
+    <div class="card emerald"><h3>Microkernel Sync</h3><p>Fine-grained per-server IPC locks. Each user-space service locks only its own state; performance ceiling is IPC message volume, not lock contention.</p></div>
+    <div class="card amber"><h3>Layered Sync</h3><p>Strict hierarchical lock ordering enforced by the layer boundary — layer N may only acquire locks in layer N-1, eliminating cross-layer deadlock cycles by construction.</p></div>
+    <div class="card"><h3>Modular Sync</h3><p>Core kernel mutexes in Ring 0, but drivers carry per-module locks with hot-swappable policy modules that can be unloaded only after a quiescence check.</p></div>
+    <div class="card violet"><h3>Hybrid Sync</h3><p>Critical scheduler/MMU locks in Ring 0 supervisor space; user-interface subsystems use futex-based user-space fast paths, dropping to kernel only on contention.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE CONCURRENCY VOCABULARY</span>
+  <h2>Base Synchronization Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Race Condition</h3>
+      <p>A concurrency defect in which the correctness of an operation depends on the nondeterministic interleaving of two or more threads' read-modify-write sequences on shared state. No error is raised — the corruption is silent. Race conditions are the single most common cause of intermittent production failures in concurrent systems.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Two siblings overwriting each other's piggy-bank deposits.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Critical Section</h3>
+      <p>The bounded region of source code that reads or writes a shared mutable resource and must execute under mutual exclusion to preserve correctness. Identifying critical sections is the primary skill of concurrent programming — every <code>lock()</code> must bracket a critical section, and every critical section must be protected by a <code>lock()</code>.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The narrow bridge — only one car at a time.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE CONCURRENCY VOCABULARY</span>
+  <h2>Advanced Mutual Exclusion Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Mutual Exclusion (Mutex)</h3>
+      <p>A synchronization primitive that guarantees at most one thread may occupy a protected critical section at any instant; enforced via an ownership-based lock acquired and released by the same thread. The lock state is manipulated atomically via hardware primitives, and contended waiters are blocked on a kernel wait queue.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The single bathroom key on the hook.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Atomic Operation</h3>
+      <p>A hardware-level instruction sequence that executes to completion as an indivisible unit, observable by other cores either fully before or fully after — never in between. Examples: <code>LOCK XCHG</code>, <code>CMPXCHG</code>, <code>LOCK ADD</code>. These instructions form the foundation of every software lock.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The coin that cannot be cut in half.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Lost Update</h3>
+      <p>The specific data-race failure mode in which a thread's write overwrites a concurrent thread's already-committed write to the same location, silently discarding the prior increment. Named for the concrete symptom: an update that happened but vanished. The classic example is the <code>counter++</code> race.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Sibling B's deposit vanishing into thin air.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 CODE DISSECTION: C MUTEX CORRECTION PANEL</span>
+  <h2>Refactoring a Race Into a Mutex</h2>
+  <pre class="code-block"><span class="cm">// Refactoring a broken race-condition counter with a mutual exclusion lock</span>
+<span class="cm">// Compile: gcc -pthread -o counter counter.c &amp;&amp; ./counter</span>
+<span class="kw">#include</span> <span class="str">&lt;pthread.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+
+<span class="kw">int</span> shared_balance = <span class="num">100</span>;  <span class="cm">// Shared resource in the data segment</span>
+<span class="kw">pthread_mutex_t</span> bank_lock = PTHREAD_MUTEX_INITIALIZER;  <span class="cm">// The Mutex</span>
+
+<span class="kw">void</span>* <span class="fn">add_dollar_routine</span>(<span class="kw">void</span>* arg) {
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; <span class="num">10000</span>; i++) {
+        <span class="fn">pthread_mutex_lock</span>(&amp;bank_lock);   <span class="cm">// Acquire exclusive access</span>
+
+        <span class="cm">// --- START CRITICAL SECTION ---</span>
+        shared_balance++;                  <span class="cm">// Shared state modification</span>
+        <span class="cm">// ---- END CRITICAL SECTION ----</span>
+
+        <span class="fn">pthread_mutex_unlock</span>(&amp;bank_lock); <span class="cm">// Release lock</span>
+    }
+    <span class="kw">return</span> NULL;
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="kw">pthread_t</span> t1, t2;
+    <span class="fn">pthread_create</span>(&amp;t1, NULL, add_dollar_routine, NULL);
+    <span class="fn">pthread_create</span>(&amp;t2, NULL, add_dollar_routine, NULL);
+    <span class="fn">pthread_join</span>(t1, NULL);
+    <span class="fn">pthread_join</span>(t2, NULL);
+
+    <span class="cm">// Without the mutex, this prints ~15000-18000 (nondeterministic)</span>
+    <span class="cm">// With the mutex, this prints exactly 20100 every time.</span>
+    <span class="fn">printf</span>(<span class="str">"Final guaranteed balance: $%d\n"</span>, shared_balance);
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 CODE DISSECTION: TRACING CRITICAL SECTION WEIGHTS</span>
+  <h2>Walking the Mutex Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>pthread_mutex_lock(&amp;bank_lock)</h3><p><strong>Atomic claim.</strong> Internally: <code>lock cmpxchg [mutex], 1</code> — an atomic compare-and-swap. If successful, the thread now owns the lock. If the lock was held, the futex code blocks the thread and deschedules it.</p></div>
+    <div class="card"><h3>shared_balance++</h3><p><strong>The protected mutation.</strong> With the lock held, no other thread can also increment this variable. The compiler generates <code>LOAD</code>, <code>ADD</code>, <code>STORE</code> as before — but no competing writes can interleave.</p></div>
+    <div class="card emerald"><h3>pthread_mutex_unlock(&amp;bank_lock)</h3><p><strong>Atomic release.</strong> Internally: <code>mov [mutex], 0</code> (release), followed by a futex wake if any thread is waiting. The waiting thread is dequeued and will re-attempt the lock.</p></div>
+    <div class="card amber"><h3>Final guaranteed balance: $20100</h3><p><strong>The invariant.</strong> 100 starting + (2 threads × 10000 increments) = 20100 exactly. Without the mutex, this would be nondeterministic (~15000–18000 in practice, but could be any value from 100 to 20100 depending on scheduler timing).</p></div>
+    <div class="card violet"><h3>The Overhead</h3><p>Mutex lock/unlock costs ~20–50 ns uncontended (futex fast path), ~1–5 μs contended (kernel wakeup). For 20,000 operations, this is negligible — but for microbenchmarks or hot loops, it dominates.</p></div>
+    <div class="card rose"><h3>The Fundamental Trade-off</h3><p>Mutexes serialize access — correctness at the cost of throughput. Choosing what to protect (and what to leave unprotected) is the entire art.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎯 INTERACTIVE WORKSHOP: THE LIVE DATA RACE</span>
+  <h2>The Shared Whiteboard Disruption</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Student 01 · Thread A</h3><p>Reads a number from the board, adds 1 in their head, writes the new value. Performs the sequence "read, pause, add, write" out loud each time.</p></div>
+    <div class="card amber"><h3>Student 02 · Thread B</h3><p>Same rules. Both students act simultaneously on the same board.</p></div>
+    <div class="card emerald"><h3>Student 03 · Interleaving Referee</h3><p>Signals when each student may read and write — sometimes yielding control mid-operation.</p></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson"><h3>Phase A · No Mutex</h3><p>Both students race freely. Start at 0. Let them run 10 iterations. Watch the board number: it will likely end at less than 20 — indicating lost updates. Some iterations resulted in only one increment registering because one student's write overwrote the other's.</p></div>
+    <div class="card emerald"><h3>Phase B · With Mutex</h3><p>Introduce a single red marker as the "mutex." Whoever is inside the critical section holds it. The other student waits. The board number now increments correctly: after 10 iterations, exactly 20. <strong>The mutex ensures no interleaving.</strong></p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Pedagogic Takeaway:</strong> Physical intuition for why serialization restores invariants that concurrency silently breaks. Students <em>see</em> the lost update happen, and <em>feel</em> the fix work.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 TRY IT LIVE: AUDITING PTHREAD SYNCHRONIZATION</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> htop                              <span class="out"># Observe per-thread CPU load lines</span>
+<span class="cmd">$</span> strace -f -e futex ./counter       <span class="out"># Watch futex syscalls back the mutex</span>
+<span class="cmd">$</span> strace -f -e trace=futex ./counter 2&gt;&amp;1 | head -20  <span class="out"># Contention trace</span>
+<span class="cmd">$</span> perf stat -e context-switches ./counter  <span class="out"># Count context switches</span>
+<span class="cmd">$</span> cat /proc/locks                    <span class="out"># POSIX locks currently held system-wide</span>
+<span class="cmd">$</span> cat /proc/sys/kernel/mutex-spin-count  <span class="out"># Kernel mutex spinning</span>
+<span class="cmd">$</span> helgrind ./counter                 <span class="out"># Valgrind race detector (if installed)</span>
+<span class="cmd">$</span> ./counter &amp;&amp; ./counter &amp;&amp; ./counter  <span class="out"># Run 3x — should be 20100 each</span></pre>
+  <p class="hint"><code>strace -e futex</code> reveals what is really happening under a pthread_mutex — the kernel futex syscalls that park and unpark contending threads.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 4: Process Synchronization
+        └── <span class="active">L14: Race Conditions &amp; Mutual Exclusion (ACTIVE NODE 🌟)</span>
+              ├── Critical Section Contract (Mutex / Progress / Bounded Wait)
+              └── Atomic Hardware Primitives &amp; POSIX Mutex Mechanics</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>A <strong>race condition</strong> is a silent correctness failure born from nondeterministic interleaving of shared-state read-modify-write sequences. The system does not crash, no error is raised, but the invariant is violated and the corruption is undetectable without disciplined testing.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>The <strong>critical section contract</strong> requires mutual exclusion, progress, and bounded waiting — any correct mutex satisfies all three. A single missing property yields a distinct pathology: corruption, starvation, or unfairness.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p><strong>POSIX mutexes</strong> rest on hardware atomic primitives (Test-and-Set, CAS, futex) and restore determinism at a measurable throughput cost. Every operating system — Linux, Windows, macOS, embedded RTOSes — has an equivalent mutex primitive, and every concurrent program that touches shared state must use one.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 15 — Classic Synchronization Problems &amp; Deadlock Topologies</strong><br><br>
+    We can now serialize a single critical section — but the moment we introduce a <em>second</em> mutex, a new danger emerges. Two threads each holding a different lock, each waiting for the other's lock, forms a <strong>closed dependency cycle</strong> — a deadlock. We will dissect the four Coffman conditions, trace the Dining Philosophers dilemma, examine starvation, livelock, and the Mars Pathfinder priority inversion case study, and see the exact fixes — priority inheritance, lock ordering, and semaphores. This is the dark side of synchronization, and it has caused real spacecraft to freeze mid-mission.
+  </div>
+  <p class="hint">File: L15.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
