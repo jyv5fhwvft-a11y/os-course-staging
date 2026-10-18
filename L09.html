@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L09 · Threads & Concurrency Models</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .thread-model { display: flex; align-items: center; justify-content: center; gap: 0.8vw; flex-wrap: wrap; margin: 1vh 0; }
+  .thread-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.75rem; color: #020617; }
+  .thread-dot.user { background: #60A5FA; }
+  .thread-dot.kernel { background: #F59E0B; }
+  .model-card { padding: 2.5vh 1.5vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .model-card h3 { font-size: 1.15rem; font-weight: 800; color: #60A5FA; margin-bottom: 1vh; }
+  .model-card .thread-model { margin: 1vh 0; }
+  .model-card p { font-size: 0.85rem; color: #94A3B8; line-height: 1.5; }
+  .mem-shared { background: rgba(59,130,246,0.15); border: 2px solid #3B82F6; color: #60A5FA; padding: 1.2vh 1vw; border-radius: 6px; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.6vh; }
+  .mem-private { background: rgba(245,158,11,0.15); border: 2px solid #F59E0B; color: #FBBF24; padding: 1.2vh 1vw; border-radius: 6px; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.6vh; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L09</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-emerald">🔰 START HERE // L09 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#10B981"></div>
+  <p class="subtitle">Contrast the architectural memory boundaries of independent processes against concurrent threads, and delineate Many-to-One, One-to-One, and Many-to-Many scheduling architectures.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> Processes are elegant and isolated — but they are also <em>expensive</em>. Creating a process requires cloning the entire PCB, copy-on-write copying the address space, and duplicating the file descriptor table. If a web server needs to handle 10,000 concurrent connections, spawning 10,000 processes would devour gigabytes of RAM and millions of context switches. How do we get independent execution streams <em>without</em> paying the full process cost?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L05–L06</h3><p>The PCB struct, the four memory segments (Text, Data, Heap, Stack), <code>fork()</code> and <code>exec()</code>, and the context switch mechanism. Threads reuse all of these.</p></div>
+    <div class="card amber"><h3>02 · L07–L08</h3><p>The CPU scheduler, priorities, MLFQ, and how the OS picks the next task. Threads are scheduled through the exact same algorithm.</p></div>
+    <div class="card amber"><h3>03 · C Concurrency Primitives</h3><p><code>pthread_create</code>, <code>pthread_join</code>, and how to think about parallel execution. We will use the POSIX pthreads API throughout.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> Threads are <em>not</em> new kernel magic — they are fundamentally the same <code>task_struct</code> from L05 (in Linux, threads ARE processes that share address space). The only thing that changes is <em>what</em> the scheduler dispatches and <em>what</em> state is shared vs. private.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE STAGE ACTORS</span>
+  <h2>The Process vs Thread Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🎭🎬🎭</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A <strong>Process</strong> is an entire independent theatrical production — its own auditorium, stage, props, cast. If two productions coordinate, they must send messages between buildings. A <strong>Thread</strong> is like having multiple actors on the <em>same stage</em> in the <em>same building</em> — each has their own script folder (Thread Stack) and moves independently, but they all share the props table, the scenery, and the storage crates (Shared Address Space/Heap).</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Threads share Text (script), Data (storage), and Heap (props). Each thread has its own Stack (local props), Registers, and Program Counter.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This distinction — shared Text/Data/Heap vs. private Stack/Registers/PC — is the entire technical definition of a thread.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE SINGLE COORDINATOR</span>
+  <h2>The Many-to-One Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">☎️👥🔄</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Five workers share one telephone line to the outside world. They can only make one call at a time. If one worker is stuck on a long call, all the others are blocked — no matter how independent their tasks are. This is <em>Many-to-One</em> threading — many user threads mapped to one kernel thread.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Many-to-One means the kernel sees only one thread — but the user-space threading library simulates many. Fast to switch (no kernel involvement), but blocks all threads if one makes a blocking call.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Many-to-One optimizes for cheap user-space switching but sacrifices parallelism — even on multi-core CPUs, all threads share one core.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE DEDICATED LINES</span>
+  <h2>The One-to-One Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">☎️☎️☎️</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Each worker has their own dedicated phone line. Nobody blocks anybody — one worker can be stuck on a long call while four others work independently. This is <em>One-to-One</em> threading — every user thread maps to a dedicated kernel thread.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>One-to-One is the modern default — Linux's <code>pthread_create</code> on NPTL creates a 1:1 mapping. Each thread is a separate <code>task_struct</code> in the kernel.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>One-to-One maximizes parallelism but pays kernel scheduling cost per thread — a trade-off modern Linux accepts because the kernel is fast enough.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE PHONE POOL</span>
+  <h2>The Many-to-Many Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">☎️👥☎️</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The office has a pool of 3 phone lines for 5 workers. Any worker can grab any free line. This is <em>Many-to-Many</em> threading — many user threads multiplexed onto a smaller pool of kernel threads. Balances parallelism with cost and flexibility.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Many-to-Many gives full CPU parallelism up to the pool size while keeping kernel thread count manageable. It is the "scheduler activations" model from Solaris and Windows.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Many-to-Many is theoretically elegant but rarely implemented in modern systems — the complexity rarely pays off over straightforward One-to-One.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE SHARED WHITEBOARD</span>
+  <h2>The Shared Memory Hazard Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📋✍️⚠️</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Threads share the same heap and data — the same physical "whiteboard" of global state. When two threads write to the same variable at the same time, their writes can overwrite each other unpredictably. This is the <em>very</em> problem that Module 4's race conditions will address.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Threads that write shared memory (heap, data, globals) must synchronize via mutexes and semaphores (L14–L15). Threads that only touch their own stack or heap-per-thread objects are safe without synchronization.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the critical safety concern that motivates Module 4 — the price of thread-based parallelism is manual synchronization discipline.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE CONCURRENCY SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>🛡️ Isolation First (Processes)</h3><p>Safe from corruption but expensive to create and coordinate. Own address space, own FDs, own everything.</p></div>
+    <div class="card emerald"><h3>⚡ Shared State First (Threads)</h3><p>Cheap to create and coordinate but dangerous without synchronization discipline. Shared heap, own stack.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Real systems use both: a process for the service (isolation), threads for concurrent request handling (performance). This combination is the industry-standard architecture.</p>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE THREAD MEMORY MODEL</span>
+  <h2>Thread Anatomy — Shared vs Private State</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>🟦 Shared Across All Threads</h3>
+      <div class="mem-shared">Text Segment (code)</div>
+      <div class="mem-shared">Data Segment (globals)</div>
+      <div class="mem-shared">Heap (malloc'd memory)</div>
+      <div class="mem-shared">File Descriptor Table</div>
+      <div class="mem-shared">Signal Handlers</div>
+      <div class="mem-shared">Working dir, credentials, limits</div>
+    </div>
+    <div class="card amber">
+      <h3>🟨 Private Per Thread</h3>
+      <div class="mem-private">Thread ID (TID)</div>
+      <div class="mem-private">Program Counter</div>
+      <div class="mem-private">Register Set</div>
+      <div class="mem-private">Stack (call frames)</div>
+      <div class="mem-private">Thread-Local Storage (TLS)</div>
+      <p style="margin-top:1vh"><strong>This is what makes threads cheap:</strong> the expensive parts (Text, Data, Heap, FDs) are not duplicated.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE MODERN LINUX IMPLEMENTATION</span>
+  <h2>The NPTL Thread Model on Linux</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The clone() Flag Set</h3>
+      <p><strong>CLONE_VM:</strong> Share the address space.</p>
+      <p><strong>CLONE_FS:</strong> Share filesystem info (cwd, umask).</p>
+      <p><strong>CLONE_FILES:</strong> Share the FD table.</p>
+      <p><strong>CLONE_SIGHAND:</strong> Share signal handlers.</p>
+      <p><strong>CLONE_THREAD:</strong> Share thread group (same PID/TGID, unique TID per thread).</p>
+      <p><strong>CLONE_SYSVSEM:</strong> Share SysV semaphore adjustments.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Result</h3>
+      <p>A new <code>task_struct</code> is created — but it shares memory, FDs, and signal handlers with the parent.</p>
+      <p style="margin-top:1vh">The new struct has its own <code>tid</code> (thread ID) but shares <code>pid</code> (actually TGID) with the parent.</p>
+      <p style="margin-top:1vh"><code>getpid()</code> returns the same value in all threads; <code>gettid()</code> returns a unique value per thread.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>On Linux, threads are literally processes that share certain resources.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE PORTABLE THREADING INTERFACE</span>
+  <h2>The POSIX pthreads API</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Core Primitives</h3>
+      <p><strong><code>pthread_create(&amp;tid, attr, routine, arg)</code>:</strong> Creates a new thread. Analogous to <code>fork()</code> but with shared state.</p>
+      <p><strong><code>pthread_join(tid, &amp;retval)</code>:</strong> Waits for a thread to terminate. Analogous to <code>waitpid()</code>.</p>
+      <p><strong><code>pthread_exit(retval)</code>:</strong> Terminates the calling thread. Does not end the whole process.</p>
+      <p><strong><code>pthread_self()</code>:</strong> Returns the current thread's ID.</p>
+      <p><strong><code>pthread_detach(tid)</code>:</strong> Marks thread as detached — resources reclaimed on exit.</p>
+    </div>
+    <div class="card violet">
+      <h3>Synchronization (Module 4 Preview)</h3>
+      <p><strong><code>pthread_mutex_lock</code> / <code>pthread_mutex_unlock</code>:</strong> Mutual exclusion (L14).</p>
+      <p><strong><code>pthread_cond_wait</code> / <code>pthread_cond_signal</code>:</strong> Condition variables.</p>
+      <p><strong><code>pthread_sem_*</code>:</strong> Semaphores via <code>&lt;semaphore.h&gt;</code> (L15).</p>
+      <p style="margin-top:1vh">Windows has its own <code>CreateThread</code> API but wraps pthreads via MinGW/pthreads-w32. The POSIX interface is the industry baseline.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE CRITICAL DISTINCTION</span>
+  <h2>Concurrency vs. Parallelism</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Concurrency</h3>
+      <p><strong>Definition:</strong> Multiple execution paths make progress over an overlapping time window.</p>
+      <p><strong>Mechanism:</strong> Time-slicing on one core (L07's RR), or genuine parallelism on multiple cores.</p>
+      <p><strong>Observable:</strong> Threads <em>appear</em> to run simultaneously; whether they <em>are</em> is a scheduling detail.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Parallelism</h3>
+      <p><strong>Definition:</strong> Multiple execution paths execute <em>at the exact same microsecond</em> on different CPU cores.</p>
+      <p><strong>Mechanism:</strong> Requires multiple CPU cores and threads scheduled onto them simultaneously.</p>
+      <p><strong>Observable:</strong> Measure via wall-clock time on truly parallel workloads — N-threaded multiplication should take ~1/N the time on N cores.</p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>Relationship:</strong> Parallelism implies concurrency. Concurrency does <em>not</em> imply parallelism (a single-core system is highly concurrent but never parallel). Threads enable both, but the <em>degree</em> of parallelism depends on core count.
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON PROCESS FOUNDATIONS</span>
+  <h2>Core System Cohesion — Relies On L05 &amp; L06</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L05 (PCB)</h3><p>A thread is a <code>task_struct</code> just like a process — but with the shared-resource flags. Every PCB field applies to threads too, with some fields being <em>shared</em> (address space, FDs) and others being <em>per-thread</em> (registers, PC, stack).</p></div>
+    <div class="card"><h3>L06 (fork → clone)</h3><p>Thread creation is <code>clone()</code> — the same syscall that powers <code>fork()</code>, but with sharing flags. <code>fork()</code> creates an independent process; <code>clone(CLONE_VM)</code> creates a thread.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>Threads are <em>not</em> a separate abstraction — they are processes with certain resources shared. This is why Linux's PCB (<code>task_struct</code>) works for both without modification.</p></div>
+    <div class="card emerald"><h3>Feeds Into</h3><p><strong>L14 (Race Conditions):</strong> Threads introduce a new hazard class — shared mutable state without synchronization. Module 4 exists to solve it.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO MUTUAL EXCLUSION</span>
+  <h2>Core System Cohesion — Feeds Into Module 4</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>The New Hazard Class</h3><p>Threads introduce <em>shared mutable state without synchronization</em>. When two threads write to the same heap variable simultaneously, the result is nondeterministic — the exact race condition that Module 4 will systematically address.</p></div>
+    <div class="card emerald"><h3>The Module 4 Arc</h3><p><strong>L14:</strong> Critical section analysis, mutexes, atomic primitives.<br><strong>L15:</strong> Deadlock topologies, Coffman conditions, priority inheritance.</p></div>
+    <div class="card violet"><h3>The Unavoidable Truth</h3><p>Without threads, there would be no races. With threads, races are inevitable. Synchronization is the discipline that makes threads usable.</p></div>
+    <div class="card"><h3>The Real-World Cost</h3><p>Every browser, every server, every modern application is a continuous negotiation between thread parallelism (fast) and shared-state hazard (dangerous).</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: KERNEL THREADING STRATEGIES</span>
+  <h2>Threading Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Threading</h3><p>Kernel threads are first-class citizens. Linux's <code>task_struct</code> represents both processes and threads — <code>clone()</code> flags select the shared resource set. One uniform abstraction, maximum performance, but a complex internal model.</p></div>
+    <div class="card emerald"><h3>Microkernel Threading</h3><p>Threads are a lightweight kernel concept (the kernel's minimal scheduler tracks them), but user-space threading libraries implement the full pthreads API on top of kernel primitives. True 1:1 threading requires each user thread to correspond to a kernel thread.</p></div>
+    <div class="card amber"><h3>Layered Threading</h3><p>User-space threading library → kernel threading support → hardware execution. Each layer provides a distinct concurrency primitive. Each layer can be optimized independently.</p></div>
+    <div class="card"><h3>Modular Threading</h3><p>The kernel provides thread primitives (<code>clone</code> with flags), but the userspace threading library implements the scheduling policy. Different pthreads implementations (NPTL, musl, bionic) can be swapped without kernel changes.</p></div>
+    <div class="card violet"><h3>Hybrid Threading</h3><p>Linux's NPTL implements 1:1 by default, but modern green-thread models (Goroutines in Go, virtual threads in Java 21) implement <em>Many-to-Many</em> on top of NPTL — userspace-managed user threads multiplexed onto kernel threads. The emerging modern standard.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE THREAD VOCABULARY</span>
+  <h2>Base Thread Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Thread</h3>
+      <p>A lightweight concurrent sequence of instructions executing within the shared ecosystem context of a parent process. Threads belonging to the same process share the Text, Data, and Heap memory segments and file descriptor table, but each thread maintains its own Program Counter, register set, and private Stack.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Multiple actors on the same stage — same props, independent scripts.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Concurrency</h3>
+      <p>Enabling multiple execution paths to make progress over overlapping blocks of time — via fast time-slicing on a single core, or via true parallel execution across multiple cores. Concurrency is a <em>logical</em> property of the program's design, not a property of the hardware.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Multiple tasks making progress over the same time window — not necessarily simultaneously.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE THREAD VOCABULARY</span>
+  <h2>Advanced Thread Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · User-Level Thread</h3>
+      <p>A thread managed entirely in user space by an application library (like pthreads with M:N mapping) without the underlying kernel being aware of its existence. Fast to create and switch (no kernel involvement), but all user threads in a process block together if any blocks on a system call.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The worker using a shared line — cheap to switch, but blocks everyone if one person hogs the line.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Kernel-Level Thread</h3>
+      <p>A thread maintained, tracked, and scheduled natively by the operating system core within Ring 0. Each kernel thread has its own <code>task_struct</code>, its own kernel stack, and its own scheduling slot. Full parallelism on multi-core CPUs, but heavier than user-level threads (kernel involvement per switch).</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The worker with a dedicated line — more expensive, but never blocks anyone else.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · POSIX Threads (pthreads)</h3>
+      <p>The standard threading API on Unix-like systems, providing a portable C interface for thread creation (<code>pthread_create</code>), synchronization (<code>pthread_mutex_*</code>, <code>pthread_cond_*</code>), and lifecycle management (<code>pthread_join</code>, <code>pthread_exit</code>, <code>pthread_detach</code>).</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The standardized front desk that gives every program the same tools to create and manage actors on the stage.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: C PTHREADS DEMO PANEL</span>
+  <h2>Compiling a Multi-Threaded POSIX Application</h2>
+  <pre class="code-block"><span class="cm">// Compiling a multi-threaded execution application using POSIX pthreads</span>
+<span class="kw">#include</span> <span class="str">&lt;pthread.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;stdlib.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;unistd.h&gt;</span>
+
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    <span class="kw">int</span> thread_id;
+    <span class="kw">int</span> iterations;
+} ThreadArgs;
+
+<span class="kw">void</span>* <span class="fn">thread_runner_routine</span>(<span class="kw">void</span>* arg) {
+    ThreadArgs* args = (ThreadArgs*)arg;
+
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; args-&gt;iterations; i++) {
+        <span class="fn">printf</span>(<span class="str">"  [Thread %d] iteration %d (tid=%lu)\n"</span>,
+               args-&gt;thread_id, i, <span class="fn">pthread_self</span>());
+        <span class="fn">usleep</span>(<span class="num">100000</span>);  <span class="cm">// Simulate work</span>
+    }
+
+    <span class="fn">printf</span>(<span class="str">"  [Thread %d] DONE\n"</span>, args-&gt;thread_id);
+    <span class="kw">return</span> NULL;
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="kw">const int</span> NUM_THREADS = <span class="num">3</span>;
+    <span class="kw">const int</span> ITERATIONS = <span class="num">3</span>;
+
+    <span class="kw">pthread_t</span> threads[NUM_THREADS];
+    ThreadArgs thread_args[NUM_THREADS];
+
+    <span class="fn">printf</span>(<span class="str">"[MAIN] Main thread starting (tid=%lu)\n"</span>, <span class="fn">pthread_self</span>());
+    <span class="fn">printf</span>(<span class="str">"[MAIN] Spawning %d worker threads...\n\n"</span>, NUM_THREADS);
+
+    <span class="cm">// Create the worker threads</span>
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; NUM_THREADS; i++) {
+        thread_args[i].thread_id = i;
+        thread_args[i].iterations = ITERATIONS;
+
+        <span class="kw">int</span> rc = <span class="fn">pthread_create</span>(
+            &amp;threads[i],               <span class="cm">// Thread handle output</span>
+            NULL,                       <span class="cm">// Default attributes</span>
+            thread_runner_routine,      <span class="cm">// Entry point</span>
+            &amp;thread_args[i]             <span class="cm">// Argument</span>
+        );
+
+        <span class="kw">if</span> (rc != <span class="num">0</span>) {
+            <span class="fn">fprintf</span>(stderr, <span class="str">"pthread_create failed for thread %d\n"</span>, i);
+            <span class="fn">exit</span>(<span class="num">1</span>);
+        }
+        <span class="fn">printf</span>(<span class="str">"[MAIN] Spawned thread %d (tid=%lu)\n"</span>, i, threads[i]);
+    }
+
+    <span class="cm">// Wait for all threads to finish</span>
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; NUM_THREADS; i++) {
+        <span class="fn">pthread_join</span>(threads[i], NULL);
+        <span class="fn">printf</span>(<span class="str">"[MAIN] Thread %d joined\n"</span>, i);
+    }
+
+    <span class="fn">printf</span>(<span class="str">"[MAIN] All threads finished. Main thread exiting.\n"</span>);
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Compile: <code>gcc -pthread -o threads threads.c</code> · Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: TRACING THREAD LIFECYCLE</span>
+  <h2>Walking the Thread Lifecycle Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>pthread_t threads[NUM_THREADS]</h3><p>Each thread is represented by a <code>pthread_t</code> handle — the user-space ticket to that thread, analogous to the <code>pid_t</code> from L06.</p></div>
+    <div class="card"><h3>pthread_create(&amp;threads[i], ...)</h3><p><strong>The clone.</strong> This is the pthreads wrapper over <code>clone(CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD)</code>. The kernel creates a new <code>task_struct</code> that shares address space, FDs, and signal handlers.</p></div>
+    <div class="card"><h3>thread_runner_routine(args)</h3><p><strong>The entry point.</strong> On Linux, this runs on the new thread's <em>private stack</em> — but local variables and pointed data exist in the <em>shared</em> address space. Thread A can modify data Thread B observes.</p></div>
+    <div class="card amber"><h3>printf(..., pthread_self())</h3><p><strong>Concurrency in action.</strong> Notice the interleaved output: three threads run concurrently. On multi-core, truly in parallel. On single-core, interleaved by the scheduler.</p></div>
+    <div class="card"><h3>pthread_join(threads[i], NULL)</h3><p><strong>The synchronous wait.</strong> Analogous to <code>waitpid()</code>. Blocks the main thread until thread <code>i</code> terminates. Ensures no thread is still running when <code>main()</code> returns.</p></div>
+    <div class="card emerald"><h3>return NULL</h3><p><strong>The thread exit.</strong> Terminates the calling thread only. Other threads (including main) continue. Resources are reclaimed when joined.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Three threads created, all running concurrently. Total execution time is roughly <code>ITERATIONS × 100ms = 300ms</code> — because the three threads run in <em>parallel</em>. The sequential equivalent would take <code>3 × 300ms = 900ms</code>.</p>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎯 INTERACTIVE WORKSHOP: THE LIVE THREAD AUDIT</span>
+  <h2>The Task Manager Thread Inspection Hunt</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Students 01–03 · Thread Hunters</h3><p>Each uses their own machine to find applications with many active threads. Windows: Task Manager → Threads column. macOS: Activity Monitor → View → Threads. Linux: <code>htop</code> or <code>ps -eLf | wc -l</code>.</p></div>
+    <div class="card"><h3>Students 04–05 · Tree Mappers</h3><p>Reconstruct the process tree to show how many OS-level processes each app spawns and how many total threads.</p></div>
+    <div class="card"><h3>Student 06 · Journalist</h3><p>Records the counts and the process-to-thread ratio for the class discussion.</p></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>What You'll Discover</h3><p>A browser: 30+ threads per tab (renderer, network, GPU, IO, compositor). An IDE: 20+ threads (syntax highlighting, file watcher, build, etc.). A text editor: 1 process, 2–4 threads.</p></div>
+    <div class="card emerald"><h3>Why Threads, Not Processes?</h3><p>Cost and memory sharing. Threads share the parent's memory — a tab's network thread and renderer thread exchange data without IPC. Processes would require full address space copies per tab.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 TRY IT LIVE: AUDITING REAL THREADS</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> ps -eLf | head -20                            <span class="out"># Per-thread view (TID column)</span>
+<span class="cmd">$</span> ps -eLf | awk '{print $2}' | sort | uniq -c | sort -rn | head  <span class="out"># Most threaded</span>
+<span class="cmd">$</span> cat /proc/self/status | grep -i threads      <span class="out"># Threads in current shell</span>
+<span class="cmd">$</span> ls /proc/$$/task/                            <span class="out"># Directory of thread TIDs</span>
+<span class="cmd">$</span> cat /proc/$$/task/$$/stat                    <span class="out"># PCB of the main thread</span>
+<span class="cmd">$</span> gdb -p $(pgrep chrome | head -1)             <span class="out"># Attach to Chrome process</span>
+(gdb) info threads                             <span class="out"># List all Chrome threads</span>
+(gdb) thread apply all bt                      <span class="out"># Stack traces per thread</span>
+<span class="cmd">$</span> perf stat -e context-switches ./threads      <span class="out"># Count context switches</span>
+<span class="cmd">$</span> ltrace -f ./threads                          <span class="out"># Trace pthread_create calls</span></pre>
+  <p class="hint">Every Chrome tab, every Node.js server, every Apache worker uses exactly this infrastructure.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 2: Process Management
+        └── <span class="active">L09: Threads &amp; Concurrency Models (ACTIVE NODE 🌟)</span>
+              ├── Shared Heap/Data vs Private Stack/Registers
+              └── M:1, 1:1, M:N Threading Models &amp; POSIX pthreads</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>A thread is a <strong>lightweight execution unit</strong> within a process. Threads share Text, Data, Heap, and file descriptors with their siblings, but each thread has its own program counter, register set, and private stack. This sharing is what makes threads cheap — but also what makes them dangerous.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>Three threading models exist: <strong>Many-to-One</strong> (fast user-space switching, no parallelism), <strong>One-to-One</strong> (full parallelism, higher cost), and <strong>Many-to-Many</strong> (multiplexed userspace threads onto a pool of kernel threads). Linux's NPTL implements 1:1 by default, but Go's goroutines and Java 21's virtual threads demonstrate the modern revival of M:N.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p><strong>Concurrency</strong> (multiple paths making progress over time) is distinct from <strong>parallelism</strong> (multiple paths executing at the exact same microsecond on different cores). Threads enable both, but only parallel hardware can turn concurrency into true simultaneity. The shared state of threads makes synchronization (Module 4's topic) essential.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Module 2 Complete — Module 3 Begins</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 10 — Relocation Models &amp; Base-and-Bound Isolation (Module 3 Begins)</strong><br><br>
+    Module 2 is complete. We have now built the entire process and thread infrastructure: PCB, fork, exec, scheduler, and threading. But there is a hidden assumption behind everything we have done — that each process has its own <em>memory</em>. That is not free. <strong>Module 3 is about how that memory illusion is constructed.</strong> We start with the earliest model — base-and-bound hardware relocation — and trace its evolution to the paging and virtual memory systems that all modern OSes use. This is the beginning of the memory management story.
+  </div>
+  <p class="hint">File: L10.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
