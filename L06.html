@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L06 · Process Execution Mechanics</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .fork-diagram { display: flex; flex-direction: column; align-items: center; gap: 1.5vh; width: 100%; max-width: 900px; margin: 2vh auto; }
+  .fork-node { padding: 1.5vh 2vw; border-radius: 10px; background: #111C33; border: 2px solid; text-align: center; font-weight: 700; font-size: clamp(0.85rem, 1.1vw, 1rem); min-width: 220px; }
+  .fork-node.parent { border-color: #3B82F6; color: #60A5FA; }
+  .fork-node.child { border-color: #34D399; color: #34D399; }
+  .fork-arrow { color: #F59E0B; font-size: 1.8rem; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L06</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-blue">🔰 START HERE // L06 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line"></div>
+  <p class="subtitle">Explain the exact operational lifecycle difference between cloning an address space (fork) and overriding an address space (exec), and trace register states during a context switch.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> Unix has exactly <em>two</em> system calls that create or transform processes: <code>fork()</code> — which clones an existing process into an identical child — and <code>exec()</code> — which replaces a process's entire address space with a new program. Together, they are the foundation of <em>every shell, every IDE, every server daemon, and every container runtime</em> in existence. How do these two syscalls compose to launch any process on Earth?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L05 PCB</h3><p>The PCB struct, its fields (PID, PC, registers, FD table, memory info), and the five process states (New, Ready, Running, Blocked, Terminated).</p></div>
+    <div class="card amber"><h3>02 · L03 Syscall Interface</h3><p>The syscall trap mechanism, register-based argument passing (<code>rdi</code>, <code>rsi</code>, <code>rdx</code>, <code>rax</code>), and the Ring 3 → Ring 0 → Ring 3 transition.</p></div>
+    <div class="card amber"><h3>03 · L11 (Preview) Memory</h3><p>Virtual address spaces and page tables. <code>fork()</code> copies page tables; <code>exec()</code> replaces them — both operations operate on structures from Module 3.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> Emphasize the surprising fact that <code>fork()</code> does <em>not necessarily copy memory</em>. Modern implementations use copy-on-write (COW) — the parent and child share physical pages until either writes, at which point the kernel duplicates just that page.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE PERFECT RUNNER CLONE</span>
+  <h2>The fork() Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏃‍♂️🏃‍♂️⚡</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Imagine a runner on a track, and suddenly a <em>perfect clone</em> materializes beside them. The clone has the exact same memories, same muscle memory, same position, and same script. From that instant onward, both runners may take <em>different</em> paths around the track — one turns left, one turns right. But at the moment of the clone, they are indistinguishable.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p><code>fork()</code> creates a new process (the child) that is initially an exact copy of the parent — same memory contents, same registers, same file descriptors, same program counter. Both continue from the instruction after <code>fork()</code>, but each follows a different branch.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Two processes that are identical at creation and diverge only by their subsequent code path.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE NEW SCRIPT OVERWRITE</span>
+  <h2>The exec() Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📜✂️📜</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p><code>exec()</code> is not about creating a clone — it is about <em>replacing the script</em>. The runner's body stays the same (same PID, same identity), but the script they follow — the instructions they execute, the data they read, the functions they call — is completely replaced. The old story is gone; a new one begins.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p><code>exec()</code> calls replace the process's address space (Text, Data, Heap, Stack) with a new executable's contents. The program counter resets to the new binary's entry point.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p><code>fork</code> creates a <em>new</em> process; <code>exec</code> transforms an <em>existing</em> process into a different program.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE RUNNER'S BATON PASS</span>
+  <h2>The Context Switch Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏃🤝🏃</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A single track has only one runner at a time (one CPU core). To let multiple runners use it, the referee forces a rotation: runner A pauses mid-stride, the referee writes down exactly where they were, hands the baton to runner B, and later — when B pauses — hands the baton back to A, who resumes from exactly where they left off.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>A context switch is the referee's pause-and-resume operation. The kernel saves the outgoing process's registers into its PCB and loads the incoming process's registers from its PCB.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Context switching is the invisible operation that makes multitasking possible — it costs real time, and happens thousands of times per second.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE UNIVERSAL TICKET</span>
+  <h2>The fork + exec Pattern Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🎫🚀🔧</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>To launch any program, Unix uses a two-step pattern: first, <code>fork()</code> a worker (making an identical clone of yourself); then, in the worker, <code>exec()</code> their brain with the new program. The original worker is unchanged; the new worker is now the <em>new program</em>. Every time you run <code>ls</code>, <code>grep</code>, <code>python</code>, or <code>chrome</code>, the shell does exactly this.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The canonical Unix process-launching pattern: <code>pid = fork(); if (pid == 0) execve(...); else wait(pid);</code>. This is what <code>system()</code>, <code>popen()</code>, <code>posix_spawn()</code>, and every shell all do internally.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The universal mechanism by which any program becomes another program on Unix.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE FORK-AND-EXEC SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>🌱 fork creates</h3><p>New process. Isolated from parent. Same state at the moment of creation.</p></div>
+    <div class="card emerald"><h3>🔄 exec transforms</h3><p>Same process. New program. Completely new address space.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><code>fork()</code> provides <strong>isolation</strong> (the child cannot crash the parent); <code>exec()</code> provides <strong>transformation</strong> (the child becomes a new program). Together, they enable the shell, the daemon, the container — every process-launching mechanism in existence.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE PROCESS DUPLICATION</span>
+  <h2>fork() — The Clone Operation</h2>
+  <div class="fork-diagram">
+    <div class="fork-node parent">Parent Process (PID 1234)<br><span style="font-size:0.8em;color:#94A3B8">pc = next_instruction_after_fork</span></div>
+    <div class="fork-arrow">↓ fork() ↓</div>
+    <div style="display:flex;gap:2vw;flex-wrap:wrap;justify-content:center">
+      <div class="fork-node parent">Parent (PID 1234)<br><span style="font-size:0.8em;color:#94A3B8">fork() returns child_PID (=5678)</span></div>
+      <div class="fork-node child">Child (PID 5678)<br><span style="font-size:0.8em;color:#94A3B8">fork() returns 0</span></div>
+    </div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The fork() Pipeline</h3>
+      <p><strong>1. Syscall trap:</strong> User calls <code>fork()</code>. libc loads <code>rax=57</code>, executes <code>syscall</code>.</p>
+      <p><strong>2. PCB allocation:</strong> Kernel allocates new <code>task_struct</code>, copies every field from parent.</p>
+      <p><strong>3. Address space clone:</strong> Page tables copied (COW — see Slide 09).</p>
+      <p><strong>4. FD copy:</strong> FD table duplicated. Each FD shares the same <code>struct file</code> (same offset).</p>
+      <p><strong>5. Scheduler enqueue:</strong> Child placed in Ready state, added to run queue.</p>
+      <p><strong>6. Return value distinction:</strong> Parent gets child's PID; child gets 0.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Verdict</h3>
+      <p><code>fork()</code> produces two nearly-identical processes that diverge only by their subsequent code execution.</p>
+      <p style="margin-top:1vh">It's the most elegant process-creation primitive ever designed — and it's been in Unix since 1970.</p>
+      <p style="margin-top:1vh;color:#FBBF24"><strong>The only observable difference:</strong> the return value in <code>rax</code> (child's PID > 0 in parent; 0 in child).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE SHARED-PAGE OPTIMIZATION</span>
+  <h2>Copy-on-Write (COW) — The Paging Miracle</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The COW Mechanism</h3>
+      <p><strong>After fork:</strong> Parent and child page tables point to the <em>same physical frames</em>. Both marked read-only.</p>
+      <p><strong>On read:</strong> Either process reads normally — shared frame is fine for read access.</p>
+      <p><strong>On write:</strong> The MMU traps with a page fault when either process attempts to write. The kernel's page fault handler recognizes the COW case, allocates a new physical frame, copies the old frame's contents into it, and updates the writing process's page table.</p>
+      <p><strong>After the copy:</strong> The writer has its private writable frame; the other process still has the original read-only frame.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Cost Analysis</h3>
+      <p><strong>Without COW:</strong> <code>fork()</code> would always copy the entire address space — costly for large processes. Forking a 2 GB Chrome process would require 2 GB of physical RAM.</p>
+      <p><strong>With COW:</strong> <code>fork()</code> is nearly free (just page table copies). Only <em>written</em> pages are ever physically duplicated.</p>
+      <p style="margin-top:1vh;color:#FBBF24"><strong>This is why modern shell launches, server forks, and container creations are instant even on multi-GB processes.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE PROGRAM REPLACEMENT</span>
+  <h2>exec() — The Address Space Overwrite</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The exec() Pipeline</h3>
+      <p><strong>1. Syscall trap:</strong> User calls <code>execve(path, argv, envp)</code>. Kernel traps into Ring 0.</p>
+      <p><strong>2. Binary loading:</strong> Kernel reads the executable from disk. Parses ELF header, identifies Text/Data segments, entry point.</p>
+      <p><strong>3. Old address space destruction:</strong> Existing Text, Data, Heap, Stack discarded. Page table entries invalidated.</p>
+      <p><strong>4. New segments mapped:</strong> New binary's segments mapped. New stack allocated with argv and envp. New PC set to ELF entry.</p>
+      <p><strong>5. Registers reset:</strong> All general-purpose registers reset. PC points to new <code>_start</code>.</p>
+      <p><strong>6. Continue execution:</strong> Kernel returns not to caller, but to new program's entry.</p>
+    </div>
+    <div class="card crimson">
+      <h3>The Verdict</h3>
+      <p><code>exec()</code> is not a return-from-syscall — it is an <strong>entry-into-a-new-program</strong>.</p>
+      <p style="margin-top:1vh">The original code that called <code>execve()</code> never resumes. If <code>execve()</code> returns at all, it returns only with an error (file not found, permissions, etc.) — success means the caller is gone.</p>
+      <p style="margin-top:1vh;color:#FBBF24"><strong>Successful exec = no return. Failed exec = returns error.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE SHELL'S CORE ALGORITHM</span>
+  <h2>The Canonical fork + exec Launch Pattern</h2>
+  <pre class="code-block"><span class="cm">// Every Unix shell, every system() call, every container runtime uses this</span>
+pid_t pid = <span class="fn">fork</span>();           <span class="cm">// 1. Clone</span>
+<span class="kw">if</span> (pid &lt; <span class="num">0</span>) {
+    <span class="fn">perror</span>(<span class="str">"fork failed"</span>);
+    <span class="fn">exit</span>(<span class="num">1</span>);
+} <span class="kw">else if</span> (pid == <span class="num">0</span>) {
+    <span class="cm">// 2. Child branch — transform into the new program</span>
+    <span class="kw">char</span> *args[] = { <span class="str">"/bin/ls"</span>, <span class="str">"-l"</span>, NULL };
+    <span class="fn">execv</span>(args[<span class="num">0</span>], args);
+    <span class="cm">// If exec succeeds, this line NEVER executes.</span>
+    <span class="cm">// If we reach here, exec failed.</span>
+    <span class="fn">perror</span>(<span class="str">"exec failed"</span>);
+    _exit(<span class="num">1</span>);
+} <span class="kw">else</span> {
+    <span class="cm">// 3. Parent branch — wait for child to complete</span>
+    <span class="kw">int</span> status;
+    <span class="fn">waitpid</span>(pid, &amp;status, <span class="num">0</span>);
+    <span class="fn">printf</span>(<span class="str">"Child %d completed with status %d\n"</span>, pid, status);
+}</pre>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>This pattern is THE Unix process-launching idiom.</strong> Every <code>system("ls -l")</code>, every <code>popen("grep ...")</code>, every <code>docker run</code> involves some variation.</p>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE COMPLETE REGISTER EXCHANGE</span>
+  <h2>Context Switch — The Full PCB Save/Restore</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Context Switch Sequence (x86-64)</h3>
+      <p><strong>1. Trigger:</strong> Timer interrupt, syscall, or blocking event → kernel considers a switch.</p>
+      <p><strong>2. Save A:</strong> Kernel saves <code>rip</code> (PC), <code>rsp</code> (stack pointer), general regs (<code>rax</code>, <code>rbx</code>, <code>rcx</code>, <code>rdx</code>, <code>rsi</code>, <code>rdi</code>, <code>rbp</code>, <code>r8</code>–<code>r15</code>), flags register, FPU state.</p>
+      <p><strong>3. Pick B:</strong> Scheduler chooses next process (L07–L08).</p>
+      <p><strong>4. Load B:</strong> Kernel pops saved values from B's PCB into the CPU.</p>
+      <p><strong>5. Page table switch (if needed):</strong> Update <code>cr3</code> to B's page tables → TLB flush (L12).</p>
+      <p><strong>6. Resume:</strong> Kernel's <code>iret</code>/<code>sysexit</code> returns from interrupt, resuming at B's saved <code>rip</code>.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Verdict</h3>
+      <p>Context switching is a <strong>complete</strong> register-state exchange through the PCB.</p>
+      <p style="margin-top:1vh">Its cost is microseconds — significant enough that the scheduler must be deliberate about when it happens, but small enough that human users never notice.</p>
+      <p style="margin-top:1vh;color:#FBBF24"><strong>Every field of the PCB from L05 is either saved, restored, or unchanged during a context switch.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON PCB AND PAGING</span>
+  <h2>Core System Cohesion — Relies On L05 PCB &amp; Module 3 COW</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>fork()</h3><p>Copies every PCB field (from L05), shares page tables with COW (from L11's paging).</p></div>
+    <div class="card"><h3>exec()</h3><p>Replaces PCB fields (new PC, new memory info, new stack pointer), destroys page tables, creates new ones.</p></div>
+    <div class="card"><h3>Context switch</h3><p>Saves and restores PCB register fields; potentially switches page table base (CR3) and flushes TLB.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>Without the L05 PCB, no fork could clone a state. Without L11 page tables, fork's COW would be meaningless. L06 is a <em>composition</em> of L05 and L11.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO SCHEDULING AND CONTAINERS</span>
+  <h2>Core System Cohesion — Feeds Into L07–L08 &amp; L27</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L07–L08 (Scheduler)</h3><p>L06's context switch is the primitive that L07's scheduler orchestrates. Every scheduling decision ends in a context switch.</p></div>
+    <div class="card"><h3>L09 (Threads)</h3><p>Threads use a variant of <code>clone()</code> with shared memory flags — same primitive, different sharing configuration.</p></div>
+    <div class="card"><h3>L27 (Containers)</h3><p>Containers use <code>fork()</code>+<code>exec()</code> under the hood. Every container starts as a <code>fork</code>+<code>exec</code> with namespaces pre-installed.</p></div>
+    <div class="card violet"><h3>The Verdict</h3><p>L06 is the <em>execution primitive</em> that every subsequent lecture in Module 2 and Module 7 orchestrates. Every process on Earth is a descendant of some fork+exec.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: PROCESS CREATION STRATEGIES</span>
+  <h2>Process Launch Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Process Launch</h3><p>fork/exec are syscalls in the monolithic kernel. The kernel's <code>copy_process()</code> does the PCB clone; its <code>do_execve()</code> does the binary load. Two syscalls, two kernel functions, one unified pipeline.</p></div>
+    <div class="card emerald"><h3>Microkernel Process Launch</h3><p>fork/exec are split across servers: process manager creates the PCB, file server reads the binary, memory server maps the address space. Each step is an IPC message. Slower, but each step is isolated and independently restartable.</p></div>
+    <div class="card amber"><h3>Layered Process Launch</h3><p>Strict layering — syscall layer → process layer → memory layer → file layer → driver layer. Each layer has a distinct interface and can be independently modified. POSIX's fork semantics could remain stable for 50 years because of this layering.</p></div>
+    <div class="card"><h3>Modular Process Launch</h3><p>The fork/exec implementation is in the kernel core, but the binary loading portion is modular — the ELF loader is a kernel module, alternative formats (scripts, Mach-O) are pluggable. <code>binfmt_*</code> modules on Linux execute arbitrary formats.</p></div>
+    <div class="card violet"><h3>Hybrid Process Launch</h3><p>fork/exec are syscalls (fast path), but the actual address space loading invokes the <code>binfmt</code> registry, which routes to pluggable format handlers. Additional LSM hooks on the fork/exec path for security. Fast and extensible simultaneously.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE PROCESS LAUNCH VOCABULARY</span>
+  <h2>Base fork/exec Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · fork()</h3>
+      <p>A system call that duplicates the calling process to create an isolated, matching child process container. The child receives a new PID but copies the parent's entire state — PCB fields, address space (via copy-on-write), and file descriptors. The only observable difference is the return value: 0 in the child, the child's PID in the parent.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The perfect runner clone — identical at the moment of creation, diverging only by subsequent action.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · exec()</h3>
+      <p>A system call that overrides the active process address space with a new executable binary program image. The old Text, Data, Heap, and Stack are discarded; new segments are loaded from disk; the program counter resets to the new binary's entry point. Success does not return — the caller is transformed into the new program.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The new script overwrite — same body, completely new program.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE PROCESS LAUNCH VOCABULARY</span>
+  <h2>Advanced Launch Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Context Switch</h3>
+      <p>The physical hardware/software process of saving the active CPU register state into the outgoing process's PCB and restoring a different task's register context from its PCB; may also involve switching the page-table base register (CR3) and flushing the TLB if the two processes have separate address spaces.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The referee's baton pass — pause one runner, save their position, resume another.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Copy-on-Write (COW)</h3>
+      <p>A memory optimization where parent and child share physical pages after <code>fork()</code>, both marked read-only; on the first write to any page by either process, the kernel's page fault handler duplicates that specific page so the writer gets a private copy. This makes <code>fork()</code> nearly free even for multi-gigabyte processes.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The clone shares resources until they need to diverge — only then is a new copy made.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · PCB Save/Restore</h3>
+      <p>The computational steps during a context switch that copy the CPU's current register state (including the program counter, stack pointer, general-purpose registers, and flags) into a process's PCB, and then load the incoming process's register values from its PCB back into the CPU before resuming execution.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The bookmark set — capture every register, restore every register, resume exactly where the process stopped.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: C FORK-EXEC LAUNCH PANEL</span>
+  <h2>The Classic fork/exec Shell Launch</h2>
+  <pre class="code-block"><span class="cm">// Classic Unix fork-and-exec pattern — the "ls -l" launch</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;stdlib.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;unistd.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;sys/types.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;sys/wait.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string.h&gt;</span>
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="kw">pid_t</span> rc = <span class="fn">fork</span>();  <span class="cm">// 1. Clone the process</span>
+
+    <span class="kw">if</span> (rc &lt; <span class="num">0</span>) {
+        <span class="fn">perror</span>(<span class="str">"fork"</span>);
+        <span class="kw">return</span> <span class="num">1</span>;
+    } <span class="kw">else if</span> (rc == <span class="num">0</span>) {
+        <span class="cm">// --- CHILD PROCESS BRANCH ---</span>
+        <span class="fn">printf</span>(<span class="str">"[CHILD pid=%d ppid=%d] About to exec /bin/ls...\n"</span>,
+               <span class="fn">getpid</span>(), <span class="fn">getppid</span>());
+
+        <span class="cm">// Build argument vector — must be NULL-terminated!</span>
+        <span class="kw">char</span> *args[] = { <span class="str">"/bin/ls"</span>, <span class="str">"-l"</span>, <span class="str">"/tmp"</span>, NULL };
+
+        <span class="cm">// 2. Transform into /bin/ls. This never returns on success.</span>
+        <span class="fn">execv</span>(args[<span class="num">0</span>], args);
+
+        <span class="cm">// If exec returns, it failed — print error and exit</span>
+        <span class="fn">perror</span>(<span class="str">"execv"</span>);
+        _exit(<span class="num">127</span>);   <span class="cm">// _exit is async-signal-safe; exit() runs atexit handlers</span>
+    } <span class="kw">else</span> {
+        <span class="cm">// --- PARENT PROCESS BRANCH ---</span>
+        <span class="fn">printf</span>(<span class="str">"[PARENT pid=%d] Forked child pid=%d. Waiting...\n"</span>,
+               <span class="fn">getpid</span>(), rc);
+
+        <span class="kw">int</span> status;
+        <span class="kw">pid_t</span> finished = <span class="fn">waitpid</span>(rc, &amp;status, <span class="num">0</span>);  <span class="cm">// 3. Reap the child</span>
+
+        <span class="kw">if</span> (<span class="fn">WIFEXITED</span>(status)) {
+            <span class="fn">printf</span>(<span class="str">"[PARENT] Child %d exited with status %d\n"</span>,
+                   finished, <span class="fn">WEXITSTATUS</span>(status));
+        } <span class="kw">else if</span> (<span class="fn">WIFSIGNALED</span>(status)) {
+            <span class="fn">printf</span>(<span class="str">"[PARENT] Child %d was killed by signal %d\n"</span>,
+                   finished, <span class="fn">WTERMSIG</span>(status));
+        }
+    }
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: TRACING THE LAUNCH PIPELINE</span>
+  <h2>Walking the fork-exec Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>pid_t rc = fork()</h3><p><strong>The clone.</strong> Kernel duplicates the calling process. Both parent and child return from this syscall, but with different <code>rc</code> values. This is the <em>only observable difference</em>.</p></div>
+    <div class="card"><h3>if (rc == 0)</h3><p>The child branch. The child's first executable instruction after <code>fork()</code> is inside this <code>if</code> block — completely different from the parent's path.</p></div>
+    <div class="card crimson"><h3>execv("/bin/ls", args)</h3><p><strong>The transformation.</strong> The child's address space is destroyed and replaced with <code>/bin/ls</code>'s. The child retains its PID, its PPID, its FD table — but gains entirely new Text/Data/Heap/Stack. The PC jumps to <code>ls</code>'s entry point.</p></div>
+    <div class="card"><h3>perror("execv"); _exit(127);</h3><p><strong>The failure path.</strong> Executes <em>only if exec fails</em>. Note <code>_exit()</code> instead of <code>exit()</code> — <code>_exit()</code> is a direct syscall that does <em>not</em> run the parent's <code>atexit()</code> handlers, avoiding side effects in the exec'd program's context.</p></div>
+    <div class="card"><h3>waitpid(rc, &amp;status, 0)</h3><p><strong>The reap.</strong> The parent waits for the child to terminate. Without it, the child becomes a <em>zombie</em> process (terminated, but its PCB is preserved until the parent reads its exit status).</p></div>
+    <div class="card emerald"><h3>WIFEXITED · WEXITSTATUS</h3><p><strong>Status decoding.</strong> Parent inspects the child's exit status. <code>WIFSIGNALED</code> checks for signal-induced termination (segfault, SIGKILL).</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">This 30-line pattern is the exact code every shell runs when you type <code>ls -l /tmp</code>.</p>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎯 INTERACTIVE WORKSHOP: THE OUTPUT PREDICTION RACE</span>
+  <h2>The Live C Output Prediction Game</h2>
+  <pre class="code-block" style="max-height:30vh"><span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; <span class="num">3</span>; i++) {
+        <span class="kw">if</span> (<span class="fn">fork</span>() == <span class="num">0</span>) {
+            <span class="fn">printf</span>(<span class="str">"child %d (pid %d)\n"</span>, i, <span class="fn">getpid</span>());
+            <span class="fn">exit</span>(<span class="num">0</span>);
+        }
+    }
+    <span class="fn">printf</span>(<span class="str">"parent done (pid %d)\n"</span>, <span class="fn">getpid</span>());
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Team A Prediction</h3><p>Trace the execution by hand. How many total lines are output? Which PIDs appear?</p></div>
+    <div class="card"><h3>Team B Prediction</h3><p>Independently trace the same. Focus on <em>order</em> — is it deterministic?</p></div>
+    <div class="card emerald"><h3>Compile &amp; Compare</h3><p>Run live. Compare against both predictions. Discuss: how many processes total? Why is order nondeterministic?</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Answer:</strong> 2³ = 8 total processes (7 children + 1 parent). The order is nondeterministic because the scheduler decides which process runs next (L07 preview). This is why fork bombs are so dangerous.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 TRY IT LIVE: AUDITING LIVE FORK/EXEC</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> strace -f -e trace=clone,execve,wait4 bash -c "ls -l /tmp" 2&gt;&amp;1 | head -20
+<span class="cmd">$</span> strace -f -c bash -c "ls -l /tmp; echo done" 2&gt;&amp;1 | tail -20
+<span class="cmd">$</span> ps -eo pid,ppid,comm | head -10        <span class="out"># See process tree parentage</span>
+<span class="cmd">$</span> pstree -p | head -20                   <span class="out"># Visual tree of all processes</span>
+<span class="cmd">$</span> strace -f -e trace=clone,fork,vfork bash 2&gt;&amp;1 | head  <span class="out"># Live clone</span>
+<span class="cmd">$</span> cat /proc/sys/kernel/pid_max           <span class="out"># The max PID limit</span>
+<span class="cmd">$</span> uptime                                 <span class="out"># Fork rate since last boot</span>
+<span class="cmd">$</span> cat /proc/loadavg                      <span class="out"># Average active processes</span></pre>
+  <p class="hint">strace shows the exact sequence a shell uses to run <code>ls -l</code> — clone, execve, wait4.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 2: Process Management
+        └── <span class="active">L06: Process Execution Mechanics (ACTIVE NODE 🌟)</span>
+              ├── fork() Clone &amp; Copy-on-Write Optimization
+              └── exec() Transform &amp; Context Switch Save/Restore</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p><code>fork()</code> <strong>clones</strong> a process — the child is an exact copy of the parent's PCB, address space (via COW), and FDs. The only difference is the return value (0 in child, PID in parent). <code>exec()</code> <strong>transforms</strong> a process — destroys the current address space and loads a new binary, keeping the same PID and identity.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>Copy-on-write makes <code>fork()</code> <strong>nearly free</strong> — parent and child share physical pages until one writes, at which point only that page is duplicated. This is why modern shells, servers, and containers can fork multi-gigabyte processes instantly.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>A context switch is the <strong>save-restore cycle</strong> through the PCB — save registers into the outgoing process's PCB, load registers from the incoming process's PCB, resume at the new program counter. This is the fundamental operation that enables multitasking, and it is orchestrated by the scheduler (L07) we will study next.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 07 — CPU Scheduling I: FCFS, SJF, and Round Robin</strong><br><br>
+    We can now create, transform, and context-switch processes. But with hundreds of processes ready to run and only a handful of CPU cores, <em>how does the kernel decide which process gets to run next?</em> We will dissect three foundational scheduling algorithms — First-Come-First-Served (FCFS), Shortest-Job-First (SJF), and Round Robin (RR) — and manually compute turn-around time, response time, and average wait metrics for real task vectors. This is where the PCB's scheduling fields we studied in L05 finally come into play.
+  </div>
+  <p class="hint">File: L07.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
