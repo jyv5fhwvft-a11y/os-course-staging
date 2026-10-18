@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L26 · Firewalls & Intrusion Detection</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  .badge-indigo { color: #A5B4FC; border-color: #6366F1; background: rgba(99,102,241,0.08); }
+  .badge-pink { color: #F9A8D4; border-color: #EC4899; background: rgba(236,72,153,0.08); }
+  .badge-fuchsia { color: #F0ABFC; border-color: #D946EF; background: rgba(217,70,239,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-fuchsia { border-color: #D946EF; background: rgba(217,70,239,0.06); color: #F0ABFC; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.fuchsia h3 { color: #F0ABFC; } .card.fuchsia { border-color: #701A75; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .defense-layers { display: flex; flex-direction: column; gap: 1vh; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .defense-layer { display: flex; gap: 1.5vw; align-items: center; padding: 2.5vh 2vw; border-radius: 10px; border: 2px solid; text-align: left; }
+  .defense-layer .num { font-size: 1.8rem; font-weight: 900; min-width: 60px; }
+  .defense-layer p { font-size: clamp(0.85rem, 1.05vw, 0.95rem); line-height: 1.5; }
+  .layer-fw { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .layer-ips { border-color: #F97316; background: rgba(249,115,22,0.06); color: #FDBA74; }
+  .layer-ids { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .layer-hids { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .detection-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5vw; max-width: 1000px; width: 100%; margin: 2vh auto; }
+  .detection-mode { padding: 3vh 2vw; border-radius: 12px; border: 2px solid; text-align: left; }
+  .detection-mode .icon { font-size: 2.2rem; margin-bottom: 1.2vh; }
+  .detection-mode h4 { font-size: 1.2rem; font-weight: 800; margin-bottom: 1.2vh; }
+  .detection-mode p { font-size: clamp(0.85rem, 1.05vw, 0.95rem); line-height: 1.55; margin-bottom: 0.8vh; }
+  .detection-mode .verdict { margin-top: 1.5vh; padding: 1.2vh 1vw; border-radius: 4px; font-family: "SF Mono", monospace; font-size: 0.8rem; font-weight: 800; text-align: center; }
+  .mode-sig { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .mode-sig h4 { color: #60A5FA; }
+  .mode-sig .verdict { background: rgba(59,130,246,0.15); color: #60A5FA; }
+  .mode-anomaly { border-color: #8B5CF6; background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  .mode-anomaly h4 { color: #A78BFA; }
+  .mode-anomaly .verdict { background: rgba(139,92,246,0.15); color: #A78BFA; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .detection-modes { grid-template-columns: 1fr; } .defense-layer { flex-direction: column; text-align: center; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L26</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-fuchsia">🔰 START HERE // L26 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#D946EF"></div>
+  <p class="subtitle">Distinguish a firewall's blocking role from an IDS's detection role given a sample network log trace.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> L25 taught us how to encrypt data in transit. But encryption only protects the <em>contents</em> — it does not stop the attacker from knocking on the door in the first place. Every internet-connected server is probed thousands of times per day by automated scanners, botnets, and opportunistic exploits. How does an organization decide which traffic is legitimate and which must be blocked — and how do they detect an attacker who <em>already got past the door</em>?
+  </div>
+  <p class="hint">Press → to begin
+</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L21 Network Drivers</h3><p>Network device drivers, sockets, and how packets enter the kernel network stack. Firewalls and IDS operate entirely within this layer.</p></div>
+    <div class="card amber"><h3>02 · L25 Encryption</h3><p>Modern firewalls cannot inspect TLS-encrypted payloads. They must rely on metadata analysis instead of content. This is the entire paradigm shift of L26.</p></div>
+    <div class="card amber"><h3>03 · Network Basics</h3><p>IP addresses, TCP ports, the client-server model. Students should know what "port 80" and "port 443" mean, and what "10.0.0.1" refers to.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> Emphasize the shift that encryption forced. In 1995, a firewall could inspect packet <em>contents</em> — find a known attack string and block it. In 2024, nearly all traffic is TLS-encrypted, so content inspection is impossible in the network middle. This drives the entire architecture of L26: metadata filtering + endpoint detection.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-fuchsia">🎒 EVERYDAY SIMPLIFIED: THE CLUB BOUNCER</span>
+  <h2>The Firewall Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🛡️🚪📋</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>At the door of an elite nightclub stands a bouncer. He holds a strict ID list — anyone on the list enters; anyone not on it is turned away immediately. The bouncer does not watch what happens inside; he only guards the door. He makes a split-second decision per entrant: on the list or not.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>A firewall is the club's bouncer. It checks every incoming packet against a static rule set: source IP, destination IP, port number. Matching rules are allowed (or blocked), and the packet is either forwarded or dropped.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This maps directly to <em>stateless packet filtering</em> — the simplest firewall model, using fixed header checks.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-fuchsia">🎒 EVERYDAY SIMPLIFIED: THE UNDERCOVER CAMERA GUARD</span>
+  <h2>The IDS Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📹👁️🚨</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The bouncer checked everyone at the door — but once inside, they can do <em>anything</em>. A camera guard sits in a back room watching every floor. Normally they see ordinary patrons. Then one patron starts shoving another — the guard recognizes the pattern from past incidents, raises an alarm, and calls in the security team.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>An Intrusion Detection System (IDS) is that camera guard. It receives <em>copies</em> of every packet that passed the firewall, analyzes them against known patterns (signatures) or statistical baselines (anomalies), and raises an alert when something suspicious happens.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This maps to deep packet inspection — the IDS can see <em>inside</em> the traffic, not just the headers, because it operates <em>after</em> the firewall.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-fuchsia">🎒 EVERYDAY SIMPLIFIED: THE INTERVENTION GUARD</span>
+  <h2>The IPS Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🛑✋📣</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The camera guard is upgraded to a full intervention officer. Instead of just watching and calling the alarm, they also carry physical authority: when they spot a threatening patron, they immediately subdue them — before the fight starts.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>An Intrusion <em>Prevention</em> System (IPS) is an IDS that can <em>act</em> on its alerts — dropping suspicious packets, resetting connections, or even quarantining the source IP. It sits inline in the network path, not on a passive tap.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>IDS observes (out-of-band); IPS blocks (in-line). The architectural difference has real performance and false-positive consequences.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-fuchsia">🎒 EVERYDAY SIMPLIFIED: WANTED POSTER VS BEHAVIORAL PROFILE</span>
+  <h2>The Signature vs Anomaly Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🎯📊🔍</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The signature guard carries a stack of wanted posters showing exact faces of known criminals — anyone matching a poster is flagged. The anomaly guard carries no posters at all; instead they study the <em>normal</em> pattern of behavior and flag anything that deviates significantly — like a customer suddenly withdrawing 10x their usual monthly amount at 3 AM.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Signature-based detection looks for exact byte patterns matching known exploit profiles. Anomaly-based detection builds a statistical baseline of "normal" and flags deviations.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Signatures catch known attacks (millions of them); anomalies catch unknown attacks. Real systems use both.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE LAYERED PERIMETER SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>🚪 Firewall</h3><p>Block before entry. Static header rules. Fast, but blind to content.</p></div>
+    <div class="card"><h3>📹 IDS</h3><p>Detect after entry. Deep content analysis. Slow, but sees everything.</p></div>
+    <div class="card fuchsia"><h3>🛑 IPS</h3><p>Detect AND block. In-line intervention. Adds latency, but stops attacks mid-flight.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Defense in depth: <strong>filter what you can predict</strong> (firewall), <strong>detect what gets past</strong> (IDS), <strong>intervene when you have the authority</strong> (IPS). No single layer is sufficient — the combination is the strategy.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-fuchsia">💻 SYSTEMS COHESION: STATELESS VS STATEFUL</span>
+  <h2>Firewall Filtering Semantics</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card amber">
+      <h3>Stateless Packet Filtering</h3>
+      <p>Each packet is evaluated independently against header fields — source IP, destination IP, source port, destination port, protocol.</p>
+      <p style="margin-top:1vh">No memory of past packets. Fast, but blind to context (e.g., an incoming packet that belongs to an established connection).</p>
+    </div>
+    <div class="card emerald">
+      <h3>Stateful Connection Tracking</h3>
+      <p>The firewall maintains a table of active connections.</p>
+      <p style="margin-top:1vh">The first packet of a TCP handshake (SYN) is evaluated against rules; subsequent packets are matched against the connection table.</p>
+      <p style="margin-top:1vh"><strong>Allows return traffic without explicit rules.</strong></p>
+    </div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:2vh">
+    <div class="card violet">
+      <h3>Application-Layer Filtering</h3>
+      <p>Inspects traffic up to layer 7 — HTTP request methods, DNS queries, TLS Server Name Indication (SNI).</p>
+      <p style="margin-top:1vh">More expensive, but far more precise.</p>
+    </div>
+    <div class="card">
+      <h3>The Example Rule</h3>
+      <p><code>ALLOW tcp from 10.0.0.0/8 to 0.0.0.0/0 port 443</code></p>
+      <p>Allows all outbound HTTPS from internal network.</p>
+      <p style="margin-top:1vh"><code>DENY tcp from 0.0.0.0/0 to 10.0.0.5 port 22</code></p>
+      <p>Blocks inbound SSH to a specific internal server.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-fuchsia">💻 SYSTEMS COHESION: SIGNATURE-BASED IDS MECHANICS</span>
+  <h2>The Deep Packet Inspection Problem</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Signature Model</h3>
+      <p><strong>Signature:</strong> A byte-level pattern (often regex or byte sequence) identifying a known attack.</p>
+      <p style="margin-top:1vh">Example: <code>\x00\xff\x51\x41</code> — a specific Shellshock command injection.</p>
+      <p style="margin-top:1vh"><strong>Database:</strong> Snort, Suricata, and Zeek ship with 50,000+ signatures, updated constantly from vendor feeds and public CVE disclosures.</p>
+    </div>
+    <div class="card amber">
+      <h3>The Strengths and Weaknesses</h3>
+      <p><strong>Strength:</strong> Extremely precise on known attacks. Essentially zero false positives if signatures are well-written.</p>
+      <p style="margin-top:1vh"><strong>Weakness:</strong> Cannot detect <em>novel</em> attacks, obfuscated payloads, or simple variants. A signature for "password" fails on "passwd."</p>
+      <p style="margin-top:1vh;color:#FBBF24"><strong>The modern problem:</strong> With TLS-encrypted traffic, the IDS cannot see most payloads at all.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-fuchsia">💻 SYSTEMS COHESION: STATISTICAL BASELINE MODELING</span>
+  <h2>Anomaly-Based Detection</h2>
+  <div class="detection-modes">
+    <div class="detection-mode mode-anomaly">
+      <div class="icon">📊</div>
+      <h4>The Anomaly Pipeline</h4>
+      <p><strong>1. Baseline:</strong> Observe traffic patterns for days/weeks — bytes/second, requests/hour, unique sources, destination distribution, protocol mix.</p>
+      <p><strong>2. Model:</strong> Fit a statistical model to the baseline — mean, variance, correlations, seasonal patterns.</p>
+      <p><strong>3. Score:</strong> Each incoming packet is scored for how <em>unusual</em> it is relative to the baseline.</p>
+      <p><strong>4. Alert:</strong> Score above threshold triggers an alert.</p>
+      <div class="verdict">CATCHES NOVEL ATTACKS</div>
+    </div>
+    <div class="detection-mode mode-anomaly">
+      <div class="icon">⚠️</div>
+      <h4>The Trade-offs</h4>
+      <p><strong>Strength:</strong> Can detect <em>novel</em> attacks — the attacker must do <em>something</em> that differs from normal traffic. Also catches insider threats, data exfiltration, and misconfigurations.</p>
+      <p><strong>Weakness:</strong> High false positive rate — a legitimate marketing campaign that spikes web traffic looks identical to a DDoS. Requires careful tuning.</p>
+      <p style="margin-top:1vh;color:#A78BFA"><strong>Investment in tuning is mandatory.</strong></p>
+      <div class="verdict">REQUIRES TUNING</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-fuchsia">💻 SYSTEMS COHESION: THE HIDS AND NIDS DISTINCTION</span>
+  <h2>Host-Based vs Network-Based Detection</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Network-Based IDS (NIDS)</h3>
+      <p>Sits on a network tap or span port, receives copies of all packets passing through.</p>
+      <p style="margin-top:1vh">Inspects traffic for anomalous <em>patterns</em> — port scans, exploit payloads, command-and-control beaconing.</p>
+      <p style="margin-top:1vh"><strong>Blind spots:</strong> Sees only traffic crossing the tap, not within a host. Blind to encrypted traffic unless deployed with TLS termination.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Host-Based IDS (HIDS)</h3>
+      <p>Runs on each individual machine, inspecting files, processes, syscalls, and memory.</p>
+      <p style="margin-top:1vh">Sees everything that happens on the host. Catches attacks that never touch the network (privilege escalation, file tampering).</p>
+      <p style="margin-top:1vh"><strong>Requires installation and integration on every machine.</strong></p>
+    </div>
+  </div>
+  <div class="callout callout-fuchsia" style="margin-top:2vh">
+    <strong>The Complementary Relationship:</strong> NIDS catches incoming attacks (external). HIDS catches internal compromise (post-exploitation). Modern SOCs run both, correlating alerts across layers. <em>Encryption has tilted the balance toward HIDS</em> — once traffic is encrypted, the endpoint is the only place where the OS can inspect what is actually happening.
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-fuchsia">💻 SYSTEMS COHESION: DEFENSE-IN-DEPTH ARCHITECTURE</span>
+  <h2>Firewall + IDS + IPS Layering</h2>
+  <div class="defense-layers">
+    <div class="defense-layer layer-fw">
+      <div class="num">1</div>
+      <p><strong>Firewall:</strong> Blocks traffic based on IP/port rules — the first line of defense. Fast, simple, effective against known bad networks and unauthorized ports.</p>
+    </div>
+    <div class="defense-layer layer-ips">
+      <div class="num">2</div>
+      <p><strong>IPS (inline):</strong> Inspects traffic in real time and drops suspicious packets. Adds latency but blocks threats mid-attack.</p>
+    </div>
+    <div class="defense-layer layer-ids">
+      <div class="num">3</div>
+      <p><strong>IDS (passive tap):</strong> Analyzes copies of traffic for anomalies and known signatures, raising alerts. No impact on traffic flow (out-of-band).</p>
+    </div>
+    <div class="defense-layer layer-hids">
+      <div class="num">4</div>
+      <p><strong>HIDS (endpoint):</strong> Detects post-exploitation behavior — file changes, privilege escalation, unauthorized processes.</p>
+    </div>
+  </div>
+  <div class="callout callout-emerald" style="margin-top:2vh">
+    <strong>Defense-in-Depth:</strong> No layer is complete. Firewall misses legitimate-port attacks. IPS misses encrypted payloads. IDS misses insider activity. HIDS misses external reconnaissance. Together they form a perimeter with no single blind spot — correlated in a Security Operations Center (SOC).
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON NETWORK AND CRYPTO STACK</span>
+  <h2>Core System Cohesion — Relies On L21 &amp; L25</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L21 (Network Stack)</h3><p>Firewalls and IDS operate entirely within the network stack built in L21 — but they see differently. Firewalls operate on raw packets before reassembly. IDS sees payloads after reassembly.</p></div>
+    <div class="card"><h3>L25 (Encryption)</h3><p>IDS sees packet payloads — but if L25 encryption is in play, the payload is opaque. This is precisely why L26 detection must shift to metadata analysis.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>Firewalls need deep network-layer visibility (L21); IDS needs application-layer visibility (which encryption compromises). The interplay between these layers defines the entire security architecture.</p></div>
+    <div class="card emerald"><h3>Feeds Into L27</h3><p>The perimeter (L26) assumes "trusted inside, untrusted outside." But this model has collapsed — modern workloads run on shared infrastructure, external APIs, and outsourced dependencies. The new model is <em>zero trust</em>: assume the network is hostile, isolate everything at the workload level.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO CONTAINERS AND SANDBOXING</span>
+  <h2>Core System Cohesion — Feeds Into L27</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>The Perimeter Collapse</h3><p>Traditional firewalls assumed a clear boundary: trusted inside, untrusted outside. Cloud computing, remote work, and shared infrastructure have erased this boundary. There is no "inside" anymore.</p></div>
+    <div class="card"><h3>The Zero-Trust Shift</h3><p>Every connection is treated as hostile by default. Every workload is isolated at the process level. The perimeter becomes just one of many security boundaries.</p></div>
+    <div class="card violet"><h3>L27's Role</h3><p>Containers, namespaces, and MicroVMs push isolation <em>down to the individual process</em>. This is the natural evolution of the L26 perimeter into the L27 sandbox.</p></div>
+    <div class="card emerald"><h3>The Verdict</h3><p>L26 protects the <em>network boundary</em>. L27 protects the <em>workload boundary</em>. Together they form the complete modern security architecture.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: NETWORK DEFENSE STRATEGIES</span>
+  <h2>Network Defense Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Defense</h3><p>Firewalling is handled in-kernel by Netfilter (Linux). All packet inspection, filtering, and NAT happens inside the kernel network stack. Extremely fast — but a bug in Netfilter is a kernel bug, and the entire firewall policy is invisible to user space.</p></div>
+    <div class="card emerald"><h3>Microkernel Defense</h3><p>Firewall logic runs as a user-space packet filter service. The kernel exposes a raw network device; the filter decides per packet. Slower (IPC per packet), but completely isolated — a firewall bug cannot crash the kernel, and the policy is inspectable user-space code.</p></div>
+    <div class="card amber"><h3>Layered Defense</h3><p>Strict layering — raw packet filter → connection tracking → application-layer proxy. Each layer sees more detail but costs more. Real enterprise firewalls implement all three layers, with rules applied at each tier.</p></div>
+    <div class="card"><h3>Modular Defense</h3><p>Core packet filtering in-kernel, but pluggable match modules (<code>iptables -m string</code>, <code>-m recent</code>, <code>-m connlimit</code>) extend the match logic. New filter rules can be loaded as kernel modules — flexible but dangerous (each module is a potential vulnerability surface).</p></div>
+    <div class="card fuchsia"><h3>Hybrid Defense</h3><p>Kernel-level fast-path filtering (Netfilter/eBPF) for high-throughput packet classification, with user-space deep inspection (Suricata, Zeek) for encrypted or application-layer traffic. eBPF/XDP allows programmable in-kernel filtering with near-wire-speed throughput.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE NETWORK DEFENSE VOCABULARY</span>
+  <h2>Base Firewall Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Firewall</h3>
+      <p>A boundary security component that permits or blocks network traffic frames based on a predetermined set of filtering rule criteria — typically source and destination IP addresses, source and destination ports, and protocol. Enforced at the network boundary, before traffic enters the trusted internal network.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The club bouncer who checks IDs against a fixed list at the door.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Port Filtering</h3>
+      <p>Blocking or opening explicit software communication channels (e.g., Port 80 for HTTP, Port 22 for SSH, Port 443 for HTTPS) at the network boundary to restrict vector exposure; a foundational element of any firewall policy. Blocking all unused ports is the first step in network hardening.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Closing every door in the building except the ones that must be open.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE NETWORK DEFENSE VOCABULARY</span>
+  <h2>Advanced IDS Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · IDS</h3>
+      <p>An internal network data scanner that tracks packet streams already passing inside system boundaries to sound alarms on suspicious behaviors; operates out-of-band (on copies of traffic, not the live path) and does not itself block traffic. Distinguished from IPS by its passive observation role.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The camera guard who watches but does not intervene.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Signature vs Anomaly</h3>
+      <p><strong>Signature:</strong> Scans for known malicious byte patterns. Precise on known attacks, blind to novel ones. <strong>Anomaly:</strong> Establishes a statistical baseline and flags deviations. Catches novel attacks, but generates many false positives. Modern IDS deployments use both simultaneously.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Wanted posters for exact faces vs behavioral profiles that flag "this is not normal.")</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · IPS</h3>
+      <p>An inline network security device that detects and <em>actively blocks</em> malicious traffic — dropping packets, resetting connections, or quarantining sources — based on signature or anomaly detection. Distinguished from IDS by its authority to intervene in the traffic path, at the cost of added latency and false-positive risk.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The guard who does not just watch but physically restrains the aggressor.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-fuchsia">💻 CODE DISSECTION: C FIREWALL SIMULATOR</span>
+  <h2>A Simple Rule-Based Firewall in C</h2>
+  <pre class="code-block"><span class="cm">// Simulating a stateless firewall rule evaluator in C</span>
+<span class="cm">// Compile: gcc -o fw fw.c &amp;&amp; ./fw</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string.h&gt;</span>
+
+<span class="kw">#define</span> MAX_RULES <span class="num">8</span>
+
+<span class="kw">typedef</span> <span class="kw">enum</span> { ACTION_ALLOW, ACTION_DENY } Action;
+<span class="kw">typedef</span> <span class="kw">enum</span> { PROTO_TCP, PROTO_UDP, PROTO_ANY } Proto;
+
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    <span class="kw">char</span> src_ip[<span class="num">16</span>];
+    <span class="kw">char</span> dst_ip[<span class="num">16</span>];
+    <span class="kw">int</span>  dst_port;   <span class="cm">// -1 = wildcard</span>
+    Proto proto;
+    Action action;
+} Rule;
+
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    <span class="kw">char</span> src_ip[<span class="num">16</span>];
+    <span class="kw">char</span> dst_ip[<span class="num">16</span>];
+    <span class="kw">int</span>  dst_port;
+    Proto proto;
+} Packet;
+
+<span class="kw">int</span> <span class="fn">ip_match</span>(<span class="kw">const char</span>* pattern, <span class="kw">const char</span>* actual) {
+    <span class="kw">if</span> (<span class="fn">strcmp</span>(pattern, <span class="str">"0.0.0.0"</span>) == <span class="num">0</span>) <span class="kw">return</span> <span class="num">1</span>;  <span class="cm">// Wildcard</span>
+    <span class="kw">return</span> <span class="fn">strcmp</span>(pattern, actual) == <span class="num">0</span>;
+}
+
+Action <span class="fn">evaluate_packet</span>(Rule* rules, <span class="kw">int</span> count, Packet* pkt) {
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; count; i++) {
+        Rule* r = &amp;rules[i];
+        <span class="kw">if</span> (!<span class="fn">ip_match</span>(r-&gt;src_ip, pkt-&gt;src_ip)) <span class="kw">continue</span>;
+        <span class="kw">if</span> (!<span class="fn">ip_match</span>(r-&gt;dst_ip, pkt-&gt;dst_ip)) <span class="kw">continue</span>;
+        <span class="kw">if</span> (r-&gt;dst_port != -<span class="num">1</span> &amp;&amp; r-&gt;dst_port != pkt-&gt;dst_port) <span class="kw">continue</span>;
+        <span class="kw">if</span> (r-&gt;proto != PROTO_ANY &amp;&amp; r-&gt;proto != pkt-&gt;proto) <span class="kw">continue</span>;
+
+        <span class="fn">printf</span>(<span class="str">"  MATCH rule #%d -&gt; %s\n"</span>,
+               i, r-&gt;action == ACTION_ALLOW ? <span class="str">"ALLOW"</span> : <span class="str">"DENY"</span>);
+        <span class="kw">return</span> r-&gt;action;
+    }
+    <span class="fn">printf</span>(<span class="str">"  No rule matched -&gt; DENY (default)\n"</span>);
+    <span class="kw">return</span> ACTION_DENY;
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    Rule rules[] = {
+        { <span class="str">"0.0.0.0"</span>, <span class="str">"0.0.0.0"</span>, <span class="num">443</span>, PROTO_TCP, ACTION_ALLOW },   <span class="cm">// HTTPS outbound</span>
+        { <span class="str">"0.0.0.0"</span>, <span class="str">"0.0.0.0"</span>, <span class="num">53</span>,  PROTO_UDP, ACTION_ALLOW },   <span class="cm">// DNS</span>
+        { <span class="str">"0.0.0.0"</span>, <span class="str">"10.0.0.5"</span>, <span class="num">22</span>, PROTO_TCP, ACTION_DENY },    <span class="cm">// Block SSH attack</span>
+        { <span class="str">"10.0.0.0"</span>, <span class="str">"0.0.0.0"</span>, <span class="num">22</span>, PROTO_TCP, ACTION_ALLOW },    <span class="cm">// Admin SSH</span>
+    };
+    <span class="kw">int</span> rule_count = <span class="kw">sizeof</span>(rules) / <span class="kw">sizeof</span>(rules[<span class="num">0</span>]);
+
+    Packet test_packets[] = {
+        { <span class="str">"192.168.1.10"</span>, <span class="str">"8.8.8.8"</span>,    <span class="num">443</span>, PROTO_TCP },  <span class="cm">// HTTPS outbound</span>
+        { <span class="str">"8.8.8.8"</span>, <span class="str">"192.168.1.10"</span>,     <span class="num">53</span>, PROTO_UDP },  <span class="cm">// DNS response</span>
+        { <span class="str">"1.2.3.4"</span>, <span class="str">"10.0.0.5"</span>,          <span class="num">22</span>, PROTO_TCP },  <span class="cm">// SSH attack</span>
+        { <span class="str">"10.0.0.20"</span>, <span class="str">"10.0.0.30"</span>,       <span class="num">22</span>, PROTO_TCP },  <span class="cm">// Admin SSH</span>
+        { <span class="str">"1.2.3.4"</span>, <span class="str">"10.0.0.5"</span>,        <span class="num">8080</span>, PROTO_TCP },  <span class="cm">// Unknown service</span>
+    };
+
+    <span class="fn">printf</span>(<span class="str">"=== Firewall Rule Evaluation ===\n"</span>);
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; <span class="num">5</span>; i++) {
+        Packet* p = &amp;test_packets[i];
+        <span class="fn">printf</span>(<span class="str">"\nPacket %d: %s -&gt; %s:%d/%s\n"</span>, i,
+               p-&gt;src_ip, p-&gt;dst_ip, p-&gt;dst_port,
+               p-&gt;proto == PROTO_TCP ? <span class="str">"TCP"</span> : <span class="str">"UDP"</span>);
+        <span class="fn">evaluate_packet</span>(rules, rule_count, p);
+    }
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-fuchsia">💻 CODE DISSECTION: TRACING FIREWALL DECISIONS</span>
+  <h2>Walking the Rule Evaluation Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Rule rules[] = {...}</h3><p><strong>The rule table.</strong> Each rule is a filtering predicate. Note the specificity gradient: <code>ALLOW tcp port 443 from anyone</code> is broad; <code>DENY tcp port 22 to 10.0.0.5</code> is specific.</p></div>
+    <div class="card"><h3>evaluate_packet(...)</h3><p><strong>The core evaluation loop.</strong> Rule order matters: the <em>first matching rule wins</em> (not the most specific rule). Firewall administrators must order rules carefully.</p></div>
+    <div class="card emerald"><h3>ip_match(...) &amp; port check</h3><p>Address predicates check source and destination IPs. <code>0.0.0.0</code> matches anything (wildcard). Port predicate: <code>-1</code> matches any port; otherwise exact match.</p></div>
+    <div class="card crimson"><h3>Test packet 2</h3><p><code>1.2.3.4 → 10.0.0.5:22</code>. Loop hits rule #2 (<code>DENY tcp port 22 to 10.0.0.5</code>) — matches. <strong>DENY.</strong> This is exactly what a firewall should do: block the inbound SSH attack targeting a critical server.</p></div>
+    <div class="card"><h3>Test packet 4</h3><p><code>1.2.3.4 → 10.0.0.5:8080</code>. No rule matches (8080 is not on any rule). Returns default <strong>DENY</strong>. This is the <em>default-deny principle</em>: if the policy does not explicitly allow something, it is blocked.</p></div>
+    <div class="card amber"><h3>The Rule Order Trap</h3><p>If we swapped rule #2 and rule #3, packet #2 would still be blocked — but a mistakenly ordered <code>ALLOW tcp port 22 from anyone</code> before <code>DENY tcp port 22 to 10.0.0.5</code> would allow the attack. <strong>Rule order is critical in firewalls.</strong></p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎯 INTERACTIVE WORKSHOP: THE LOG CLASSIFIER</span>
+  <h2>The Raw Log Diagnostic Sorting Game</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>Students 01–05 · Firewall Team</h3><p>Tasked to catch any log line that matches a firewall rule — port scanning from a blocked IP, unrecognized source, denied port.</p></div>
+    <div class="card"><h3>Students 06–10 · IDS Team</h3><p>Tasked to catch any log line that matches a <em>pattern</em> of malicious behavior — SQL injection strings, repeated failed logins, data exfiltration spikes.</p></div>
+    <div class="card emerald"><h3>Student 11 · The Judge</h3><p>Confirms the classification against a supplied log trace.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>The Trace:</strong> The instructor reads 10 lines from a simulated log file — some showing port scans from blocked IPs, some showing SQL injection strings, some showing unusual data spikes. Teams race to assign each line to Firewall or IDS. Compare with the judge's categorization.</p>
+  <p class="hint" style="margin-top:2vh">Example lines: "BLOCKED 203.0.113.42 → 10.0.0.5:22 (port scan)" · "ALERT HTTP GET /admin.php?id=1' OR '1'='1' (SQLi)" · "BLOCKED 198.51.100.7 → 10.0.0.5:3389 (blocked port)"</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-fuchsia">💻 TRY IT LIVE: AUDITING LIVE FIREWALLS</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> sudo nft list ruleset                    <span class="out"># Modern nftables rules</span>
+<span class="cmd">$</span> sudo iptables -L -n -v                   <span class="out"># Legacy iptables rules</span>
+<span class="cmd">$</span> sudo ss -tlnp                            <span class="out"># Listening TCP ports</span>
+<span class="cmd">$</span> sudo tcpdump -i any -n 'tcp port 22' -c 5  <span class="out"># Capture SSH packets</span>
+<span class="cmd">$</span> sudo tail -f /var/log/syslog | grep -i "iptables\|nftables"
+<span class="cmd">$</span> sudo fail2ban-client status 2&gt;/dev/null  <span class="out"># Fail2ban IDS status</span>
+<span class="cmd">$</span> sudo snort -T -c /etc/snort/snort.conf 2&gt;/dev/null  <span class="out"># Snort config test</span>
+<span class="cmd">$</span> journalctl -u ufw | tail -20             <span class="out"># UFW firewall logs</span></pre>
+  <p class="hint"><code>nft list ruleset</code> shows every live firewall rule — the actual policy enforced by the kernel. <code>ss -tlnp</code> shows every listening port — the foundation of port filtering. Every server is under continuous probe: <code>tcpdump</code> on port 22 will always capture traffic.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 7: Security &amp; Protection
+        └── <span class="active">L26: Firewalls &amp; Intrusion Detection (ACTIVE NODE 🌟)</span>
+              ├── Boundary Port Filtering &amp; Stateful Connection Tracking
+              └── Signature vs Anomaly Detection &amp; Deep Packet Analysis</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p><strong>Firewalls</strong> are boundary filters — the club bouncer. They enforce static rule-based policies on packet headers, default to deny, and are fast but blind to content and context. They block known-bad traffic before it enters.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p><strong>IDS/IPS systems</strong> are inspection systems — the camera guards. Signature-based detection matches known attack patterns precisely (but misses novel attacks). Anomaly-based detection flags statistical deviations (catching novel attacks at the cost of false positives). IPS extends IDS with the authority to actively block.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p><strong>Encryption</strong> (L25) has fundamentally shifted the network security model. In an all-TLS world, content inspection in the network middle is increasingly impossible — the future of detection is endpoint-based (HIDS) and metadata-based (behavioral analysis, TLS fingerprinting, traffic-shape analysis). This drives the shift to zero-trust architecture, which L27 continues.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 27 — Modern Isolation Paradigms</strong><br><br>
+    Firewalls and IDS assume a "trusted inside, untrusted outside" network. But modern workloads run on shared cloud infrastructure, behind a dozen external APIs, and depend on third-party code. <strong>There is no trusted interior anymore.</strong> We will explore the modern isolation spectrum — sandboxes, namespaces, containers, and MicroVMs — and see how each layer composes existing primitives (namespaces, cgroups, capabilities) to isolate every workload down to the individual process. The container is not new kernel technology — it is the clever composition of everything we studied in Modules 1–6.
+  </div>
+  <p class="hint">File: L27.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
