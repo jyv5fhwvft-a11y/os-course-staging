@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L15 · Classic Synchronization Problems & Deadlock Topologies</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-rose { border-color: #F43F5E; background: rgba(244,63,94,0.06); color: #FDA4AF; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.rose h3 { color: #FB7185; } .card.rose { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .philosophers { display: flex; justify-content: center; align-items: center; position: relative; width: 340px; height: 340px; margin: 2vh auto; }
+  .phil { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.85rem; position: absolute; }
+  .phil-p1 { top: 0; left: 50%; transform: translateX(-50%); background: rgba(59,130,246,0.15); border: 2px solid #3B82F6; color: #60A5FA; }
+  .phil-p2 { top: 25%; right: 0; background: rgba(16,185,129,0.15); border: 2px solid #10B981; color: #34D399; }
+  .phil-p3 { bottom: 15%; right: 15%; background: rgba(139,92,246,0.15); border: 2px solid #8B5CF6; color: #A78BFA; }
+  .phil-p4 { bottom: 15%; left: 15%; background: rgba(245,158,11,0.15); border: 2px solid #F59E0B; color: #FBBF24; }
+  .phil-p5 { top: 25%; left: 0; background: rgba(244,63,94,0.15); border: 2px solid #F43F5E; color: #FB7185; }
+  .fork { position: absolute; font-size: 1.5rem; }
+  .fork-12 { top: 12%; right: 22%; transform: rotate(35deg); }
+  .fork-23 { bottom: 30%; right: 5%; transform: rotate(-20deg); }
+  .fork-34 { bottom: 3%; left: 50%; transform: translateX(-50%); }
+  .fork-45 { bottom: 30%; left: 5%; transform: rotate(20deg); }
+  .fork-51 { top: 12%; left: 22%; transform: rotate(-35deg); }
+  .coffman { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5vw; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .coffman-box { padding: 2.5vh 2vw; border-radius: 12px; border: 2px solid; text-align: left; }
+  .coffman-box h4 { font-size: 1.1rem; font-weight: 800; margin-bottom: 1vh; }
+  .coffman-box p { font-size: clamp(0.85rem, 1.05vw, 0.95rem); line-height: 1.5; }
+  .coffman-1 { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .coffman-1 h4 { color: #60A5FA; }
+  .coffman-2 { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .coffman-2 h4 { color: #FBBF24; }
+  .coffman-3 { border-color: #8B5CF6; background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  .coffman-3 h4 { color: #A78BFA; }
+  .coffman-4 { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .coffman-4 h4 { color: #F87171; }
+  .math-box { max-width: 850px; padding: 2.5vh 2vw; border-radius: 12px; background: rgba(59,130,246,0.06); border: 2px solid #3B82F6; text-align: left; margin: 2vh auto; }
+  .math-box h4 { color: #60A5FA; font-size: 1.15rem; margin-bottom: 1.2vh; }
+  .math-box p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.7; }
+  .math-box .formula { color: #FBBF24; font-family: "SF Mono", monospace; font-weight: 800; font-size: clamp(0.95rem, 1.2vw, 1.1rem); display: block; margin: 1vh 0; padding: 1.2vh 1.2vw; background: rgba(245,158,11,0.08); border-left: 3px solid #F59E0B; border-radius: 4px; }
+  .pipeline { display: flex; flex-direction: column; gap: 1.5vh; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .pipeline-step { display: flex; gap: 1.5vw; align-items: center; padding: 2vh 2vw; border-radius: 10px; border: 2px solid; text-align: left; }
+  .pipeline-step .num { font-size: 1.8rem; font-weight: 900; min-width: 60px; }
+  .pipeline-step p { font-size: clamp(0.85rem, 1.1vw, 1rem); line-height: 1.5; }
+  .step-1 { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .step-2 { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .step-3 { border-color: #8B5CF6; background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  .step-4 { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .coffman { grid-template-columns: 1fr; } .philosophers { width: 260px; height: 260px; } .phil { width: 48px; height: 48px; font-size: 0.7rem; } .pipeline-step { flex-direction: column; text-align: center; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L15</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-crimson">🔰 START HERE // L15 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#EF4444"></div>
+  <p class="subtitle">Diagram resource dependency graphs to locate a circular wait condition, and eliminate a deadlock trap by stripping out one of the four Coffman parameters.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> Five philosophers sit at a round table. Five forks, one between each pair. All five simultaneously grab their left fork — and now every single one waits forever for the right fork held by their neighbor. Nobody eats. Nobody moves. Nobody dies. The system is not crashed — it is <em>permanently frozen</em>. How do we build synchronization dams that <em>never</em> trap themselves?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L14 Mutexes</h3><p>Critical sections, mutex primitives, atomic operations. Everything from L14 is a prerequisite — L15 is the <em>second</em> chapter of the same story.</p></div>
+    <div class="card amber"><h3>02 · Blocking Behavior</h3><p>What it means for a thread to block on a mutex wait queue, and how the kernel deschedules it (from L06's context switch).</p></div>
+    <div class="card amber"><h3>03 · Basic Directed Graphs</h3><p>Node-and-arrow diagrams, and how to identify a cycle (a closed loop of arrows).</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> L15 is the second and final lecture of Module 4. L14 taught the fix for races. L15 teaches the pathologies that the fix itself creates. If students do not understand deadlock, they will write multi-threaded programs that work in the lab and freeze in production.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">🎒 EVERYDAY SIMPLIFIED: THE DINING PHILOSOPHERS</span>
+  <h2>The Deadlock Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🍝🍴👥</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Five philosophers sit around a circular dinner table with exactly five forks placed between them. To eat noodles, a philosopher must hold both their left and right fork. All five reach out and grab their left fork at the exact same instant. Everyone now holds one fork and waits politely for the right fork held by their neighbor — who is waiting for the fork held by <em>their</em> neighbor — who is waiting in a closed loop back to the start.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Nobody will ever release. The loop is self-sustaining. This is a <em>circular wait</em> deadlock.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Five threads each holding lock A and waiting for lock B, forming a closed dependency ring.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">🎒 EVERYDAY SIMPLIFIED: THE STARVED PATIENT</span>
+  <h2>The Starvation Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏥⏰🩹</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A hospital ER uses strict priority scheduling: the sickest patient always goes first. Now imagine a patient with a broken arm arriving at 9 AM. Every few minutes a heart-attack case arrives, jumps the line, and is treated. By 6 PM, the broken-arm patient is <em>still waiting</em> — not because anyone blocked them, but because high-priority arrivals never stop flooding the queue.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>No thread is deadlocked. The system is <em>live and working</em>. One specific thread is simply never scheduled. This is <em>starvation</em>.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This distinguishes starvation (never runs, but system is functional) from deadlock (nobody runs at all).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">🎒 EVERYDAY SIMPLIFIED: THE POLITE CORRIDOR DANCE</span>
+  <h2>The Livelock Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🚶↔️🚶</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Two people walk toward each other in a narrow corridor. Both politely step left. Both politely step right. Both step left again. They shuffle endlessly — actively moving, actively attempting to resolve the conflict, never actually passing each other.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Threads are not blocked. They are spinning, retrying, and yielding — burning CPU cycles without making progress. This is <em>livelock</em>, the "polite but useless" failure mode.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Livelock is deadlock's optimistic cousin — visible to <code>top</code> as 100% CPU, invisible to the stack trace.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">🎒 EVERYDAY SIMPLIFIED: THE MISSION-CRITICAL STALL</span>
+  <h2>The Priority Inversion Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🚀⏸️🛰️</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A high-priority task — "keep the spacecraft alive" — needs a data lock held by a low-priority task. But a <em>medium</em>-priority task — "download weather telemetry" — doesn't need the lock, so it freely preempts the low-priority holder. Now the low-priority task never finishes its critical section, the lock is never released, and the high-priority task waits behind a process it was designed to outrank.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Priority is inverted: high waits on low, low waits on mid, mid waits on nothing. The 1997 Mars Pathfinder froze exactly this way, repeatedly rebooting itself for weeks until engineers uplinked a <em>priority inheritance</em> patch.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the single most famous real-world deadlock-adjacent production incident in OS history.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE GRIDLOCK RESOLUTION SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-4" style="margin-top:3vh">
+    <div class="card crimson"><h3>🔒 Deadlock</h3><p>Nobody runs. Cyclic wait. Requires a cycle in the dependency graph.</p></div>
+    <div class="card amber"><h3>⏳ Starvation</h3><p>One thread never runs. System is alive but unfair.</p></div>
+    <div class="card violet"><h3>🔄 Livelock</h3><p>Threads actively spin without progress. 100% CPU, zero forward motion.</p></div>
+    <div class="card rose"><h3>🛰️ Inversion</h3><p>High-priority blocked by low-priority. Priority relationship reversed.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">All four failures emerge from incorrect synchronization policy. Only <strong>deadlock</strong> requires a <em>cycle</em> to exist — the other three can occur in simple chains.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: THE BOUNDED BUFFER</span>
+  <h2>The Producer-Consumer Problem</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Setup</h3>
+      <p>A fixed-size circular queue is shared between producer threads (insert) and consumer threads (remove).</p>
+      <p style="margin-top:1vh">Three synchronization hazards must be solved simultaneously:</p>
+      <p>· Producer must not insert into a <strong>full</strong> buffer</p>
+      <p>· Consumer must not remove from an <strong>empty</strong> buffer</p>
+      <p>· Producers and consumers must not corrupt the <strong>indices</strong></p>
+    </div>
+    <div class="card emerald">
+      <h3>The Canonical Semaphore Set</h3>
+      <p><strong><code>empty = N</code>:</strong> Counts free slots. Producer does <code>wait(empty)</code> before inserting.</p>
+      <p><strong><code>full = 0</code>:</strong> Counts occupied slots. Consumer does <code>wait(full)</code> before removing.</p>
+      <p><strong><code>mutex = 1</code>:</strong> Guards the buffer indices themselves.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>Producer:</strong> <code>wait(empty); wait(mutex); insert; post(mutex); post(full)</code>.</p>
+      <p><strong>Consumer:</strong> <code>wait(full); wait(mutex); remove; post(mutex); post(empty)</code>.</p>
+    </div>
+  </div>
+  <div class="callout callout-crimson" style="margin-top:3vh">
+    <strong>The classic bug:</strong> If you swap the order of <code>wait(empty); wait(mutex)</code> to <code>wait(mutex); wait(empty)</code>, you create a deadlock — the producer holds the mutex while waiting for an empty slot that only a consumer can free, but the consumer is blocked on the same mutex.
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: SHARED-READ EXCLUSIVE-WRITE</span>
+  <h2>The Readers-Writers Problem</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Setup</h3>
+      <p>Many threads read a shared dataset; some write it.</p>
+      <p style="margin-top:1vh"><strong>Readers:</strong> may proceed <em>concurrently</em> — no data corruption from multiple reads.</p>
+      <p><strong>Writers:</strong> require <em>absolute exclusivity</em> — no reader or writer may overlap.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Core Protocol</h3>
+      <p><strong><code>rw_mutex</code>:</strong> Guards writer access.</p>
+      <p><strong><code>read_count</code> + <code>count_mutex</code>:</strong> Tracks active readers.</p>
+      <p style="margin-top:1vh"><strong>First reader in:</strong> claims <code>rw_mutex</code> (blocks writers).</p>
+      <p><strong>Last reader out:</strong> releases <code>rw_mutex</code> (unblocks writers).</p>
+      <p style="margin-top:1vh;color:#34D399">Multiple readers can proceed concurrently — <em>parallelism among compatible operations</em>.</p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>The Verdict:</strong> Readers-Writers introduces a second dimension of contention — <em>parallelism among compatible operations</em> — which plain mutexes cannot express. This is why read-write locks exist as a distinct primitive.
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: THE DEADLOCK QUARTET</span>
+  <h2>The Four Coffman Conditions</h2>
+  <p class="subtitle">Deadlock can only occur if <strong>all four conditions hold simultaneously</strong>. Break any single one and no deadlock is possible.</p>
+  <div class="coffman">
+    <div class="coffman-box coffman-1">
+      <h4>1 · Mutual Exclusion</h4>
+      <p>Resources are nonshareable — only one thread may hold each at any instant.</p>
+      <p style="margin-top:1vh"><strong>Break by:</strong> Using read-only or shared resources (e.g., read-write locks).</p>
+    </div>
+    <div class="coffman-box coffman-2">
+      <h4>2 · Hold and Wait</h4>
+      <p>A thread holding one resource may request and wait for another without releasing the first.</p>
+      <p style="margin-top:1vh"><strong>Break by:</strong> Acquire all resources atomically, or release before requesting (rarely practical).</p>
+    </div>
+    <div class="coffman-box coffman-3">
+      <h4>3 · No Preemption</h4>
+      <p>Locks cannot be forcibly seized; only the owner may release.</p>
+      <p style="margin-top:1vh"><strong>Break by:</strong> Timeouts, or kernel-forced lock release (dangerous — rarely used).</p>
+    </div>
+    <div class="coffman-box coffman-4">
+      <h4>4 · Circular Wait</h4>
+      <p>A closed chain of threads exists where each waits for a resource held by the next.</p>
+      <p style="margin-top:1vh"><strong>Break by:</strong> Global lock ordering — always acquire locks in the same order.</p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:2vh">
+    <strong>The Verdict:</strong> These four conditions form the operating system equivalent of <em>Koch's postulates</em> — a complete, provable checklist for deadlock existence.
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: DEPENDENCY GRAPH TOPOLOGY</span>
+  <h2>Resource Allocation Graphs &amp; Cycle Detection</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Graph Structure</h3>
+      <p><strong>Thread nodes:</strong> circles (T1, T2, T3).</p>
+      <p><strong>Resource nodes:</strong> squares with one dot per instance (R1, R2).</p>
+      <p><strong>Assignment edges:</strong> resource → thread (holding).</p>
+      <p><strong>Request edges:</strong> thread → resource (waiting).</p>
+    </div>
+    <div class="card crimson">
+      <h3>Cycle Detection Rule</h3>
+      <p>A cycle in this graph is a <strong>necessary and sufficient</strong> condition for deadlock in single-instance resources.</p>
+      <p style="margin-top:1vh">With multiple instances, a cycle is necessary but not sufficient — the cycle may still break by resource availability.</p>
+      <p style="margin-top:1vh;color:#F87171"><strong>Real kernels run cycle detection (DFS-based) on every block operation in high-assurance systems.</strong></p>
+    </div>
+  </div>
+  <div class="callout callout-rose" style="margin-top:3vh">
+    <strong>The canonical cycle:</strong> T1 holds R1, waits for R2 → T2 holds R2, waits for R1 → <em>Cycle!</em> → Deadlock. Each thread has what the other needs; neither can proceed.
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: PRIORITY INVERSION REPAIR</span>
+  <h2>Priority Inheritance Protocol</h2>
+  <div class="pipeline">
+    <div class="pipeline-step step-1">
+      <div class="num">1</div>
+      <p><strong>High task H requests lock held by low task L.</strong> H blocks.</p>
+    </div>
+    <div class="pipeline-step step-2">
+      <div class="num">2</div>
+      <p><strong>Kernel detects inversion.</strong> Boosts L's effective priority to match H's.</p>
+    </div>
+    <div class="pipeline-step step-3">
+      <div class="num">3</div>
+      <p><strong>L now outranks M.</strong> Medium-priority interlopers cannot preempt L anymore.</p>
+    </div>
+    <div class="pipeline-step step-4">
+      <div class="num">4</div>
+      <p><strong>L finishes critical section, releases lock, priority reverts.</strong> H acquires lock and proceeds unimpeded.</p>
+    </div>
+  </div>
+  <div class="callout callout-emerald" style="margin-top:3vh">
+    <strong>The Verdict:</strong> Priority inheritance guarantees bounded blocking time — the actual fix NASA uplinked to Mars Pathfinder in 1997. It is a non-negotiable requirement for any scheduler that combines priorities and locks.
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON MUTUAL EXCLUSION</span>
+  <h2>Core System Cohesion — Relies On L14</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L14's Single Lock</h3><p>A single mutex in isolation is <em>safe by construction</em>. No cycle can form because there is only one resource.</p></div>
+    <div class="card"><h3>L15's Multiple Locks</h3><p>The moment a thread holds lock A and requests lock B, a dependency graph begins to form. When two threads do this in opposite orders, a cycle — deadlock — appears.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>L15 is the direct consequence of generalizing L14. The very mechanism that repairs races (blocking on contention) becomes the mechanism that enables deadlock.</p></div>
+    <div class="card emerald"><h3>Feeds Into Module 5</h3><p>File systems wrap every inode write in nested kernel locks. A process holding a <code>write()</code> lock on one file who opens a second file to log can deadlock with a peer doing the reverse.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO FILE LOCK HIERARCHIES</span>
+  <h2>Core System Cohesion — Feeds Into Module 5 &amp; 7</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Module 5 (File Locks)</h3><p>Linux <code>flock()</code> and <code>fcntl()</code> create the same Coffman topology at the storage layer. The kernel's journaling engine (L19) must itself be deadlock-free by design.</p></div>
+    <div class="card"><h3>Module 7 (Security)</h3><p>Deadlock-adjacent failures are a security concern: an attacker who can trigger a priority inversion can DoS an entire system. TOCTOU races (L14) and priority inversions both fall in this category.</p></div>
+    <div class="card"><h3>Real-World Example</h3><p>The 1997 Mars Pathfinder incident. NASA's fix — priority inheritance — became standard in all real-time operating systems after that mission.</p></div>
+    <div class="card emerald"><h3>The Universal Rule</h3><p>Every OS subsystem after L15 — the scheduler's run queue, the page fault handler, the journaling engine — must be designed with deadlock in mind.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: DEADLOCK STRATEGIES</span>
+  <h2>Deadlock Strategies Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Deadlock Handling</h3><p>Single global lock hierarchy (lock level annotation in C — <code>spin_lock(LOCK_INODE)</code> after <code>spin_lock(LOCK_DIR)</code>). Deadlock avoided by never acquiring locks out of order. Enforced via <code>lockdep</code> runtime checker.</p></div>
+    <div class="card emerald"><h3>Microkernel Deadlock Handling</h3><p>Message-passing IPC replaces direct resource sharing; deadlock becomes livelock between servers, which the service manager detects and restarts. No locks, but restarts are visible to the user.</p></div>
+    <div class="card amber"><h3>Layered Deadlock Handling</h3><p>Strict vertical acquire-only-downward policy. Layer N may never acquire a lock owned by layer N+1. Cycles across layers are impossible by construction — the strongest structural guarantee of the five.</p></div>
+    <div class="card"><h3>Modular Deadlock Handling</h3><p>Core kernel uses lockdep-style hierarchies in Ring 0; modules ship with their own lock ordering declarations. Hot-swap unloads require proving zero held locks by quiescence.</p></div>
+    <div class="card rose"><h3>Hybrid Deadlock Handling</h3><p>Kernel MMU and scheduler locks use strict ordering (avoidance); user-space subsystems use futex timeouts (detection); container runtimes enforce cgroup-scoped lock namespaces.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE GRIDLOCK VOCABULARY</span>
+  <h2>Base Deadlock Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Deadlock</h3>
+      <p>A permanent execution state in which a closed set of threads each hold at least one resource and each wait for a resource held by another thread in the same set, forming an unresolvable cycle. No thread is running, no thread will run, and the state persists until the OS forcibly intervenes (kill a thread or reboot).</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Five philosophers, five forks, zero noodles eaten.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Coffman Conditions</h3>
+      <p>The four necessary-and-sufficient preconditions for deadlock — Mutual Exclusion, Hold-and-Wait, No Preemption, Circular Wait — that must all hold simultaneously for a deadlock to occur. Break any one and deadlock becomes mathematically impossible. The definitive checklist for both diagnosis and design.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The four dominoes that must fall together to freeze the system.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE GRIDLOCK VOCABULARY</span>
+  <h2>Advanced Gridlock Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Starvation</h3>
+      <p>An unbounded-delay scheduling pathology in which a particular thread never receives a required resource or CPU slot because higher-priority competitors continuously preempt it; the system remains live but the thread makes no progress. Fixed by <em>aging</em> — gradually elevating priority over time (L08).</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The broken-arm patient still in the ER at midnight.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Priority Inversion</h3>
+      <p>A pathological inversion of scheduling intent in which a high-priority thread is indirectly blocked by a low-priority thread holding a required lock, where the low holder is itself preempted by a medium-priority thread that holds no relevant resource. Fixed by <em>priority inheritance</em> — temporarily donating the high priority to the low lock-holder.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(NASA's Mars Pathfinder freeze of 1997.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Semaphore</h3>
+      <p>A counting synchronization primitive maintaining an integer counter; <code>wait()</code> (P) decrements and blocks at zero, <code>post()</code> (V) increments and wakes a waiter. No ownership is enforced; any thread may signal. The preferred primitive for producer-consumer patterns and resource counting, where mutexes would be too restrictive.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The ticket dispenser at a deli counter — N tickets, N simultaneous patrons.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 CODE DISSECTION: C DEADLOCK SIMULATOR</span>
+  <h2>Deliberate Deadlock Construction</h2>
+  <pre class="code-block"><span class="cm">// Simulating a deterministic Deadlock gridlock condition</span>
+<span class="cm">// Compile: gcc -pthread -o deadlock deadlock.c &amp;&amp; ./deadlock</span>
+<span class="kw">#include</span> <span class="str">&lt;pthread.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;unistd.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+
+<span class="kw">pthread_mutex_t</span> lock_A = PTHREAD_MUTEX_INITIALIZER;
+<span class="kw">pthread_mutex_t</span> lock_B = PTHREAD_MUTEX_INITIALIZER;
+
+<span class="kw">void</span>* <span class="fn">thread_one_routine</span>(<span class="kw">void</span>* arg) {
+    <span class="fn">pthread_mutex_lock</span>(&amp;lock_A);    <span class="cm">// Claims Lock A</span>
+    <span class="fn">printf</span>(<span class="str">"[T1] Acquired Lock A, sleeping...\n"</span>);
+    <span class="fn">sleep</span>(<span class="num">1</span>);                       <span class="cm">// Forces a context switch window</span>
+
+    <span class="fn">printf</span>(<span class="str">"[T1] Attempting Lock B (held by T2)...\n"</span>);
+    <span class="fn">pthread_mutex_lock</span>(&amp;lock_B);    <span class="cm">// Blocks on Lock B held by Thread Two</span>
+
+    <span class="fn">pthread_mutex_unlock</span>(&amp;lock_B);
+    <span class="fn">pthread_mutex_unlock</span>(&amp;lock_A);
+    <span class="kw">return</span> NULL;
+}
+
+<span class="kw">void</span>* <span class="fn">thread_two_routine</span>(<span class="kw">void</span>* arg) {
+    <span class="fn">pthread_mutex_lock</span>(&amp;lock_B);    <span class="cm">// Claims Lock B</span>
+    <span class="fn">printf</span>(<span class="str">"[T2] Acquired Lock B, sleeping...\n"</span>);
+    <span class="fn">sleep</span>(<span class="num">1</span>);                       <span class="cm">// Forces switch</span>
+
+    <span class="fn">printf</span>(<span class="str">"[T2] Attempting Lock A (held by T1)...\n"</span>);
+    <span class="fn">pthread_mutex_lock</span>(&amp;lock_A);    <span class="cm">// Blocks on Lock A held by Thread One</span>
+
+    <span class="fn">pthread_mutex_unlock</span>(&amp;lock_A);
+    <span class="fn">pthread_mutex_unlock</span>(&amp;lock_B);
+    <span class="kw">return</span> NULL;
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="kw">pthread_t</span> t1, t2;
+    <span class="fn">printf</span>(<span class="str">"=== Deadlock Simulation ===\n"</span>);
+
+    <span class="fn">pthread_create</span>(&amp;t1, NULL, thread_one_routine, NULL);
+    <span class="fn">pthread_create</span>(&amp;t2, NULL, thread_two_routine, NULL);
+
+    <span class="fn">pthread_join</span>(t1, NULL);
+    <span class="fn">pthread_join</span>(t2, NULL);
+
+    <span class="cm">// If we reach here, the deadlock did NOT occur.</span>
+    <span class="cm">// In a real deadlock, this line never prints — the program hangs forever.</span>
+    <span class="fn">printf</span>(<span class="str">"This line never prints — the program is deadlocked.\n"</span>);
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 CODE DISSECTION: TRACING THE CIRCULAR WAIT</span>
+  <h2>Walking the Deadlock Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>pthread_mutex_lock(&amp;lock_A) in T1</h3><p><strong>Step 1.</strong> T1 acquires Lock A. It now holds A. <code>sleep(1)</code> yields the CPU, giving T2 a chance to run.</p></div>
+    <div class="card"><h3>pthread_mutex_lock(&amp;lock_B) in T2</h3><p><strong>Step 2.</strong> T2 acquires Lock B. It now holds B. <code>sleep(1)</code> yields again.</p></div>
+    <div class="card crimson"><h3>pthread_mutex_lock(&amp;lock_B) in T1</h3><p><strong>Step 3 (circular wait begins).</strong> T1 wants Lock B, but T2 holds it. T1 blocks. T1 is descheduled.</p></div>
+    <div class="card crimson"><h3>pthread_mutex_lock(&amp;lock_A) in T2</h3><p><strong>Step 4 (cycle closes).</strong> T2 wants Lock A, but T1 holds it. T2 blocks. T2 is descheduled.</p></div>
+    <div class="card emerald"><h3>The Realized Deadlock</h3><p>T1 waits on B (held by T2); T2 waits on A (held by T1). No thread can proceed. All four Coffman conditions hold:</p><p>· <strong>Mutual Exclusion:</strong> locks are exclusive</p><p>· <strong>Hold and Wait:</strong> each holds one, waits for another</p><p>· <strong>No Preemption:</strong> locks can't be forcibly taken</p><p>· <strong>Circular Wait:</strong> closed cycle</p></div>
+    <div class="card rose"><h3>The Silent Freeze</h3><p><code>strace</code> will show two <code>futex(FUTEX_WAIT)</code> calls with no matching wake — the fingerprint of a circular wait in production. <code>top</code> shows 0.0% CPU — the process is not spinning, it is <em>frozen</em>.</p><p>The diagnostic: <code>gdb -p &lt;pid&gt;</code> + <code>thread apply all bt</code> shows both threads blocked inside <code>__lll_lock_wait</code>.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎯 INTERACTIVE WORKSHOP: THE PHYSICAL CIRCULAR WAIT</span>
+  <h2>The Human Gridlock Loop</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Students 01–04 · The Philosophers</h3><p>Sit in a tight square facing inward. Each student reaches out their <em>right</em> arm and grips the <em>left</em> shoulder of the student to their right.</p></div>
+    <div class="card amber"><h3>The Physical Rule Set</h3><p>Each student may not release a shoulder until their <em>own</em> left shoulder is released. The rule is the "lock protocol."</p></div>
+    <div class="card emerald"><h3>The Escape Challenge</h3><p>Ask the class to escape the deadlock <em>without releasing any grip first</em> — impossible. This is the cycle realization.</p></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Breaking Coffman 1 (Mutual Exclusion)</h3><p>Have one student release <em>both</em> arms — sacrifice mutual exclusion. Cycle breaks.</p></div>
+    <div class="card"><h3>Breaking Coffman 4 (Circular Wait)</h3><p>Have the student with the red shirt grab with their <em>left</em> hand first instead. The dependency order changes and the cycle shatters immediately. <strong>This is the actual production fix — global lock ordering.</strong></p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Pedagogic Takeaway:</strong> Physical intuition that deadlock is a <em>topological</em> failure — a cycle in a dependency graph — and that breaking any single Coffman condition dissolves it.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 TRY IT LIVE: AUDITING DEADLOCKED PROCESSES</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> ./deadlock &amp;                      <span class="out"># Launch in background</span>
+<span class="cmd">$</span> ps -eLf | grep deadlock            <span class="out"># Confirm both threads alive</span>
+<span class="cmd">$</span> gdb -p $(pgrep deadlock)           <span class="out"># Attach to live process</span>
+(gdb) thread apply all bt               <span class="out"># Dump all thread stacks</span>
+(gdb) info threads                      <span class="out"># Show thread states</span>
+<span class="cmd">$</span> cat /proc/$(pgrep deadlock)/stack   <span class="out"># Kernel stack trace</span>
+<span class="cmd">$</span> sudo strace -p $(pgrep deadlock)     <span class="out"># See futex_wait frames frozen</span>
+<span class="cmd">$</span> cat /proc/locks                     <span class="out"># POSIX locks held system-wide</span>
+<span class="cmd">$</span> sudo cat /proc/sys/kernel/lock_stat  <span class="out"># Lock statistics (if enabled)</span></pre>
+  <p class="hint"><code>top</code> shows 0.0% CPU for a deadlocked process — it is <em>frozen</em>, not spinning. The <code>futex_wait</code> frames in <code>gdb</code> are the fingerprint of circular wait.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 4: Process Synchronization
+        └── <span class="active">L15: Classic Sync Problems &amp; Deadlock (ACTIVE NODE 🌟)</span>
+              ├── The Coffman Quartet &amp; Circular Wait Cycles
+              └── Starvation, Livelock &amp; Priority Inheritance Protocol</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>Deadlock requires <strong>all four Coffman conditions</strong> — Mutual Exclusion, Hold-and-Wait, No Preemption, Circular Wait — simultaneously. Break any single one and gridlock is mathematically impossible. The most practical break in production is <strong>global lock ordering</strong> (breaking Circular Wait).</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p><strong>Starvation, livelock, and priority inversion</strong> are distinct failure modes from deadlock — each with its own signature and mitigation. Priority inheritance restored Mars Pathfinder from repeated mission-critical freezes in 1997. Aging (from L08) fixes starvation.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p><strong>Resource allocation graphs</strong> reveal deadlock as a cycle-detection problem — solvable by prevention (lock ordering), avoidance (banker's algorithm), detection (cycle scan), or recovery (forced preemption). Every production kernel chooses some combination of these strategies.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Module 4 Complete — Module 5 Begins</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 16 — Disk Geometry &amp; Physical Storage Realities (HDD vs. SSD) (Module 5 Begins)</strong><br><br>
+    Module 4 is complete. We now understand how processes, threads, and synchronization work — the entire execution environment of the OS. <strong>Module 5: File &amp; Storage Management</strong> begins now. We descend below the memory manager into the storage hierarchy. We will explore spinning magnetic platters and seek-time physics, NAND flash grids and wear-leveling algorithms, and the asymmetric performance ceilings that shape how every file system on Earth is designed. The storage substrate is the physical foundation on which all persistent data — and all the inodes, journaling, and crash recovery of Module 5 — depends.
+  </div>
+  <p class="hint">File: L16.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
