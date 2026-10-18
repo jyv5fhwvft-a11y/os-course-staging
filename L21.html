@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L21 · Uniform Device Drivers & The Linux /dev Abstraction</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  .badge-cyan { color: #67E8F9; border-color: #06B6D4; background: rgba(6,182,212,0.08); }
+  .badge-orange { color: #FDBA74; border-color: #F97316; background: rgba(249,115,22,0.08); }
+  .badge-teal { color: #5EEAD4; border-color: #14B8A6; background: rgba(20,184,166,0.08); }
+  .badge-sky { color: #7DD3FC; border-color: #0EA5E9; background: rgba(14,165,233,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-sky { border-color: #0EA5E9; background: rgba(14,165,233,0.06); color: #7DD3FC; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.sky h3 { color: #7DD3FC; } .card.sky { border-color: #0C4A6E; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .driver-categories { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5vw; max-width: 1100px; width: 100%; margin: 2vh auto; }
+  .driver-cat { padding: 3vh 1.8vw; border-radius: 12px; border: 2px solid; text-align: left; }
+  .driver-cat .icon { font-size: 2.2rem; margin-bottom: 1.2vh; }
+  .driver-cat h4 { font-size: 1.2rem; font-weight: 800; margin-bottom: 1.2vh; }
+  .driver-cat p { font-size: clamp(0.8rem, 1vw, 0.9rem); line-height: 1.55; margin-bottom: 0.8vh; }
+  .driver-cat .examples { margin-top: 1.5vh; padding: 1vh 1vw; border-radius: 4px; font-family: "SF Mono", monospace; font-size: 0.75rem; font-weight: 700; }
+  .cat-block { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .cat-block h4 { color: #60A5FA; }
+  .cat-block .examples { background: rgba(59,130,246,0.15); color: #60A5FA; }
+  .cat-char { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .cat-char h4 { color: #FBBF24; }
+  .cat-char .examples { background: rgba(245,158,11,0.15); color: #FBBF24; }
+  .cat-net { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .cat-net h4 { color: #F87171; }
+  .cat-net .examples { background: rgba(239,68,68,0.15); color: #F87171; }
+  .fops-struct { background: #020617; border: 2px solid #0EA5E9; border-radius: 12px; padding: 2.5vh 2vw; font-family: "SF Mono", monospace; font-size: clamp(0.75rem, 1vw, 0.9rem); text-align: left; max-width: 900px; width: 100%; margin: 2vh auto; line-height: 1.7; }
+  .fops-struct .struct-kw { color: #C084FC; }
+  .fops-struct .struct-name { color: #7DD3FC; font-weight: 800; }
+  .fops-struct .field { color: #60A5FA; }
+  .fops-struct .type { color: #FBBF24; }
+  .fops-struct .comment { color: #475569; font-style: italic; }
+  .dev-flow { display: flex; flex-direction: column; align-items: center; gap: 0.8vh; max-width: 1100px; width: 100%; margin: 2vh auto; }
+  .dev-row { display: flex; align-items: center; gap: 0.8vw; width: 100%; justify-content: center; flex-wrap: wrap; }
+  .dev-node { padding: 1.8vh 1.5vw; border-radius: 10px; border: 2px solid; text-align: center; font-family: "SF Mono", monospace; font-weight: 800; font-size: clamp(0.75rem, 0.95vw, 0.85rem); min-width: 130px; }
+  .dev-node.app { border-color: #10B981; background: rgba(16,185,129,0.08); color: #34D399; }
+  .dev-node.syscall { border-color: #0EA5E9; background: rgba(14,165,233,0.08); color: #7DD3FC; }
+  .dev-node.vfs { border-color: #3B82F6; background: rgba(59,130,246,0.08); color: #60A5FA; }
+  .dev-node.fops { border-color: #F59E0B; background: rgba(245,158,11,0.08); color: #FBBF24; }
+  .dev-node.driver { border-color: #8B5CF6; background: rgba(139,92,246,0.08); color: #A78BFA; }
+  .dev-node.hw { border-color: #EF4444; background: rgba(239,68,68,0.08); color: #F87171; }
+  .dev-arrow { font-size: 1.3rem; color: #475569; font-weight: 800; }
+  .major-minor { display: flex; flex-direction: column; align-items: center; gap: 1vh; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .mm-box { display: flex; gap: 1vw; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .mm-num { padding: 1.5vh 1.8vw; border-radius: 8px; border: 2px solid; font-family: "SF Mono", monospace; font-size: 1.1rem; font-weight: 900; }
+  .mm-major { border-color: #F59E0B; background: rgba(245,158,11,0.08); color: #FBBF24; }
+  .mm-minor { border-color: #10B981; background: rgba(16,185,129,0.08); color: #34D399; }
+  .mm-label { font-size: 0.85rem; color: #94A3B8; text-align: center; }
+  .mm-example { padding: 1.8vh 1.8vw; background: #111C33; border: 2px solid #1E293B; border-radius: 10px; font-family: "SF Mono", monospace; font-size: clamp(0.8rem, 1vw, 0.95rem); color: #CBD5E1; text-align: center; max-width: 700px; }
+  .mm-example strong { color: #FBBF24; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .driver-categories { grid-template-columns: 1fr; } .dev-node { min-width: 90px; font-size: 0.7rem; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L21</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-sky">🔰 START HERE // L21 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#0EA5E9"></div>
+  <p class="subtitle">Classify a variety of physical hardware items into Block, Character, or Network device driver categories, and trace how a user-space file command routes to a hardware controller via virtual filesystem file operations.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> Every peripheral manufacturer builds hardware with completely different electrical and protocol characteristics. Logitech's keyboard speaks one register language; Intel's network chip speaks another; Samsung's NVMe SSD speaks a third. The OS kernel cannot contain unique, bespoke code for 10,000 different models — and it certainly cannot ship a new kernel every time a new device is released. How do we build a single, unified device abstraction layer that handles fast hardware streaming without rewriting the kernel for every new toaster?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L20 I/O Matrix</h3><p>Polling, interrupts, DMA, and the hardware register interface (Command / Status / Data). This is the substrate drivers must translate.</p></div>
+    <div class="card amber"><h3>02 · L17 File Abstraction</h3><p>File descriptors, <code>struct file</code>, the VFS layer, and how the kernel routes <code>read()</code>/<code>write()</code> through the syscall boundary.</p></div>
+    <div class="card amber"><h3>03 · C Function Pointers</h3><p>Understanding how a <code>struct</code> can contain pointers to functions that get dispatched at runtime. This is the entire driver model.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> This is the "polymorphism" lecture of the course. Students who took an object-oriented programming class will recognize the pattern immediately: <code>struct file_operations</code> is the C-language equivalent of an abstract base class. Point that out early — it makes the entire abstraction click.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-sky">🎒 EVERYDAY SIMPLIFIED: THE UNIVERSAL WALL OUTLET</span>
+  <h2>The Driver Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🔌🔋💡</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The wall outlet does not know or care what you plug in. It presents a simple, standardized interface and delivers power uniformly. A toaster, a lamp, and a laptop look identical to the outlet. Inside each device is a small adapter that converts the standardized power into whatever internal form that device actually needs.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>A device driver is that adapter plug. To the operating system, every device looks like a standard file that handles <code>open()</code>, <code>read()</code>, <code>write()</code>, and <code>close()</code>. The driver translates those generic operations into the unique language of that specific hardware chip.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This maps directly to <code>struct file_operations</code> — a C function-pointer table that presents a uniform interface regardless of the underlying hardware.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-sky">🎒 EVERYDAY SIMPLIFIED: THE LIBRARY AND THE FAUCET</span>
+  <h2>The Block vs Character Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📚🚰</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A <strong>Block Device</strong> is like a library bookshelf: you can request any book at any time, in any order, by its shelf coordinate. Seek, jump backward, read chapter 5 before chapter 1 — all fine. A <strong>Character Device</strong> is like a water faucet: drops arrive sequentially, the flow is continuous, and once you have caught a drop you cannot go back and un-catch it. There is no "seek to drop #12."</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>This distinction shapes how the kernel interfaces with the driver: block devices support random access and caching layers; character devices support only sequential streaming reads/writes.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Both are exposed via <code>/dev</code>, but their behavior differs fundamentally at the driver interface level.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-sky">🎒 EVERYDAY SIMPLIFIED: THE MAIL CARRIER</span>
+  <h2>The Network Device Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📬✉️🚚</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A Network Device is neither a bookshelf nor a faucet — it is a mail carrier who delivers self-contained <em>packets</em>. Each packet has a destination address, a payload inside, and a routing envelope. You do not address individual bytes to the carrier — you hand over complete envelopes, and the carrier delivers them to their destinations.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Network devices speak in <em>frames</em> and <em>packets</em>, not in byte streams. They are exposed through the socket API (<code>socket()</code>, <code>send()</code>, <code>recv()</code>) rather than through <code>read()</code>/<code>write()</code> on <code>/dev</code> nodes.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is why <code>/dev</code> does not contain traditional character/block nodes for network interfaces — they live in a separate namespace (<code>/sys/class/net</code>).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-sky">🎒 EVERYDAY SIMPLIFIED: STREET ADDRESS AND APARTMENT NUMBER</span>
+  <h2>The Major/Minor Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢🚪🔢</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A major device number identifies the <em>driver</em> — the building. A minor device number identifies the <em>specific device instance</em> — the apartment inside. One driver can manage many physical devices (eight hard drives, four network ports), each with its own minor number.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>When the kernel receives <code>open("/dev/sda1")</code>, it reads the device node's <code>st_rdev</code> field to extract major/minor numbers, looks up the registered driver for that major, and dispatches the open call with the minor number.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the <em>routing mechanism</em> that lets a single driver service many devices through the same abstraction layer.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE ABSTRACTION UNIFORMITY SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson"><h3>❌ Raw Hardware Chaos</h3><p>10,000 devices, each with its own register layout, protocol, and interrupt behavior. Every app would need to understand every hardware device it uses.</p></div>
+    <div class="card emerald"><h3>✅ Unified /dev Files</h3><p>Three driver categories — Block, Character, Network — all exposed through a single, uniform file-based interface. Chaos collapses into order.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">The entire abstraction strategy reduces the world of 10,000 different hardware devices to just <strong>three driver categories</strong> — all exposed through a single, uniform file-based interface. This is the OS's central scalability insight: define the interface once, implement it many times, and manage all devices the same way.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-sky">💻 SYSTEMS COHESION: BLOCK, CHARACTER, AND NETWORK</span>
+  <h2>The Three Hardware Categories</h2>
+  <div class="driver-categories">
+    <div class="driver-cat cat-block">
+      <div class="icon">💾</div>
+      <h4>Block Devices</h4>
+      <p>Read/write in fixed-size, addressable blocks (512 B to 4 KB). Support random access and seek. Managed by the block I/O subsystem (L16–L19).</p>
+      <div class="examples">/dev/sda, /dev/nvme0n1, /dev/loop0</div>
+    </div>
+    <div class="driver-cat cat-char">
+      <div class="icon">⌨️</div>
+      <h4>Character Devices</h4>
+      <p>Read/write as continuous sequential byte streams. No random access, no seek. Managed by the char device subsystem.</p>
+      <div class="examples">/dev/tty, /dev/ttyS0, /dev/input/event0</div>
+    </div>
+    <div class="driver-cat cat-net">
+      <div class="icon">🌐</div>
+      <h4>Network Devices</h4>
+      <p>Read/write as framed packets with headers and addresses. No file semantics, no seek. Managed by the network stack.</p>
+      <div class="examples">/sys/class/net/eth0, /sys/class/net/wlan0</div>
+    </div>
+  </div>
+  <div class="callout callout-sky" style="margin-top:3vh">
+    <strong>The Verdict:</strong> Three categories, one abstraction layer (<code>struct file_operations</code>) with category-specific operations underneath. Network devices are the single named exception to "everything is a file."
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-sky">💻 SYSTEMS COHESION: FUNCTION-POINTER POLYMORPHISM</span>
+  <h2>The struct file_operations Dispatch Table</h2>
+  <div class="fops-struct">
+<span class="struct-kw">struct</span> <span class="struct-name">file_operations</span> {
+    <span class="type">ssize_t</span> (<span class="field">*read</span>)    (<span class="struct-kw">struct</span> file *, <span class="type">char</span> __user *, <span class="type">size_t</span>, <span class="type">loff_t</span> *);
+    <span class="type">ssize_t</span> (<span class="field">*write</span>)   (<span class="struct-kw">struct</span> file *, <span class="struct-kw">const</span> <span class="type">char</span> __user *, <span class="type">size_t</span>, <span class="type">loff_t</span> *);
+    <span class="type">int</span>     (<span class="field">*open</span>)    (<span class="struct-kw">struct</span> inode *, <span class="struct-kw">struct</span> file *);
+    <span class="type">int</span>     (<span class="field">*release</span>) (<span class="struct-kw">struct</span> inode *, <span class="struct-kw">struct</span> file *);
+    <span class="type">long</span>    (<span class="field">*ioctl</span>)   (<span class="struct-kw">struct</span> file *, <span class="type">unsigned int</span>, <span class="type">unsigned long</span>);
+    <span class="type">loff_t</span>  (<span class="field">*llseek</span>)  (<span class="struct-kw">struct</span> file *, <span class="type">loff_t</span>, <span class="type">int</span>);
+    <span class="comment">// ... plus dozens more</span>
+};
+  </div>
+  <div class="card-grid grid-2" style="margin-top:2vh">
+    <div class="card">
+      <h3>The Dispatch Rule</h3>
+      <p>Every device driver registers a <code>struct file_operations</code> instance when it initializes.</p>
+      <p style="margin-top:1vh">When user code calls <code>read(fd, buf, n)</code>, the VFS layer looks up the file's associated <code>file_operations</code> table, then calls the driver's <code>read()</code> function <em>through the pointer</em>.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Verdict</h3>
+      <p>This is <em>the</em> central scalability mechanism: the kernel does not need to know what each driver does — only that it implements the interface.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>C-language polymorphism through function pointers.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-sky">💻 SYSTEMS COHESION: DRIVER AND INSTANCE IDENTIFICATION</span>
+  <h2>The Major/Minor Device Number System</h2>
+  <div class="major-minor">
+    <div class="mm-box">
+      <div class="mm-num mm-major">Major (12 bits)</div>
+      <div style="color:#475569;font-size:1.5rem">+</div>
+      <div class="mm-num mm-minor">Minor (20 bits)</div>
+    </div>
+    <div class="mm-label">A <code>dev_t</code> is a 32-bit integer</div>
+    <div class="mm-example"># Example: <strong>/dev/sda1</strong> has major=<strong>8</strong> (SCSI disk driver), minor=<strong>1</strong> (first partition of first SCSI disk)</div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Device Number Structure</h3>
+      <p><strong>Major (12 bits):</strong> Identifies the <em>driver</em>. One major number per driver. Linux allocates major numbers from a global registry.</p>
+      <p style="margin-top:1vh"><strong>Minor (20 bits):</strong> Identifies the <em>specific device instance</em>. A single SCSI driver with major 8 can manage up to 2²⁰ minor numbers — millions of disk partitions.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Example Decode</h3>
+      <p>When you <code>ls -l /dev/sda1</code> and see <code>brw-rw---- 1 root disk 8, 1</code>, this means:</p>
+      <p style="margin-top:1vh">· <strong>Major 8:</strong> SCSI disk driver</p>
+      <p>· <strong>Minor 1:</strong> First partition of first SCSI drive</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>Major/minor numbers are how the kernel <em>routes</em> a syscall to the right driver and instance.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-sky">💻 SYSTEMS COHESION: THE DEVICE FILE ON DISK</span>
+  <h2>The Complete /dev Node Anatomy</h2>
+  <div class="terminal"><span class="out">brw-rw---- 1 root disk <span style="color:#FBBF24;font-weight:800">8, 1</span> Mar 15 10:30 /dev/sda1</span></div>
+  <div class="card-grid grid-2" style="margin-top:2vh">
+    <div class="card">
+      <h3>Device Node Anatomy</h3>
+      <p><strong>File type:</strong> <code>b</code> (block), <code>c</code> (character) — visible as the first character of <code>ls -l</code>.</p>
+      <p><strong>Permissions:</strong> Standard Unix read/write/execute bits — the security enforcement mechanism for Module 7.</p>
+      <p><strong><code>st_rdev</code>:</strong> The device number (major + minor) stored in the inode.</p>
+      <p><strong>No data blocks:</strong> Device files have zero data blocks — reads and writes go <em>through</em> the driver, not into inode-pointed storage.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Elegance</h3>
+      <p>Device nodes reuse the entire Module 5 file system infrastructure — directories, inodes, permissions — but replace the data-block pointer tree with a device-number dispatch pointer.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>The same <code>open()</code> syscall works on files AND devices.</strong></p>
+      <p style="margin-top:1vh">The kernel simply checks the file type in the inode and routes accordingly.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-sky">💻 SYSTEMS COHESION: THE DRIVER LIFECYCLE</span>
+  <h2>Driver Registration and the file_operations Hookup</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Registration Sequence</h3>
+      <p><strong>1. Load:</strong> The module's <code>init</code> function runs — either at boot or on <code>insmod</code>.</p>
+      <p><strong>2. Allocate major:</strong> The driver calls <code>register_chrdev()</code> or <code>alloc_chrdev_region()</code> to claim a major number.</p>
+      <p><strong>3. Register <code>file_operations</code>:</strong> The driver publishes its function-pointer table to the kernel's driver registry.</p>
+      <p><strong>4. Create <code>/dev</code> node:</strong> Usually via <code>udev</code> — when the device is detected, <code>udev</code> creates the node with the right major/minor.</p>
+      <p><strong>5. Handle syscalls:</strong> The kernel's VFS dispatch layer routes reads/writes to the driver functions.</p>
+      <p><strong>6. Unload:</strong> On <code>rmmod</code> or device removal, the driver releases the major number and its node is removed.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Modular Model</h3>
+      <p>This is the <em>modular</em> end of the kernel architecture spectrum — the driver is a loadable plug-in implementing the abstract <code>file_operations</code> interface.</p>
+      <p style="margin-top:1vh">Linux ships with hundreds of driver modules that can be loaded on demand. When you plug in a USB device, the kernel identifies its vendor/device ID, looks up the matching driver module, loads it, and calls its init function.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>This is the entire modern Linux driver model.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON VFS FILE ABSTRACTION</span>
+  <h2>Core System Cohesion — Relies On L17</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>The Same Path Resolution</h3><p>A <code>/dev</code> node is opened through the <em>exact same</em> VFS path resolution process as a regular file: <code>open("/dev/sda1")</code> walks <code>/</code> → <code>dev</code> → <code>sda1</code>, hits an inode with <code>S_IFBLK</code>, allocates a file descriptor, and returns the fd.</p></div>
+    <div class="card"><h3>The Only Difference</h3><p>The only difference from a regular file is what happens <em>after</em> open: the read/write syscalls dispatch to the driver's <code>file_operations</code> table instead of the filesystem's block-pointer tree.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>L21 is entirely built on L17's file abstraction. The VFS layer is the universal frontend; the driver is the specific backend. Same interface, different implementation.</p></div>
+    <div class="card emerald"><h3>Feeds Into Module 7</h3><p>By exposing every device as a file, the kernel can enforce security with ordinary file permission bits (L17's inode metadata). The <code>/dev</code> node ACLs from L22 will protect physical devices.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO ACCESS CONTROL</span>
+  <h2>Core System Cohesion — Feeds Into Module 7</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>File Permission Bits</h3><p>Access to <code>/dev/sda1</code> is controlled by <code>chmod</code> and <code>chown</code> — no special security mechanism is needed for the physical disk. The same ACL system from L17 protects every device.</p></div>
+    <div class="card"><h3>The Elegance</h3><p>This is the elegance of the "everything is a file" model: adding a new device requires no new security mechanism. The existing file permission infrastructure applies uniformly.</p></div>
+    <div class="card violet"><h3>Module 7 Preview</h3><p>L22 (access control) will formalize this. L23 (authentication) will gate access to privileged devices. L27 (isolation) will use device namespaces to virtualize <code>/dev</code> for containers.</p></div>
+    <div class="card emerald"><h3>The Chain</h3><p>L17 (VFS) → L21 (drivers) → L22 (ACLs) → L23 (auth) → L27 (isolation). Every layer builds on the ones below.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: DRIVER ARCHITECTURES</span>
+  <h2>Driver Strategies Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Drivers</h3><p>Drivers are compiled into the kernel or loaded as kernel modules (Linux, FreeBSD). Execute at Ring 0 with full privilege. Direct register access via <code>inb</code>/<code>outb</code>/<code>readl</code>/<code>writel</code>. Fastest path, but a buggy driver can crash the kernel.</p></div>
+    <div class="card emerald"><h3>Microkernel Drivers</h3><p>Drivers run as user-space servers (MINIX 3, seL4). Receive hardware access via privileged IPC and privileged instructions — the kernel delivers IRQ events and maps MMIO regions on request. Slower but <em>fully isolated</em> — a buggy driver cannot crash the kernel.</p></div>
+    <div class="card amber"><h3>Layered Drivers</h3><p>Strict HAL → device class → concrete driver hierarchy. Windows uses this: HAL abstracts CPU/motherboard, ACPI abstracts devices, KMDF and UMDF frameworks provide layered driver templates.</p></div>
+    <div class="card"><h3>Modular Drivers</h3><p>Loadable Kernel Modules (LKMs) — Linux's model. Drivers are <code>.ko</code> files that can be loaded and unloaded at runtime via <code>insmod</code>/<code>rmmod</code>/<code>modprobe</code>. Same privilege as monolithic but far more flexible.</p></div>
+    <div class="card sky"><h3>Hybrid Drivers</h3><p>Critical drivers (disk, network) in-kernel for latency; user-space drivers via FUSE, uio, or SPDK for research, custom, or high-throughput hardware. Modern Linux is functionally hybrid: NVMe drivers can run in-kernel OR bypass through SPDK.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE DRIVER VOCABULARY</span>
+  <h2>Base Driver Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Device Driver</h3>
+      <p>A specialized kernel software module that bridges the gap between the generic operating system file operation interface and the custom electrical registers of a specific hardware peripheral, translating <code>open</code>/<code>read</code>/<code>write</code>/<code>ioctl</code> syscalls into hardware-specific register operations. Runs at Ring 0 privilege on monolithic kernels, or as user-space servers on microkernels.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The universal wall outlet adapter that turns standard power into the specific format a device needs.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Block Device</h3>
+      <p>A class of hardware components that read and write data in fixed-size, addressable block sectors (typically 512 B to 4 KB), natively supporting random-access seeks; managed by the block I/O subsystem and cached by the page cache. Every modern HDD and SSD is a block device.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The library bookshelf — any book at any shelf position, any time.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE DRIVER VOCABULARY</span>
+  <h2>Advanced Driver Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Character Device</h3>
+      <p>A class of hardware components that deliver data as a non-addressable, continuous stream of sequential bytes — no seek, no random access; each read consumes bytes in arrival order. Examples include keyboards, mice, serial ports, and terminals. Character devices cannot be cached by the page cache because there is no position to cache.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The water faucet — drops arrive in sequence, no rewind.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · file_operations Struct</h3>
+      <p>A kernel data registry containing function pointers that route standard system calls (<code>open</code>, <code>read</code>, <code>write</code>, <code>release</code>, <code>ioctl</code>, <code>llseek</code>, etc.) directly to their matching hardware driver backend implementations. Each device driver registers one instance, providing the kernel's polymorphic dispatch mechanism.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The outlet's internal wiring schematic — connects each prong to the right current path.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Major/Minor Numbers</h3>
+      <p>A 32-bit device identifier split into a 12-bit <em>major</em> number (identifying the driver) and a 20-bit <em>minor</em> number (identifying the specific instance of that device). The kernel routes syscalls to the correct driver and instance by decoding these numbers from the device node's inode.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The street address — which building, which apartment.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-sky">💻 CODE DISSECTION: C CHARACTER DRIVER SKELETON</span>
+  <h2>A Minimal Linux Character Driver</h2>
+  <pre class="code-block"><span class="cm">// Minimal Linux character driver demonstrating file_operations dispatch</span>
+<span class="kw">#include</span> <span class="str">&lt;linux/fs.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;linux/module.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;linux/uaccess.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;linux/init.h&gt;</span>
+
+<span class="kw">static</span> <span class="kw">char</span> driver_buffer[<span class="num">256</span>] = <span class="str">"Hello from the driver!\n"</span>;
+<span class="kw">static</span> <span class="kw">int</span> open_count = <span class="num">0</span>;
+
+<span class="cm">// Called when user space does open("/dev/mydev", O_RDONLY)</span>
+<span class="kw">static int</span> <span class="fn">my_dev_open</span>(<span class="kw">struct</span> inode *inode, <span class="kw">struct</span> file *file) {
+    open_count++;
+    <span class="fn">printk</span>(KERN_INFO <span class="str">"mydev: open() called (count=%d)\n"</span>, open_count);
+    <span class="kw">return</span> <span class="num">0</span>;
+}
+
+<span class="cm">// Called when user space does read(fd, buf, n)</span>
+<span class="kw">static ssize_t</span> <span class="fn">my_dev_read</span>(<span class="kw">struct</span> file *file, <span class="kw">char</span> __user *buf,
+                           <span class="kw">size_t</span> count, <span class="kw">loff_t</span> *ppos) {
+    <span class="kw">if</span> (*ppos &gt;= <span class="kw">sizeof</span>(driver_buffer))
+        <span class="kw">return</span> <span class="num">0</span>;  <span class="cm">// EOF</span>
+    <span class="kw">size_t</span> to_copy = <span class="fn">min</span>((<span class="kw">size_t</span>)(<span class="kw">sizeof</span>(driver_buffer) - *ppos), count);
+    <span class="kw">if</span> (<span class="fn">copy_to_user</span>(buf, driver_buffer + *ppos, to_copy))
+        <span class="kw">return</span> -EFAULT;
+    *ppos += to_copy;
+    <span class="kw">return</span> to_copy;
+}
+
+<span class="cm">// Called when user space does write(fd, buf, n)</span>
+<span class="kw">static ssize_t</span> <span class="fn">my_dev_write</span>(<span class="kw">struct</span> file *file, <span class="kw">const char</span> __user *buf,
+                            <span class="kw">size_t</span> count, <span class="kw">loff_t</span> *ppos) {
+    <span class="kw">size_t</span> to_copy = <span class="fn">min</span>((<span class="kw">size_t</span>)<span class="kw">sizeof</span>(driver_buffer), count);
+    <span class="kw">if</span> (<span class="fn">copy_from_user</span>(driver_buffer, buf, to_copy))
+        <span class="kw">return</span> -EFAULT;
+    <span class="fn">printk</span>(KERN_INFO <span class="str">"mydev: wrote %zu bytes\n"</span>, to_copy);
+    <span class="kw">return</span> to_copy;
+}
+
+<span class="cm">// Called when user space does close(fd)</span>
+<span class="kw">static int</span> <span class="fn">my_dev_release</span>(<span class="kw">struct</span> inode *inode, <span class="kw">struct</span> file *file) {
+    <span class="fn">printk</span>(KERN_INFO <span class="str">"mydev: close() called\n"</span>);
+    <span class="kw">return</span> <span class="num">0</span>;
+}
+
+<span class="cm">// The dispatch table — this struct is the ENTIRE driver interface</span>
+<span class="kw">static struct</span> file_operations my_dev_fops = {
+    .owner   = THIS_MODULE,
+    .open    = my_dev_open,
+    .read    = my_dev_read,
+    .write   = my_dev_write,
+    .release = my_dev_release,
+};
+
+<span class="kw">static int</span> __init <span class="fn">my_dev_init</span>(<span class="kw">void</span>) {
+    <span class="fn">register_chrdev</span>(<span class="num">240</span>, <span class="str">"mydev"</span>, &amp;my_dev_fops);  <span class="cm">// major=240</span>
+    <span class="fn">printk</span>(KERN_INFO <span class="str">"mydev: registered with major 240\n"</span>);
+    <span class="kw">return</span> <span class="num">0</span>;
+}
+
+<span class="kw">static void</span> __exit <span class="fn">my_dev_exit</span>(<span class="kw">void</span>) {
+    <span class="fn">unregister_chrdev</span>(<span class="num">240</span>, <span class="str">"mydev"</span>);
+    <span class="fn">printk</span>(KERN_INFO <span class="str">"mydev: unregistered\n"</span>);
+}
+
+<span class="fn">module_init</span>(my_dev_init);
+<span class="fn">module_exit</span>(my_dev_exit);
+MODULE_LICENSE(<span class="str">"GPL"</span>);</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-sky">💻 CODE DISSECTION: TRACING DRIVER FUNCTION DISPATCH</span>
+  <h2>Walking the Dispatch Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>register_chrdev(240, "mydev", &amp;my_dev_fops)</h3><p><strong>The registration step.</strong> The driver claims major number 240 and publishes its <code>file_operations</code> table to the kernel registry. This is the <em>entire</em> registration — one function call.</p></div>
+    <div class="card"><h3>my_dev_open</h3><p><strong>Called on <code>open("/dev/mydev", ...)</code>.</strong> The kernel walks <code>/</code> → <code>dev</code> → <code>mydev</code>, finds the inode with major 240, looks up the driver in the registry, and calls <code>my_dev_open</code> via the <code>open</code> function pointer.</p></div>
+    <div class="card emerald"><h3>my_dev_read</h3><p><strong>Called on <code>read(fd, buf, n)</code>.</strong> The VFS looks up <code>file-&gt;f_op-&gt;read</code>, finds <code>my_dev_read</code>, and calls it. Note <code>copy_to_user()</code> — the driver cannot <code>memcpy</code> directly because user space and kernel space have separate address spaces (per L02).</p></div>
+    <div class="card"><h3>my_dev_write</h3><p><strong>Called on <code>write(fd, buf, n)</code>.</strong> Symmetrically uses <code>copy_from_user()</code> to safely bring user bytes into the kernel.</p></div>
+    <div class="card"><h3>my_dev_release</h3><p><strong>Called on <code>close(fd)</code>.</strong> The kernel decrements the file descriptor's reference count and calls the release handler when the count reaches zero.</p></div>
+    <div class="card amber"><h3>my_dev_fops</h3><p><strong>The <code>file_operations</code> table itself.</strong> This single struct is the driver. If any function pointer is <code>NULL</code>, the corresponding operation returns <code>-EINVAL</code>. <strong>This is <em>the</em> polymorphism</strong>: the same syscall interface routes to completely different driver implementations.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎯 INTERACTIVE WORKSHOP: THE DEVICE NODE HUNT</span>
+  <h2>The /dev Terminal Exploration Hunt</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Student 01 · Block Device Hunter</h3><p>Tasks through <code>ls -l /dev</code> searching for nodes with a <code>b</code> in the first position — hard drives, SSDs, loopback devices.</p></div>
+    <div class="card amber"><h3>Student 02 · Character Device Hunter</h3><p>Tasks through searching for <code>c</code> — keyboards, terminals, serial ports, <code>/dev/null</code>.</p></div>
+    <div class="card crimson"><h3>Student 03 · Network Exile</h3><p>Has a task to find a network interface <em>inside</em> <code>/dev</code> — impossible, because network devices do not live there. They must be found under <code>/sys/class/net</code> or <code>ip link</code>.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>The Discovery:</strong> Draw three columns on the board: "Block Devices," "Character Devices," "Network (not in /dev)." Have students race to fill each column with 5 real <code>/dev</code> nodes. The Network column will always be empty — and the moment of discovery is the lesson.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-sky">💻 TRY IT LIVE: AUDITING REAL DEVICE DRIVERS</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> ls -l /dev/sda /dev/tty0 /dev/null     <span class="out"># Compare device node types</span>
+<span class="cmd">$</span> stat /dev/sda                            <span class="out"># Show major/minor and rdev</span>
+<span class="cmd">$</span> cat /proc/devices                        <span class="out"># Registered block + char majors</span>
+<span class="cmd">$</span> lsblk                                    <span class="out"># Full block device tree</span>
+<span class="cmd">$</span> ls -l /dev/disk/by-id/                  <span class="out"># Udev symlink layering</span>
+<span class="cmd">$</span> sudo cat /dev/sda | head -c 512 | xxd   <span class="out"># Raw block read (dangerous!)</span>
+<span class="cmd">$</span> echo "test" &gt; /dev/null &amp;&amp; echo "works"  <span class="out"># Write to null device (safe)</span>
+<span class="cmd">$</span> ls /sys/class/net/                       <span class="out"># Network devices (not in /dev)</span></pre>
+  <p class="hint"><code>/proc/devices</code> lists every registered major number — the entire driver registry at a glance. Look for <code>8 sd</code> (SCSI disks), <code>4 tty</code> (character terminals), <code>1 mem</code> (memory devices).</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 6: I/O Device Management
+        └── <span class="active">L21: Uniform Device Drivers &amp; /dev Abstraction (ACTIVE NODE 🌟)</span>
+              ├── Block / Character / Network Driver Categories
+              └── file_operations Function Pointers &amp; Major/Minor Dispatch</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>The kernel divides every hardware device into one of <strong>three categories</strong> — Block, Character, or Network — each with its own access semantics. The first two are exposed as files in <code>/dev</code>; the third (network) breaks the "everything is a file" rule because it speaks in packets, not bytes.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>A device driver is fundamentally a <strong><code>struct file_operations</code></strong> — a C-language function-pointer table that implements the uniform syscall interface (<code>open</code>, <code>read</code>, <code>write</code>, <code>release</code>, <code>ioctl</code>). The kernel does not know <em>what</em> each driver does; only that it implements this interface.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p><strong>Major/minor numbers</strong> are the dispatch key: major identifies the driver, minor identifies the instance. The <code>st_rdev</code> field in the <code>/dev</code> inode is decoded by the VFS and used to route syscalls to the correct driver's <code>file_operations</code> table.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Module 6 Complete — Module 7 Begins</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 22 — Access Control (Module 7 Begins)</strong><br><br>
+    Module 6 is complete. We have now built the entire hardware communication stack — polling, interrupts, DMA, and a unified driver abstraction. Now we ascend into <strong>Module 7: Security &amp; Protection</strong>. We will begin with the <strong>Access Control Matrix</strong> — the mathematical foundation of all security policy — and trace how it is implemented at the file and device level through Access Control Lists (ACLs) and capability tokens. The <code>/dev</code> nodes we just examined are protected by the exact ACL mechanism we will formalize next.
+  </div>
+  <p class="hint">File: L22.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
