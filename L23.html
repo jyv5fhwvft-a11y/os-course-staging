@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L23 · Authentication</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  .badge-cyan { color: #67E8F9; border-color: #06B6D4; background: rgba(6,182,212,0.08); }
+  .badge-orange { color: #FDBA74; border-color: #F97316; background: rgba(249,115,22,0.08); }
+  .badge-teal { color: #5EEAD4; border-color: #14B8A6; background: rgba(20,184,166,0.08); }
+  .badge-sky { color: #7DD3FC; border-color: #0EA5E9; background: rgba(14,165,233,0.08); }
+  .badge-lime { color: #BEF264; border-color: #84CC16; background: rgba(132,204,22,0.08); }
+  .badge-indigo { color: #A5B4FC; border-color: #6366F1; background: rgba(99,102,241,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-indigo { border-color: #6366F1; background: rgba(99,102,241,0.06); color: #A5B4FC; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.indigo h3 { color: #A5B4FC; } .card.indigo { border-color: #312E81; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .factors { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5vw; max-width: 1100px; width: 100%; margin: 2vh auto; }
+  .factor-card { padding: 3vh 1.8vw; border-radius: 12px; border: 2px solid; text-align: left; }
+  .factor-card .icon { font-size: 2.5rem; margin-bottom: 1.2vh; }
+  .factor-card h4 { font-size: 1.2rem; font-weight: 800; margin-bottom: 1.2vh; }
+  .factor-card p { font-size: clamp(0.8rem, 1vw, 0.9rem); line-height: 1.55; margin-bottom: 0.6vh; }
+  .factor-card .examples { margin-top: 1.5vh; padding: 1vh 1vw; border-radius: 4px; font-family: "SF Mono", monospace; font-size: 0.75rem; font-weight: 700; }
+  .factor-knowledge { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .factor-knowledge h4 { color: #60A5FA; }
+  .factor-knowledge .examples { background: rgba(59,130,246,0.15); color: #60A5FA; }
+  .factor-possession { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .factor-possession h4 { color: #FBBF24; }
+  .factor-possession .examples { background: rgba(245,158,11,0.15); color: #FBBF24; }
+  .factor-inherence { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .factor-inherence h4 { color: #34D399; }
+  .factor-inherence .examples { background: rgba(16,185,129,0.15); color: #34D399; }
+  .pipeline { display: flex; flex-direction: column; gap: 1.2vh; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .pipeline-step { display: flex; gap: 1.5vw; align-items: center; padding: 2vh 2vw; border-radius: 10px; border: 2px solid; text-align: left; }
+  .pipeline-step .num { font-size: 1.8rem; font-weight: 900; min-width: 60px; }
+  .pipeline-step p { font-size: clamp(0.85rem, 1.05vw, 0.95rem); line-height: 1.5; }
+  .step-1 { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .step-2 { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .step-3 { border-color: #8B5CF6; background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  .step-4 { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .password-math { max-width: 850px; padding: 2.5vh 2vw; border-radius: 12px; background: rgba(99,102,241,0.06); border: 2px solid #6366F1; text-align: left; margin: 2vh auto; }
+  .password-math h4 { color: #A5B4FC; font-size: 1.15rem; margin-bottom: 1.2vh; }
+  .password-math p { font-size: clamp(0.85rem, 1.05vw, 0.95rem); color: #CBD5E1; line-height: 1.7; }
+  .password-math .formula { color: #FBBF24; font-family: "SF Mono", monospace; font-weight: 800; font-size: clamp(0.95rem, 1.1vw, 1.05rem); display: block; margin: 1vh 0; padding: 1.2vh 1.2vw; background: rgba(245,158,11,0.08); border-left: 3px solid #F59E0B; border-radius: 4px; }
+  .password-math .stored { color: #34D399; font-family: "SF Mono", monospace; font-weight: 700; }
+  .shadow-format { max-width: 700px; width: 100%; margin: 2vh auto; background: #111C33; border: 2px solid #6366F1; border-radius: 10px; padding: 2vh 2vw; font-family: "SF Mono", monospace; font-size: clamp(0.8rem, 1vw, 0.9rem); text-align: left; line-height: 1.7; }
+  .shadow-format .user { color: #60A5FA; font-weight: 800; }
+  .shadow-format .algo { color: #FBBF24; font-weight: 800; }
+  .shadow-format .salt { color: #F87171; font-weight: 800; }
+  .shadow-format .hash { color: #34D399; font-weight: 800; }
+  .bio-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5vw; max-width: 1000px; width: 100%; margin: 2vh auto; }
+  .bio-side { padding: 2.5vh 2vw; border-radius: 12px; border: 2px solid; text-align: left; }
+  .bio-side h4 { font-size: 1.1rem; font-weight: 800; margin-bottom: 1.2vh; }
+  .bio-side p { font-size: clamp(0.85rem, 1.05vw, 0.95rem); line-height: 1.55; margin-bottom: 0.8vh; }
+  .bio-revocable { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .bio-revocable h4 { color: #34D399; }
+  .bio-irrevocable { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .bio-irrevocable h4 { color: #F87171; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .factors, .bio-comparison { grid-template-columns: 1fr; } .pipeline-step { flex-direction: column; text-align: center; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L23</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-indigo">🔰 START HERE // L23 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#6366F1"></div>
+  <p class="subtitle">Compare password-based and biometric authentication models, and identify an unalterable systemic vulnerability in each design.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> L22 taught us that every <code>/dev</code> node, every <code>/etc</code> file, and every protected resource carries an ACL that says <em>who</em> may access it. But the system has a fatal blind spot: how does it <em>know</em> the caller is Alice and not an imposter claiming Alice's name? If an attacker can simply type "I am Alice" and receive her permissions, every ACL in the system is meaningless. Authentication is the doorway through which all access control must pass.
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L22 Access Control</h3><p>The access control matrix, ACLs, capabilities, and the <em>reason</em> identity is required before policy can be enforced.</p></div>
+    <div class="card amber"><h3>02 · L18 Inode Metadata</h3><p>Password and credential files (<code>/etc/shadow</code>) are stored as protected files with their own ACLs.</p></div>
+    <div class="card amber"><h3>03 · Cryptographic Hashing</h3><p>Even informal understanding that a <em>hash function</em> takes arbitrary input and produces a fixed-size output, and is <em>one-way</em> (input → output fast, output → input infeasible).</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> This is the lecture with the most crossover to L25 (encryption). Emphasize the deep difference between <em>hashing</em> (one-way, used here) and <em>encryption</em> (two-way, used in L25). Confusing them is a common and dangerous student mistake.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-indigo">🎒 EVERYDAY SIMPLIFIED: THE THREE-FACTOR VAULT</span>
+  <h2>The Three Factors Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🔐🔑🖐️</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>To enter a secure corporate vault, you must pass three gates: a password typed on a keypad (something you know), a physical brass key (something you have), and a fingerprint scan (something you are). Each gate proves a <em>different dimension</em> of your identity. An attacker who knows your password but does not have your physical key still fails.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>These are the three classical authentication factor classes: Knowledge, Possession, Inherence. Each defeats a specific attack class that the others cannot.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Real systems rarely combine all three; two-factor is industry standard because it dominates the attacker cost curve at modest user friction.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-indigo">🎒 EVERYDAY SIMPLIFIED: THE SHARED SECRET COMBINATION</span>
+  <h2>The Password Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🔢🔐🔐</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The bank assigns you a secret combination that only you know. The bank itself does not know the combination — it only knows a <em>mathematical fingerprint</em> of it, so that when you dial the combination, the bank can verify it matches its fingerprint without ever storing the actual dial positions.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Passwords are not stored in plaintext. The system stores a <em>salted cryptographic hash</em> of your password, and on each login attempt, hashes the input and compares the outputs.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The vulnerability is subtle: <em>weak passwords</em> and <em>reused passwords</em> are catastrophic, because anyone who discovers the plaintext (via a leak, phishing, or brute-force) can use it directly.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-indigo">🎒 EVERYDAY SIMPLIFIED: THE UNIQUE RECIPE VARIANT</span>
+  <h2>The Salted Hash Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🎂🧂🎂</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Imagine two users, Alice and Bob, both use the exact same password — "hunter2." If the bank stored only the hash, both hashes would be identical, and an attacker with a rainbow table of common password hashes could crack both in one lookup. Instead, the bank sprinkles a random salt on each dish: Alice's password is <code>hunter2 + aX9!q</code> and Bob's is <code>hunter2 + 7Lm@Z</code>. The two hashes are completely different.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>A salt is a random per-user string prepended to the password <em>before</em> hashing. Two users with the same password have different stored hashes.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the standard defense against rainbow-table attacks, and it is why <code>/etc/shadow</code> entries have a visible <code>$id$salt$hash</code> structure — the salt is right there in the record, but the <em>hash of salt+password</em> remains unreversable.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-indigo">🎒 EVERYDAY SIMPLIFIED: THE IRREVOCABLE FINGERPRINT</span>
+  <h2>The Biometric Vulnerability Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🖐️🔒❌</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>If someone steals your password, you change it — a new one works instantly. If someone steals your fingerprint template, you <em>cannot change your fingerprint</em>. The compromise is permanent — every future use of that template trusts the same irrevocable credential.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Passwords are revocable (change and reissue); biometrics are <em>irrevocable</em>. This asymmetry changes the entire risk calculus — biometric compromise implies lifelong vulnerability unless the entire biometric system is redesigned.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the deep security trade-off of biometrics: convenience and anti-spoofing strength on one hand, permanent irrevocability on the other.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE AUTHENTICATION DUALITY SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card emerald"><h3>✅ Revocable Corridor</h3><p>Passwords and hardware tokens. Resettable, replaceable, changeable when compromised. The foundation of practical security.</p></div>
+    <div class="card crimson"><h3>❌ Irrevocable Corridor</h3><p>Biometrics. Permanent, unique, unchangeable. Convenient but catastrophic when compromised.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">The correct architecture <strong>blends them</strong>: use biometrics for local convenience, but require a revocable factor (password or hardware key) for high-security actions. Modern authentication is <em>layered</em>.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-indigo">💻 SYSTEMS COHESION: KNOWLEDGE, POSSESSION, INHERENCE</span>
+  <h2>The Three Authentication Factor Classes</h2>
+  <div class="factors">
+    <div class="factor-card factor-knowledge">
+      <div class="icon">🧠</div>
+      <h4>Knowledge</h4>
+      <p>Something you <em>know</em>.</p>
+      <p style="margin-top:1vh"><strong>Strengths:</strong> Universally available, instantly revocable, no hardware required.</p>
+      <p><strong>Weaknesses:</strong> Phishing, shoulder surfing, keyloggers, weak password reuse.</p>
+      <div class="examples">Passwords · PINs · Security questions</div>
+    </div>
+    <div class="factor-card factor-possession">
+      <div class="icon">📱</div>
+      <h4>Possession</h4>
+      <p>Something you <em>have</em>.</p>
+      <p style="margin-top:1vh"><strong>Strengths:</strong> Defeats remote attackers (physical presence required).</p>
+      <p><strong>Weaknesses:</strong> Physical theft, SIM-swap attacks, token cloning (rare).</p>
+      <div class="examples">Hardware tokens · TOTP apps · Smart cards</div>
+    </div>
+    <div class="factor-card factor-inherence">
+      <div class="icon">🖐️</div>
+      <h4>Inherence</h4>
+      <p>Something you <em>are</em>.</p>
+      <p style="margin-top:1vh"><strong>Strengths:</strong> Cannot be forgotten or lost; defeats remote attacks entirely.</p>
+      <p><strong>Weaknesses:</strong> Spoofing (photos, silicone prints), irrevocable compromise.</p>
+      <div class="examples">Fingerprints · Iris · Face ID · Voiceprint</div>
+    </div>
+  </div>
+  <div class="callout callout-indigo" style="margin-top:3vh">
+    <strong>Multi-Factor Authentication (MFA):</strong> Requires two or more <em>distinct</em> factor classes. An attacker who steals one factor still fails — they must defeat multiple independent channels simultaneously.
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-indigo">💻 SYSTEMS COHESION: THE STORED CREDENTIAL PIPELINE</span>
+  <h2>Password Storage &amp; Salted Hashing</h2>
+  <div class="pipeline">
+    <div class="pipeline-step step-1">
+      <div class="num">1</div>
+      <p><strong>User registers password P.</strong> The system generates a random per-user salt S (typically 16–32 bytes).</p>
+    </div>
+    <div class="pipeline-step step-2">
+      <div class="num">2</div>
+      <p><strong>Compute H = hash(S || P).</strong> Using a strong hash function — SHA-256, or a password-specific algorithm like bcrypt, scrypt, or Argon2.</p>
+    </div>
+    <div class="pipeline-step step-3">
+      <div class="num">3</div>
+      <p><strong>Store (S, H).</strong> In <code>/etc/shadow</code> (root-readable only). The entry is <code>$6$S$H</code> — algorithm ID, salt, and hash, separated by <code>$</code>.</p>
+    </div>
+    <div class="pipeline-step step-4">
+      <div class="num">4</div>
+      <p><strong>Verification:</strong> On login, the system reads S from storage, computes H' = hash(S || submitted_P), and compares H' to H. Match = authenticated.</p>
+    </div>
+  </div>
+  <div class="callout callout-indigo" style="margin-top:2vh">
+    <strong>The one-way property:</strong> Even if <code>/etc/shadow</code> leaks, an attacker cannot compute P from H faster than brute-forcing all possible passwords. This is why <em>strong</em> passwords matter.
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-indigo">💻 SYSTEMS COHESION: THE PRECOMPUTED ATTACK</span>
+  <h2>The Salt and Rainbow Table Defense</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Rainbow Table Attack</h3>
+      <p>A precomputed database of <code>hash(P) → P</code> mappings for millions of common passwords.</p>
+      <p style="margin-top:1vh">Without salts, one table lookup cracks any leaked hash.</p>
+      <p style="margin-top:1vh">A single 10 GB rainbow table can crack hashes for millions of common passwords in milliseconds.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Salt Defense</h3>
+      <p><strong>Without salt:</strong> Two users with password "hunter2" both have hash H₀. One rainbow-table lookup cracks both.</p>
+      <p style="margin-top:1vh"><strong>With salt:</strong> Alice's entry hashes <code>saltA||hunter2</code>; Bob's hashes <code>saltB||hunter2</code>. Neither appears in the rainbow table.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>The attacker must now crack each user's hash independently</strong> — O(N) work per user.</p>
+    </div>
+  </div>
+  <div class="callout callout-crimson" style="margin-top:3vh">
+    <strong>The Verdict:</strong> Salts do not defend against <em>weak passwords</em> (an attacker will still crack "password123" quickly), but they defend against <em>batch cracking</em> — one leak no longer compromises every user with a common password.
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-indigo">💻 SYSTEMS COHESION: THE BIOMETRIC VECTOR MATCH</span>
+  <h2>Biometric Authentication Pipeline</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Biometric Pipeline</h3>
+      <p><strong>1. Capture:</strong> Sensor captures raw biometric data (fingerprint ridge map, iris pattern, facial geometry).</p>
+      <p><strong>2. Feature extraction:</strong> A specific feature vector is extracted — for fingerprints, a set of minutiae points (ridge endings, bifurcations) and their relative positions.</p>
+      <p><strong>3. Template storage:</strong> The extracted feature vector (not the raw scan) is stored. For a 1024-bit iris template, this is ~128 bytes per user.</p>
+      <p><strong>4. Matching:</strong> New scan → features extracted → compared to stored template (Hamming distance for iris, minutiae count for fingerprints).</p>
+      <p><strong>5. Threshold:</strong> Match score above threshold = authenticated.</p>
+    </div>
+    <div class="card crimson">
+      <h3>The Fundamental Difference</h3>
+      <p>Passwords are <em>exact matches</em>. Biometrics are <em>statistical matches</em> — due to sensor noise, angle variation, and physiological drift.</p>
+      <p style="margin-top:1vh">This introduces <strong>false accepts</strong> (wrong person granted access) and <strong>false rejects</strong> (right person denied) as permanent risks.</p>
+      <p style="margin-top:1vh;color:#F87171"><strong>Biometric templates can be leaked the same as password hashes</strong> — but unlike passwords, the compromised "password" is <em>your fingerprint</em>, which you cannot change.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-indigo">💻 SYSTEMS COHESION: THE IRREVOCABILITY CURSE</span>
+  <h2>The Revocability Asymmetry</h2>
+  <div class="bio-comparison">
+    <div class="bio-side bio-revocable">
+      <h4>🔑 Password (Revocable)</h4>
+      <p>· Can be reset instantly</p>
+      <p>· Can be lost (forgotten)</p>
+      <p>· Can be stolen (leaked)</p>
+      <p>· If leaked, can be changed</p>
+      <p>· Often reused across services</p>
+    </div>
+    <div class="bio-side bio-irrevocable">
+      <h4>🖐️ Biometric (Irrevocable)</h4>
+      <p>· Cannot be reset</p>
+      <p>· Cannot be lost (always with you)</p>
+      <p>· Can be stolen (spoofing)</p>
+      <p>· If leaked, <strong>cannot be changed</strong></p>
+      <p>· Shared across all services using that template</p>
+    </div>
+  </div>
+  <div class="callout callout-indigo" style="margin-top:3vh">
+    <strong>The Deep Problem:</strong> If your biometric template is compromised, <em>every system that uses that biometric</em> — even systems you have never logged into yet — trusts the compromised template. You cannot "change your fingerprint" without changing your physical body.
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON IDENTITY VERIFICATION</span>
+  <h2>Core System Cohesion — Relies On L22</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>ACLs Need Identity</h3><p>Every ACL entry contains a <em>subject identifier</em> — Alice, Bob, Charlie. But that identifier is meaningless unless the system can verify the caller <em>is</em> that subject. Authentication supplies the verified identity that L22's ACL check consumes.</p></div>
+    <div class="card"><h3>The Credential Struct</h3><p>After L23 authentication succeeds, the kernel populates the process's credential struct (uid, gid, supplementary groups) — which is the exact input that L22's ACL check compares against the file's ACL.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>Authentication and access control are inextricably linked: one proves who you are, the other decides what you may do. Neither is useful without the other.</p></div>
+    <div class="card emerald"><h3>Feeds Into L24–L27</h3><p>Every subsequent Module 7 lecture presumes a working authentication substrate. L24 (exploits) attacks the parsers of auth systems. L25 (crypto) protects auth credentials in transit. L27 (isolation) allows different processes to have different authenticated identities.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO EXPLOITS AND CRYPTO</span>
+  <h2>Core System Cohesion — Feeds Into L24 &amp; L25</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L24 (Buffer Overflows)</h3><p>Password input fields, biometric template comparisons, and token verifiers are all high-risk C code that can be exploited via unchecked inputs. Authentication is one of the most common attack surfaces for memory-safety bugs.</p></div>
+    <div class="card"><h3>L25 (Encryption)</h3><p>Passwords traverse the network from client to server. Without TLS encryption, they are visible to any network snooper. Authentication <em>requires</em> encryption as a transport-layer defense — the two are inseparable.</p></div>
+    <div class="card violet"><h3>The Chain</h3><p>Identity (L23) → exploit defenses (L24) → encrypted transport (L25) → network security (L26) → isolation (L27). Each layer presumes the one before it.</p></div>
+    <div class="card emerald"><h3>Real-World Consequence</h3><p>Every breach that involves "credentials were leaked" traces back to the failures this lecture describes: weak passwords, missing salts, unencrypted transport, or compromised biometrics.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: KERNEL AUTH ARCHITECTURES</span>
+  <h2>Authentication Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Authentication</h3><p>Authentication is handled by a central in-kernel or privileged daemon (PAM, <code>systemd-logind</code>). All logins route through it. Fast, central, but a compromise of the auth stack compromises the entire system.</p></div>
+    <div class="card emerald"><h3>Microkernel Authentication</h3><p>Authentication is a user-space service accessed via IPC. Each app that needs to authenticate contacts the auth server. The auth server holds credentials — never the kernel. Isolated and replaceable, but every login involves IPC message round-trips.</p></div>
+    <div class="card amber"><h3>Layered Authentication</h3><p>Strict separation: hardware-backed credential storage → kernel credential manager → user-space PAM stack. Each layer enforces a specific concern without overlapping. Mirrors modern systems-on-chip with TPM-backed credential storage.</p></div>
+    <div class="card"><h3>Modular Authentication</h3><p>PAM (Pluggable Authentication Modules) is the archetype — password auth, token auth, biometric auth are all <em>pluggable modules</em> dynamically composed per service. Swap authentication method without recompiling the kernel.</p></div>
+    <div class="card indigo"><h3>Hybrid Authentication</h3><p>Hardware security modules (TPM 2.0, Apple Secure Enclave) hold root keys in silicon, while the OS auth stack handles day-to-day password verification. Cryptographic keys never leave the security chip — but the OS still orchestrates the login flow.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE AUTHENTICATION VOCABULARY</span>
+  <h2>Base Authentication Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Authentication Factor</h3>
+      <p>An explicit operational category used to verify a user's digital identity boundaries — one of Knowledge (something the user knows, like a password), Possession (something the user has, like a hardware token), or Inherence (something the user is, like a fingerprint). Each factor defeats a specific attack class that the others cannot.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The three different ways to prove you are who you say you are.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Salted Hash</h3>
+      <p>Appending a random sequence of characters (the salt) to a user password before passing it through a cryptographic one-way hashing function, neutralizing dictionary-lookup attacks and rainbow-table precomputation by making each user's hash unique even when they share the same underlying password.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(A unique random topping added to each dish so that two identical recipes produce completely different dish IDs.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE AUTHENTICATION VOCABULARY</span>
+  <h2>Advanced Authentication Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Multi-Factor Authentication (MFA)</h3>
+      <p>Requiring a user to validate two or more <em>distinct</em> authentication categories (knowledge + possession, knowledge + inherence, etc.) before granting entry access, ensuring that compromising a single channel is insufficient for unauthorized access. Two-factor authentication (2FA) is the most common deployment.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The bank requiring both your password AND your physical key.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Rainbow Table</h3>
+      <p>A precomputed database mapping common password hashes back to their plaintext passwords, used to crack leaked credential stores efficiently; defeated by the salted-hash technique, which ensures every user's stored hash is unique even for identical passwords. Modern tables can be hundreds of GB in size.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(A pre-built reverse-lookup dictionary for common password hash values.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Revocability</h3>
+      <p>The property of a credential that allows it to be invalidated and replaced after compromise; passwords and hardware tokens are revocable, biometric templates are not — creating a fundamental security asymmetry that shapes the entire biometric risk calculus. Revocable factors must be present in any high-security architecture.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(You can change a password, but you cannot change your fingerprint.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-indigo">💻 CODE DISSECTION: C SALTED HASH SIMULATOR</span>
+  <h2>Simulating Salted Password Hashing in C</h2>
+  <pre class="code-block"><span class="cm">// Simulating salted password hashing and verification in C</span>
+<span class="cm">// Compile: gcc -o salt salt.c &amp;&amp; ./salt</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;stdlib.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;time.h&gt;</span>
+
+<span class="cm">// WARNING: This is a SIMPLIFIED demonstration hash.</span>
+<span class="cm">// NEVER use a toy hash in production. Use bcrypt, scrypt, or Argon2.</span>
+<span class="kw">unsigned long</span> <span class="fn">demo_hash</span>(<span class="kw">const char</span>* input) {
+    <span class="kw">unsigned long</span> h = <span class="num">5381</span>;
+    <span class="kw">while</span> (*input) {
+        h = ((h &lt;&lt; <span class="num">5</span>) + h) + (<span class="kw">unsigned char</span>)*input++;
+    }
+    <span class="kw">return</span> h;
+}
+
+<span class="kw">void</span> <span class="fn">generate_salt</span>(<span class="kw">char</span>* salt, <span class="kw">int</span> length) {
+    <span class="kw">const char</span> charset[] =
+        <span class="str">"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"</span>;
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; length - <span class="num">1</span>; i++) {
+        salt[i] = charset[<span class="fn">rand</span>() % (<span class="kw">sizeof</span>(charset) - <span class="num">1</span>)];
+    }
+    salt[length - <span class="num">1</span>] = <span class="str">'\0'</span>;
+}
+
+<span class="cm">// Registration: hash salt || password and store the result</span>
+<span class="kw">void</span> <span class="fn">register_user</span>(<span class="kw">const char</span>* password, <span class="kw">char</span>* stored_salt,
+                   <span class="kw">unsigned long</span>* stored_hash) {
+    <span class="fn">generate_salt</span>(stored_salt, <span class="num">17</span>);   <span class="cm">// 16-character random salt</span>
+    <span class="kw">char</span> combined[<span class="num">256</span>];
+    <span class="fn">snprintf</span>(combined, <span class="kw">sizeof</span>(combined), <span class="str">"%s%s"</span>, stored_salt, password);
+    *stored_hash = <span class="fn">demo_hash</span>(combined);
+    <span class="fn">printf</span>(<span class="str">"[REGISTER] salt=%s  hash=%lu\n"</span>, stored_salt, *stored_hash);
+}
+
+<span class="cm">// Login: rehash submitted password with stored salt, compare</span>
+<span class="kw">int</span> <span class="fn">verify_login</span>(<span class="kw">const char</span>* password, <span class="kw">const char</span>* stored_salt,
+                 <span class="kw">unsigned long</span> stored_hash) {
+    <span class="kw">char</span> combined[<span class="num">256</span>];
+    <span class="fn">snprintf</span>(combined, <span class="kw">sizeof</span>(combined), <span class="str">"%s%s"</span>, stored_salt, password);
+    <span class="kw">unsigned long</span> attempt = <span class="fn">demo_hash</span>(combined);
+    <span class="fn">printf</span>(<span class="str">"[LOGIN]    attempt=%lu  expected=%lu -&gt; %s\n"</span>,
+           attempt, stored_hash, (attempt == stored_hash) ? <span class="str">"ACCEPT"</span> : <span class="str">"REJECT"</span>);
+    <span class="kw">return</span> attempt == stored_hash;
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="fn">srand</span>((<span class="kw">unsigned</span>)<span class="fn">time</span>(NULL));
+
+    <span class="kw">char</span> salt1[<span class="num">17</span>], salt2[<span class="num">17</span>];
+    <span class="kw">unsigned long</span> hash1, hash2;
+
+    <span class="cm">// Two users with the SAME password "hunter2"</span>
+    <span class="fn">register_user</span>(<span class="str">"hunter2"</span>, salt1, &amp;hash1);
+    <span class="fn">register_user</span>(<span class="str">"hunter2"</span>, salt2, &amp;hash2);
+
+    <span class="fn">printf</span>(<span class="str">"\nSame password, different salt, different hash:\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  Hash1: %lu\n"</span>, hash1);
+    <span class="fn">printf</span>(<span class="str">"  Hash2: %lu\n"</span>, hash2);
+    <span class="fn">printf</span>(<span class="str">"  %s\n"</span>, hash1 != hash2 ?
+           <span class="str">"Rainbow table attack DEFEATED"</span> :
+           <span class="str">"BUG: hashes are equal!"</span>);
+
+    <span class="fn">printf</span>(<span class="str">"\nAttempting login for user 1:\n"</span>);
+    <span class="fn">verify_login</span>(<span class="str">"hunter2"</span>, salt1, hash1);       <span class="cm">// correct</span>
+    <span class="fn">verify_login</span>(<span class="str">"wrongpass"</span>, salt1, hash1);     <span class="cm">// incorrect</span>
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-indigo">💻 CODE DISSECTION: TRACING CREDENTIAL VERIFICATION</span>
+  <h2>Walking the Salted Hash Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>generate_salt(stored_salt, 17)</h3><p><strong>The critical defense against rainbow tables.</strong> Generates a random 16-character string per user. In real systems, the salt is 16–32 bytes of cryptographically secure randomness.</p></div>
+    <div class="card"><h3>snprintf(combined, ..., "%s%s", salt, password)</h3><p><strong>Concatenates salt + password in that order.</strong> This is the exact defense L23 describes: <code>hash(salt || password)</code> produces a completely different hash for <code>hunter2</code> per user.</p></div>
+    <div class="card emerald"><h3>demo_hash(combined)</h3><p><strong>Applies the hash function.</strong> In production, this would be bcrypt, scrypt, or Argon2 — deliberately slow hash functions designed to make brute-force attacks expensive even for leaked hashes.</p></div>
+    <div class="card violet"><h3>Two user traces</h3><p>Both users have password "hunter2," but <code>salt1 ≠ salt2</code>. Therefore <code>demo_hash(salt1||hunter2) ≠ demo_hash(salt2||hunter2)</code>. An attacker with a precomputed rainbow table for "hunter2" gets <em>zero</em> hits — neither hash appears in the table.</p></div>
+    <div class="card"><h3>verify_login(...)</h3><p><strong>The login path:</strong> retrieves the stored salt from the database, hashes the submitted password with that salt, and compares. Match = user authenticated. Same hash function, same salt, same result — but only if the input password is correct.</p></div>
+    <div class="card amber"><h3>The Attack Cost</h3><p>With a leaked <code>/etc/shadow</code> and 1 million distinct salts, an attacker must brute-force <strong>each user's hash independently</strong>. Cost = <code>O(users × search_space)</code> instead of <code>O(search_space)</code>. A 1000× increase in attack cost.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎯 INTERACTIVE WORKSHOP: THE PHYSICAL MFA SIMULATION</span>
+  <h2>The Three-Factor Vault Showdown</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Student 01 · The Vault Guard</h3><p>Stands at the front with three checkpoints between the "user area" and the "vault area." Determines how many factors are required per round.</p></div>
+    <div class="card amber"><h3>Student 02 · The User</h3><p>Must reach the vault. Holds three factor cards: a password card, a hardware token card, and a biometric card.</p></div>
+    <div class="card emerald"><h3>Students 03–05 · The Factors</h3><p>Each is a checkpoint guard. Student 03 checks the password card; Student 04 checks the hardware token; Student 05 checks the biometric card.</p></div>
+  </div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card crimson"><h3>Round 1 · Single Factor</h3><p>Vault Guard allows entry with ANY single factor. User passes with only the password card. Note how easy this is to bypass.</p></div>
+    <div class="card amber"><h3>Round 2 · Two Factors (MFA)</h3><p>Guard requires two factors. User passes with password + token, but fails with password alone. Run the "attacker" scenario with only the password.</p></div>
+    <div class="card emerald"><h3>Round 3 · Three Factors</h3><p>Guard requires all three. User must possess every factor card. Now try attacker scenarios: only password, password + token, etc. Each additional factor multiplies the attacker's burden.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-indigo">💻 TRY IT LIVE: AUDITING REAL AUTHENTICATION</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> sudo cat /etc/shadow | head -3          <span class="out"># Salted hash entries per user</span>
+<span class="cmd">$</span> sudo passwd -S $(whoami)               <span class="out"># Report password status</span>
+<span class="cmd">$</span> sudo faillock --user $(whoami)         <span class="out"># Failed login attempts</span>
+<span class="cmd">$</span> pam-auth-update --status               <span class="out"># Enabled PAM modules</span>
+<span class="cmd">$</span> sudo fprintd-list $(whoami) 2&gt;/dev/null  <span class="out"># Biometric enrollment status</span>
+<span class="cmd">$</span> sudo dmesg | grep -i "fingerprint"     <span class="out"># Biometric hardware logs</span>
+<span class="cmd">$</span> grep -i "auth" /var/log/auth.log | tail -10  <span class="out"># Auth audit trail</span>
+<span class="cmd">$</span> sudo cat /etc/pam.d/common-auth       <span class="out"># PAM auth configuration</span></pre>
+  <p class="hint">In <code>/etc/shadow</code>, the <code>$6$</code> prefix means SHA-512, <code>$y$</code> means yescrypt. The salt is visible in the record, but the hash of <code>salt+password</code> remains unreversable. Every login attempt is recorded in <code>/var/log/auth.log</code>.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 7: Security &amp; Protection
+        └── <span class="active">L23: Authentication (ACTIVE NODE 🌟)</span>
+              ├── Knowledge / Possession / Inherence Factor Classes
+              └── Salted Hashing Defenses &amp; Biometric Irrevocability</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>Authentication verifies identity along three distinct factor channels — <strong>knowledge, possession, and inherence</strong>. Real systems combine them (MFA) so that compromising one channel does not breach the entire account.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>Passwords are stored as <strong>salted cryptographic hashes</strong>, never in plaintext. The salt defeats rainbow tables by ensuring two users with identical passwords have completely different stored hashes — but strong passwords and slow hash functions remain essential to defeat brute force.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>Biometrics are <strong>irrevocable</strong> — an inherent asymmetry versus passwords. A leaked fingerprint template cannot be changed. This is why strong biometric systems always pair the biometric with a revocable factor (PIN, password, or hardware token) so that compromising the biometric alone is insufficient.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 24 — Program Exploits</strong><br><br>
+    Authentication is only as strong as the code that implements it. If the login prompt's password parser has a buffer overflow, an attacker can bypass authentication entirely by hijacking the CPU's instruction pointer. We descend into the memory-safety failure that has dominated security breaches for forty years — the <strong>stack buffer overflow</strong> — and see how ASLR, Stack Canaries, and memory-safe languages defend against it. This is where Module 2's stack frame layout (L05) becomes the exact target of a real-world exploit.
+  </div>
+  <p class="hint">File: L24.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
