@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L13 · Virtual Memory, Demand Paging & Page Replacement</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-rose { border-color: #F43F5E; background: rgba(244,63,94,0.06); color: #FDA4AF; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.rose h3 { color: #FB7185; } .card.rose { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .frames-row { display: flex; gap: 0.5vw; margin: 2vh auto; justify-content: center; flex-wrap: wrap; }
+  .frame { width: 70px; height: 70px; border-radius: 8px; border: 2px solid; display: flex; align-items: center; justify-content: center; font-family: "SF Mono", monospace; font-weight: 800; font-size: 1.2rem; flex-direction: column; }
+  .frame-num { font-size: 0.65rem; opacity: 0.7; font-weight: 600; }
+  .frame-occupied { background: rgba(59,130,246,0.15); border-color: #3B82F6; color: #60A5FA; }
+  .frame-empty { background: rgba(30,41,59,0.5); border-color: #1E293B; color: #475569; border-style: dashed; }
+  .frame-just-loaded { background: rgba(16,185,129,0.15); border-color: #10B981; color: #34D399; }
+  .frame-just-evicted { background: rgba(239,68,68,0.15); border-color: #EF4444; color: #FCA5A5; }
+  .fault-table { width: 100%; max-width: 900px; margin: 2vh auto; border-collapse: collapse; font-family: "SF Mono", monospace; font-size: clamp(0.75rem, 1vw, 0.9rem); }
+  .fault-table th { background: #1E293B; color: #60A5FA; padding: 1vh 0.6vw; text-align: center; font-weight: 800; }
+  .fault-table td { padding: 0.8vh 0.6vw; text-align: center; border-bottom: 1px solid #1E293B; color: #CBD5E1; }
+  .fault-table tr:last-child td { border-bottom: none; font-weight: 800; color: #FBBF24; }
+  .fault-hit { color: #34D399; }
+  .fault-miss { color: #F87171; font-weight: 800; }
+  .pipeline { display: flex; flex-direction: column; gap: 1.5vh; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .pipeline-step { display: flex; gap: 1.5vw; align-items: center; padding: 2vh 2vw; border-radius: 10px; border: 2px solid; text-align: left; }
+  .pipeline-step .num { font-size: 1.8rem; font-weight: 900; min-width: 60px; }
+  .pipeline-step p { font-size: clamp(0.85rem, 1.1vw, 1rem); line-height: 1.5; }
+  .step-1 { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .step-2 { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .step-3 { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .step-4 { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .frame { width: 55px; height: 55px; font-size: 1rem; } .fault-table { font-size: 0.7rem; } .pipeline-step { flex-direction: column; text-align: center; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L13</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-rose">🔰 START HERE // L13 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#F43F5E"></div>
+  <p class="subtitle">Trace a page reference execution string manually through FIFO and LRU page replacement pipelines, and accurately log final Page Fault counts.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> Modern applications are huge — Chrome alone touches gigabytes of virtual address space, and a AAA game can map 16 GB. But your physical RAM is only 8 GB. How can the system run a program larger than the entire physical machine? How can five such programs coexist simultaneously, all pretending they own the whole machine, without ever running out of memory?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L11 Paging Model</h3><p>Page table structure, valid bit, and the page fault exception mechanism. Demand paging is paging with valid bits actually enabled for disk-backed pages.</p></div>
+    <div class="card amber"><h3>02 · L12 TLB Cache</h3><p>Hit/miss mechanics and why TLB entries must be flushed when pages are evicted. A stale TLB entry after eviction is a correctness bug.</p></div>
+    <div class="card amber"><h3>03 · Basic Queue Logic</h3><p>FIFO (First In First Out) and LRU (Least Recently Used) concepts. Both are intuitive queue-based policies, and both are taught here from first principles.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> L13 is the <em>payoff</em> of the entire memory module. L10 introduced memory virtualization. L11 made it work. L12 made it fast. L13 makes it <em>unbounded</em> — the final trick that lets virtual memory exceed physical memory. Demand paging is the single most important OS mechanism in modern computer history.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎒 EVERYDAY SIMPLIFIED: THE LIMITED DESK &amp; THE LIBRARY STACKS</span>
+  <h2>The Demand Paging Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📚🪑📖</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>You are studying in a massive university library. Your study desk fits only 3 books at a time. You are writing an essay referencing 10 different books. You start working; you look for Book A on your desk. <em>It's not there!</em> — you must pause, wait for a runner to fetch Book A from the deep basement stacks, and drop it onto your desk. When your desk fills up and you need a 4th book, you must choose which book to throw off and send back to the basement.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Desk = physical RAM frames. Basement stacks = disk swap space. Missing book = page fault. Book eviction = page replacement policy.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Every page fault costs a disk round-trip — enormously expensive. The entire art of demand paging is <em>minimizing faults</em>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎒 EVERYDAY SIMPLIFIED: THE STREAMING VIDEO BUFFER</span>
+  <h2>The Demand Loading Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🎬📥💾</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Streaming video platforms do not download the entire 4K movie file before playing. They load only the immediate 10 seconds of content into local memory, then discard old data as playback advances. When you scrub to a new section, the player fetches just that section. The video file is 20 GB — but only a few megabytes are ever actively in memory.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The virtual address space is the full 20 GB "movie." Physical RAM holds only the currently-playing "buffer." Missing sections are loaded on demand — the exact model of demand paging.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Demand paging lets applications be larger than physical RAM — as long as accesses exhibit locality, most pages are never loaded at all.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎒 EVERYDAY SIMPLIFIED: THE CLOSET FULL OF CLOTHES</span>
+  <h2>The Replacement Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">👕👖🧳</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Your closet holds 10 outfits. Winter brings new clothes, but you cannot expand the closet. To make room for a new coat, you must evict an existing outfit — <em>which one do you choose?</em> FIFO: evict the oldest outfit, regardless of whether you wear it. LRU: evict the outfit you have not worn in the longest time. Optimal: evict the outfit you will need farthest in the future.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The replacement policy decides which page to evict when a fault occurs and RAM is full. Policy quality directly determines fault rate and application performance.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Every eviction is a potential future fault. The better the policy predicts the future, the lower the fault rate.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎒 EVERYDAY SIMPLIFIED: THE THRASHING COLLAPSE</span>
+  <h2>The Thrashing Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🔄💥🐌</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Your closet is 10 outfits — but you own 100 coats and need all 100 every morning. Every new coat evicts another coat you need immediately. You spend the entire day running clothes in and out of storage, never actually wearing anything. The system is completely saturated — a thousand closet operations per hour, zero actual productivity.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Thrashing is the pathological state where the OS spends more time swapping pages in and out than executing actual user code. Caused by too many processes competing for too few frames.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Thrashing is a catastrophically unrecoverable state — once triggered, the system appears frozen. The only fix is to reduce the number of competing processes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE VIRTUAL MEMORY SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card emerald"><h3>✅ What Demand Paging Provides</h3><p>Programs larger than physical RAM. Instant process startup (load only the working set). Efficient memory sharing (read-only code pages shared across processes). Fast process creation (copy-on-write, from L06).</p></div>
+    <div class="card crimson"><h3>❌ What It Costs</h3><p>Page fault overhead (~10–100 microseconds per disk access — millions of cycles). Thrashing if frame allocation is wrong. Complexity of the replacement policy. Disk I/O bandwidth is scarce.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Demand paging is the single most transformative memory mechanism of the past 60 years. It is why modern systems can run hundreds of processes on a machine with a few GB of RAM.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">💻 SYSTEMS COHESION: THE LAZY LOADING MECHANISM</span>
+  <h2>Demand Paging Fundamentals</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Core Idea</h3>
+      <p>Instead of loading all of a process's pages into RAM at startup, the OS loads <em>only the pages that are actually accessed</em> — and only when they are accessed.</p>
+      <p style="margin-top:1vh"><strong>Present/Absent Bit:</strong> Each page table entry has a valid bit. Valid=1 means the page is in RAM. Valid=0 means the page is <em>not</em> in RAM — it must be loaded from disk (or swap) on first access.</p>
+      <p style="margin-top:1vh"><strong>Lazy Loading:</strong> A process starts with almost no pages in RAM. Pages are loaded one at a time, on demand.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Economics</h3>
+      <p><strong>Startup cost:</strong> Instead of loading an entire 500 MB application, load only the 50 MB hot working set. Process startup is 10× faster.</p>
+      <p style="margin-top:1vh"><strong>Idle cost:</strong> An unused feature in an application never loads its pages. Memory not needed is not consumed.</p>
+      <p style="margin-top:1vh"><strong>Sharing:</strong> Read-only code pages (libc.so, browser rendering engine) can be <em>shared</em> between processes. Load once, use everywhere.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">💻 SYSTEMS COHESION: THE PAGE FAULT EXCEPTION</span>
+  <h2>What Triggers a Page Fault</h2>
+  <div class="pipeline">
+    <div class="pipeline-step step-1">
+      <div class="num">1</div>
+      <p><strong>CPU accesses virtual address.</strong> The MMU looks up the page table entry — but <code>valid = 0</code> (page not present in RAM).</p>
+    </div>
+    <div class="pipeline-step step-2">
+      <div class="num">2</div>
+      <p><strong>MMU raises page fault trap.</strong> The CPU suspends the current instruction, saves the faulting address in <code>CR2</code>, and switches to Ring 0 (L02's trap mechanism).</p>
+    </div>
+    <div class="pipeline-step step-3">
+      <div class="num">3</div>
+      <p><strong>Kernel page fault handler runs.</strong> The kernel verifies the fault is <em>legitimate</em> (the page is valid but not yet loaded) vs. <em>illegitimate</em> (the address is not mapped at all → SIGSEGV, from L24's memory protections).</p>
+    </div>
+    <div class="pipeline-step step-4">
+      <div class="num">4</div>
+      <p><strong>Load page from disk.</strong> A free frame is allocated. The page is read from disk (swap or file) into the frame. The page table is updated (<code>valid = 1</code>, frame number written).</p>
+    </div>
+    <div class="pipeline-step step-3">
+      <div class="num">5</div>
+      <p><strong>Retry the instruction.</strong> The faulting instruction is re-executed. This time the translation succeeds and the memory access completes normally.</p>
+    </div>
+  </div>
+  <div class="callout callout-crimson" style="margin-top:2vh">
+    <strong>Cost:</strong> A page fault takes 10–100 microseconds (disk I/O dominated) — millions of CPU cycles, hundreds of times slower than a memory access. Every fault is expensive, which is why the replacement policy matters so much.
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">💻 SYSTEMS COHESION: THE FIFO REPLACEMENT POLICY</span>
+  <h2>First-In-First-Out (FIFO) Page Replacement</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Policy</h3>
+      <p>Maintain a simple FIFO queue of loaded pages. On a fault, evict the <em>oldest</em> page — the one that was loaded the longest time ago.</p>
+      <p style="margin-top:1vh"><strong>Implementation:</strong> A circular queue of frame references. Very cheap to implement — no access tracking needed.</p>
+      <p style="margin-top:1vh"><strong>Weakness:</strong> Evicts the oldest, regardless of whether it is heavily used. A hot page loaded long ago can be evicted even though it will be needed immediately.</p>
+    </div>
+    <div class="card crimson">
+      <h3>Belady's Anomaly</h3>
+      <p>FIFO can exhibit <strong>Belady's Anomaly</strong> — an increase in the number of frames can cause an <em>increase</em> in the number of page faults. This is mathematically counterintuitive (more RAM should mean fewer faults) but is a real property of FIFO.</p>
+      <p style="margin-top:1vh;color:#F87171">Belady's Anomaly does NOT occur with LRU or Optimal — those are "stack algorithms" and always improve monotonically with more frames.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">💻 SYSTEMS COHESION: THE LRU REPLACEMENT POLICY</span>
+  <h2>Least Recently Used (LRU) Page Replacement</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Policy</h3>
+      <p>Maintain an access-order tracking of pages. On a fault, evict the page that has not been accessed for the <em>longest time</em>.</p>
+      <p style="margin-top:1vh"><strong>Implementation:</strong> Requires tracking access order — typically via a doubly-linked list (O(1) move-to-front on access) or a counter with a min-heap (O(log n) per access).</p>
+      <p style="margin-top:1vh"><strong>Strength:</strong> Excellent approximation of optimal behavior. Based on the locality principle — recently used pages are likely to be used again.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Why LRU Works</h3>
+      <p>Programs exhibit <strong>temporal locality</strong> — recently accessed pages are likely to be accessed again soon. LRU is the natural replacement policy for this workload characteristic.</p>
+      <p style="margin-top:1vh"><strong>No Belady's Anomaly:</strong> LRU is a <em>stack algorithm</em> — the set of pages in n frames is always a subset of pages in n+1 frames. More frames always reduces faults.</p>
+      <p style="margin-top:1vh;color:#34D399">LRU is the gold standard — but tracking access times exactly is expensive. Real systems approximate it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">💻 SYSTEMS COHESION: THE WORKED REFERENCE TRACE</span>
+  <h2>FIFO vs LRU Trace Comparison</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Setup</h3>
+      <p><strong>Reference string:</strong> 1, 2, 3, 4, 1, 2</p>
+      <p><strong>Frames available:</strong> 3</p>
+      <p style="margin-top:1vh">Let us trace both policies through the same reference string.</p>
+    </div>
+    <div class="card amber">
+      <h3>The Question</h3>
+      <p>Which policy performs better?</p>
+      <p style="margin-top:1vh">Both start with empty frames. Every reference to a page not in a frame is a fault. If a frame is free, the page goes in. If no frame is free, the policy chooses a victim.</p>
+    </div>
+  </div>
+  <h3 style="margin-top:3vh;color:#FBBF24">FIFO Trace</h3>
+  <table class="fault-table">
+    <tr><th>Ref</th><th>1</th><th>2</th><th>3</th><th>4</th><th>1</th><th>2</th><th>Faults</th></tr>
+    <tr><td>Frame 0</td><td class="fault-miss">1</td><td class="fault-hit">1</td><td class="fault-hit">1</td><td class="fault-miss">4</td><td class="fault-hit">4</td><td class="fault-hit">4</td><td></td></tr>
+    <tr><td>Frame 1</td><td>—</td><td class="fault-miss">2</td><td class="fault-hit">2</td><td class="fault-hit">2</td><td class="fault-miss">1</td><td class="fault-hit">1</td><td></td></tr>
+    <tr><td>Frame 2</td><td>—</td><td>—</td><td class="fault-miss">3</td><td class="fault-hit">3</td><td class="fault-hit">3</td><td class="fault-miss">2</td><td></td></tr>
+    <tr><td colspan="7">Total page faults</td><td style="color:#F87171">6</td></tr>
+  </table>
+  <h3 style="margin-top:2vh;color:#34D399">LRU Trace</h3>
+  <table class="fault-table">
+    <tr><th>Ref</th><th>1</th><th>2</th><th>3</th><th>4</th><th>1</th><th>2</th><th>Faults</th></tr>
+    <tr><td>Frame 0</td><td class="fault-miss">1</td><td class="fault-hit">1</td><td class="fault-hit">1</td><td class="fault-miss">4</td><td class="fault-hit">4</td><td class="fault-hit">4</td><td></td></tr>
+    <tr><td>Frame 1</td><td>—</td><td class="fault-miss">2</td><td class="fault-hit">2</td><td class="fault-hit">2</td><td class="fault-miss">1</td><td class="fault-hit">1</td><td></td></tr>
+    <tr><td>Frame 2</td><td>—</td><td>—</td><td class="fault-miss">3</td><td class="fault-hit">3</td><td class="fault-hit">3</td><td class="fault-hit">2</td><td></td></tr>
+    <tr><td colspan="7">Total page faults</td><td style="color:#34D399">6</td></tr>
+  </table>
+  <p class="hint" style="margin-top:1.5vh">Both policies produce 6 faults on this short string. LRU generally outperforms FIFO on longer, more realistic reference strings.</p>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON PAGING &amp; TLB</span>
+  <h2>Core System Cohesion — Relies On L11 &amp; L12</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L11 (Paging)</h3><p>Demand paging is just paging with the valid bit meaningfully used. The page table structure, MMU translation, and page fault exception mechanism all come directly from L11.</p></div>
+    <div class="card"><h3>L12 (TLB)</h3><p>When a page is evicted, its TLB entry becomes stale — the TLB must be invalidated. On multi-core systems, the kernel must send TLB shootdowns (from L12's ASID discussion) to flush the entry from every core's TLB.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>Demand paging + TLB + swap together form virtual memory. Every layer relies on the one below: demand paging uses page tables, page tables are cached in TLB, TLB misses trigger page table walks, page table walks may trigger page faults.</p></div>
+    <div class="card emerald"><h3>Feeds Into L14–L15 (Sync)</h3><p>Concurrent accesses to the page fault handler require careful synchronization — this is why Module 4 (L14–L15) directly follows Module 3.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO L16–L19 FILESYSTEM</span>
+  <h2>Core System Cohesion — Feeds Into Module 5</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Swap Space</h3><p>Demand paging requires a place to store evicted pages — typically a dedicated disk partition or swap file. L16–L19's disk geometry, inode layout, and journaling directly determine swap performance.</p></div>
+    <div class="card"><h3>Memory-Mapped Files</h3><p>L17's file abstraction can be unified with paging: a file's contents can be mapped directly into the process address space via <code>mmap()</code>. Reads and writes to the mapped pages become file reads and writes transparently — the page cache <em>is</em> the file cache.</p></div>
+    <div class="card"><h3>Page Cache</h3><p>The kernel caches file blocks in RAM pages. When a file is read multiple times, the second read may hit the page cache — no disk access needed. The page cache is the primary reason Linux file I/O feels fast even on slow disks.</p></div>
+    <div class="card emerald"><h3>The Unity</h3><p>In modern Linux, "file pages," "anonymous pages," and "shared pages" all coexist in one unified page cache with one unified eviction policy. This is the fundamental architecture that makes Linux memory management efficient.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: DEMAND PAGING STRATEGIES</span>
+  <h2>Page Replacement Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Paging</h3><p>Page replacement policy (LRU approximation, CFS-based) managed entirely in Ring 0. The kernel maintains page reference counters (per-page access timestamps), scans them periodically (clock algorithm), and decides evictions inline with page faults. Fast but inflexible.</p></div>
+    <div class="card emerald"><h3>Microkernel Paging</h3><p>Page replacement policies can be delegated to user-space pager services. The kernel handles only the fault itself; a user-space server decides which page to evict. Slower (extra IPC) but policies can be swapped at runtime — even mid-execution.</p></div>
+    <div class="card amber"><h3>Layered Paging</h3><p>Strict layering: page fault handler → page replacement policy → disk I/O pipeline. Each layer is independently verifiable and testable. Policy changes require only the middle layer to be swapped.</p></div>
+    <div class="card"><h3>Modular Paging</h3><p>Multiple replacement algorithms (LRU, clock, ARC, active/inactive lists) shipped as swappable modules. Linux 2.6+ has modular page replacement policies (kswapd manages different list types).</p></div>
+    <div class="card rose"><h3>Hybrid Paging</h3><p>Modern Linux uses a <strong>two-list hybrid</strong> — an "active" list (recently accessed, protected from eviction) and an "inactive" list (candidates for eviction). Pages are promoted to active on second access, demoted on aging. This approximates LRU at much lower cost than exact tracking.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE VIRTUAL MEMORY VOCABULARY</span>
+  <h2>Base Virtual Memory Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Demand Paging</h3>
+      <p>An optimization mechanism where virtual pages are loaded into physical RAM strictly on-demand — only when an active instruction actually requests them. Contrasted with eager loading (load all pages at process start). The primary enabler of programs larger than physical RAM.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The library patron who only fetches books from the basement when actually needed.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Page Fault</h3>
+      <p>A valid hardware exception interrupt triggered when a thread attempts an operation on a page marked as absent from physical RAM (valid bit = 0). The kernel's page fault handler either loads the page from disk (legitimate fault) or terminates the process (illegal access — SIGSEGV).</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The discovery that the book you wanted is not on your desk — it must be fetched from the stacks.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE VIRTUAL MEMORY VOCABULARY</span>
+  <h2>Advanced Virtual Memory Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Swap Space</h3>
+      <p>A designated raw block sector layout on a hard drive or SSD used to cache evicted virtual page overflows. When RAM is full and a page is evicted, it is written to swap. When it is accessed again, it is swapped back in from disk — costing tens of microseconds per swap operation.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The deep basement storage where evicted books wait to be requested again.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Thrashing</h3>
+      <p>A critical system failure state where the machine spends more time continuously swapping pages back and forth to disk than executing actual instruction paths. Caused by over-committing memory — running more processes than the working-set size can support. The only fix is to reduce process count (kill or pause processes).</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The librarian who spends the entire day running books to and from the basement, never letting anyone actually read.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Belady's Anomaly</h3>
+      <p>A pathological property of the FIFO page replacement policy where <em>increasing</em> the number of available frames can <em>increase</em> the number of page faults. Mathematically counterintuitive (more RAM should mean fewer faults) but a real property of non-stack algorithms. LRU and Optimal do not exhibit this anomaly.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Adding a bigger closet somehow makes you do more laundry — only happens with FIFO's particular flaw.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">💻 CODE DISSECTION: C PAGE REPLACEMENT SIMULATOR</span>
+  <h2>Simulating FIFO and LRU Page Replacement</h2>
+  <pre class="code-block"><span class="cm">// Simulating FIFO and LRU page replacement in C</span>
+<span class="cm">// Compile: gcc -o paging paging.c &amp;&amp; ./paging</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;stdbool.h&gt;</span>
+
+<span class="kw">#define</span> MAX_FRAMES   <span class="num">4</span>
+<span class="kw">#define</span> MAX_REFS     <span class="num">20</span>
+
+<span class="cm">// ---------- FIFO Page Replacement ----------</span>
+<span class="kw">int</span> <span class="fn">fifo_replace</span>(<span class="kw">int</span> refs[], <span class="kw">int</span> n, <span class="kw">int</span> n_frames) {
+    <span class="kw">int</span> frames[MAX_FRAMES];
+    <span class="kw">int</span> next_slot = <span class="num">0</span>;       <span class="cm">// Points to the next frame to evict</span>
+    <span class="kw">int</span> faults = <span class="num">0</span>;
+
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; n_frames; i++) frames[i] = -<span class="num">1</span>;  <span class="cm">// Empty</span>
+
+    <span class="fn">printf</span>(<span class="str">"\n=== FIFO (frames=%d) ===\n"</span>, n_frames);
+    <span class="fn">printf</span>(<span class="str">"Ref  Frames           Fault?\n"</span>);
+
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; n; i++) {
+        <span class="kw">int</span> page = refs[i];
+        <span class="kw">bool</span> hit = <span class="kw">false</span>;
+
+        <span class="cm">// Check if page is already in a frame</span>
+        <span class="kw">for</span> (<span class="kw">int</span> f = <span class="num">0</span>; f &lt; n_frames; f++) {
+            <span class="kw">if</span> (frames[f] == page) { hit = <span class="kw">true</span>; <span class="kw">break</span>; }
+        }
+
+        <span class="kw">if</span> (!hit) {
+            <span class="cm">// Evict via FIFO: replace the oldest-loaded frame</span>
+            frames[next_slot] = page;
+            next_slot = (next_slot + <span class="num">1</span>) % n_frames;
+            faults++;
+        }
+
+        <span class="fn">printf</span>(<span class="str">"%2d   "</span>, page);
+        <span class="kw">for</span> (<span class="kw">int</span> f = <span class="num">0</span>; f &lt; n_frames; f++) {
+            <span class="kw">if</span> (frames[f] == -<span class="num">1</span>) <span class="fn">printf</span>(<span class="str">" -  "</span>);
+            <span class="kw">else</span> <span class="fn">printf</span>(<span class="str">"%2d  "</span>, frames[f]);
+        }
+        <span class="fn">printf</span>(<span class="str">"  %s\n"</span>, hit ? <span class="str">"HIT"</span> : <span class="str">"FAULT"</span>);
+    }
+    <span class="fn">printf</span>(<span class="str">"Total FIFO faults: %d\n"</span>, faults);
+    <span class="kw">return</span> faults;
+}
+
+<span class="cm">// ---------- LRU Page Replacement ----------</span>
+<span class="kw">int</span> <span class="fn">lru_replace</span>(<span class="kw">int</span> refs[], <span class="kw">int</span> n, <span class="kw">int</span> n_frames) {
+    <span class="kw">int</span> frames[MAX_FRAMES];
+    <span class="kw">int</span> last_used[MAX_FRAMES];   <span class="cm">// Timestamp per frame</span>
+    <span class="kw">int</span> faults = <span class="num">0</span>;
+    <span class="kw">int</span> time_counter = <span class="num">0</span>;
+
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; n_frames; i++) {
+        frames[i] = -<span class="num">1</span>;
+        last_used[i] = -<span class="num">1</span>;
+    }
+
+    <span class="fn">printf</span>(<span class="str">"\n=== LRU (frames=%d) ===\n"</span>, n_frames);
+    <span class="fn">printf</span>(<span class="str">"Ref  Frames           Fault?\n"</span>);
+
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; n; i++) {
+        <span class="kw">int</span> page = refs[i];
+        <span class="kw">bool</span> hit = <span class="kw">false</span>;
+        time_counter++;
+
+        <span class="cm">// Check if page is in a frame</span>
+        <span class="kw">for</span> (<span class="kw">int</span> f = <span class="num">0</span>; f &lt; n_frames; f++) {
+            <span class="kw">if</span> (frames[f] == page) {
+                hit = <span class="kw">true</span>;
+                last_used[f] = time_counter;  <span class="cm">// Update access time</span>
+                <span class="kw">break</span>;
+            }
+        }
+
+        <span class="kw">if</span> (!hit) {
+            <span class="cm">// Find the least-recently-used frame</span>
+            <span class="kw">int</span> lru_slot = <span class="num">0</span>;
+            <span class="kw">for</span> (<span class="kw">int</span> f = <span class="num">1</span>; f &lt; n_frames; f++) {
+                <span class="kw">if</span> (last_used[f] &lt; last_used[lru_slot]) lru_slot = f;
+            }
+            frames[lru_slot] = page;
+            last_used[lru_slot] = time_counter;
+            faults++;
+        }
+
+        <span class="fn">printf</span>(<span class="str">"%2d   "</span>, page);
+        <span class="kw">for</span> (<span class="kw">int</span> f = <span class="num">0</span>; f &lt; n_frames; f++) {
+            <span class="kw">if</span> (frames[f] == -<span class="num">1</span>) <span class="fn">printf</span>(<span class="str">" -  "</span>);
+            <span class="kw">else</span> <span class="fn">printf</span>(<span class="str">"%2d  "</span>, frames[f]);
+        }
+        <span class="fn">printf</span>(<span class="str">"  %s\n"</span>, hit ? <span class="str">"HIT"</span> : <span class="str">"FAULT"</span>);
+    }
+    <span class="fn">printf</span>(<span class="str">"Total LRU faults: %d\n"</span>, faults);
+    <span class="kw">return</span> faults;
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="cm">// Classic reference string from OS textbooks</span>
+    <span class="kw">int</span> refs[MAX_REFS] = {<span class="num">7</span>, <span class="num">0</span>, <span class="num">1</span>, <span class="num">2</span>, <span class="num">0</span>, <span class="num">3</span>, <span class="num">0</span>, <span class="num">4</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">0</span>, <span class="num">3</span>, <span class="num">2</span>, <span class="num">1</span>, <span class="num">2</span>, <span class="num">0</span>, <span class="num">1</span>, <span class="num">7</span>, <span class="num">0</span>, <span class="num">1</span>};
+    <span class="kw">int</span> n = <span class="num">20</span>;
+
+    <span class="fn">printf</span>(<span class="str">"Reference string: "</span>);
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; n; i++) <span class="fn">printf</span>(<span class="str">"%d "</span>, refs[i]);
+    <span class="fn">printf</span>(<span class="str">"\n"</span>);
+
+    <span class="kw">int</span> fifo_faults_3 = <span class="fn">fifo_replace</span>(refs, n, <span class="num">3</span>);
+    <span class="kw">int</span> lru_faults_3  = <span class="fn">lru_replace</span>(refs, n, <span class="num">3</span>);
+
+    <span class="fn">printf</span>(<span class="str">"\n=== Comparison ===\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"FIFO: %d faults | LRU: %d faults\n"</span>, fifo_faults_3, lru_faults_3);
+    <span class="fn">printf</span>(<span class="str">"Winner: %s\n"</span>,
+           lru_faults_3 &lt; fifo_faults_3 ? <span class="str">"LRU"</span> :
+           fifo_faults_3 &lt; lru_faults_3 ? <span class="str">"FIFO"</span> : <span class="str">"TIE"</span>);
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">💻 CODE DISSECTION: TRACING THE REPLACEMENT ARITHMETIC</span>
+  <h2>Walking the Page Replacement Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>FIFO: next_slot pointer</h3><p><strong>The FIFO queue.</strong> The <code>next_slot</code> variable points to the oldest frame. On each fault, the new page goes into <code>next_slot</code>, and <code>next_slot</code> advances circularly. No access tracking — just a rotating pointer.</p></div>
+    <div class="card amber"><h3>FIFO behavior on the trace</h3><p><strong>Trace result:</strong> FIFO produces 15 faults on the 20-reference string with 3 frames. It evicts pages based purely on load order, ignoring whether they are hot.</p></div>
+    <div class="card emerald"><h3>LRU: last_used timestamps</h3><p><strong>The LRU queue.</strong> Each frame has a <code>last_used</code> timestamp. On a hit, the timestamp is updated. On a fault, the frame with the smallest timestamp (least recently used) is chosen as the victim.</p></div>
+    <div class="card"><h3>LRU behavior on the trace</h3><p><strong>Trace result:</strong> LRU produces 12 faults on the same trace with 3 frames — 3 fewer faults than FIFO. LRU performs better because it captures the temporal locality of the reference pattern.</p></div>
+    <div class="card violet"><h3>Why LRU wins on realistic traces</h3><p>The trace has clear locality — recent pages (0, 3, 2, 1) are re-referenced repeatedly. LRU keeps them in memory. FIFO evicts some of them because they were loaded early, causing unnecessary faults.</p></div>
+    <div class="card rose"><h3>The Real-World Reality</h3><p>Exact LRU is expensive (requires updating timestamps on every access). Linux uses an approximation via the clock algorithm with two lists (active/inactive) — nearly as good as LRU, far cheaper.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎯 INTERACTIVE WORKSHOP: THE HUMAN REFERENCE STRING LRU SIMULATION</span>
+  <h2>The Physical LRU Simulation Game</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>The Setup</h3><p>Line up 3 empty chairs at the front of the room — these are the 3 RAM frames. One student acts as the "replacer" holding a stopwatch.</p></div>
+    <div class="card amber"><h3>The Players</h3><p>Students 1–5 each hold a card with a number (representing a page). The instructor calls out a sequence of page numbers.</p></div>
+    <div class="card emerald"><h3>The Rules</h3><p>When the instructor calls a page:</p><p>· If the page's student is already seated, that student is "hit" — move them to the newest chair to mark recency.</p><p>· If not, the student rushes to an empty chair.</p><p>· If no chair is empty, the "least recently used" student must leave their chair, and the new student sits.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>The Discovery:</strong> The class counts the number of evictions (faults). Then repeat the same sequence with the FIFO rule — the oldest occupant leaves when the chairs fill. Compare the fault counts. On the classic reference string <code>7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2, 1, 2, 0, 1, 7, 0, 1</code>, LRU produces 12 faults while FIFO produces 15 — a real 20% reduction.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">💻 TRY IT LIVE: AUDITING LIVE VIRTUAL MEMORY BEHAVIOR</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> cat /proc/vmstat | grep -E "pgfault|pgmajfault|pswp"  <span class="out"># Page fault counters</span>
+<span class="cmd">$</span> cat /proc/meminfo | grep -i "swap"                     <span class="out"># Swap usage</span>
+<span class="cmd">$</span> free -h                                              <span class="out"># Memory + swap overview</span>
+<span class="cmd">$</span> cat /proc/self/stat | awk '{print $10, $12}'          <span class="out"># Page faults in current shell</span>
+<span class="cmd">$</span> sudo swapon --show                                   <span class="out"># Active swap devices</span>
+<span class="cmd">$</span> cat /proc/sys/vm/swappiness                          <span class="out"># Swap threshold (0-100)</span>
+<span class="cmd">$</span> sudo vmstat 1 5                                       <span class="out"># Live si/so swap activity</span>
+<span class="cmd">$</span> cat /proc/meminfo | grep -i "active\|inactive"          <span class="out"># Linux active/inactive lists</span></pre>
+  <p class="hint"><code>pgmajfault</code> counts <em>major</em> faults — faults that required disk I/O. A high major-fault rate means the system is swapping heavily (a thrashing indicator).</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 3: Memory Management
+        └── <span class="active">L13: Virtual Memory &amp; Demand Paging (ACTIVE NODE 🌟)</span>
+              ├── Page Fault Flags &amp; Lazy Loading
+              └── Replacement Routines (FIFO, LRU) &amp; Thrashing Collapse</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p><strong>Demand paging</strong> loads virtual pages into RAM only when accessed, using the page table's valid bit to track which pages are present. It enables programs larger than physical RAM, faster process startup, and page sharing between processes — the single most transformative memory mechanism of the past 60 years.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p><strong>Page replacement policies</strong> decide which page to evict when RAM is full. <strong>FIFO</strong> is simple but evicts hot pages and can exhibit Belady's Anomaly (more frames → more faults). <strong>LRU</strong> evicts the least-recently-used page, matching temporal locality, and never exhibits Belady's Anomaly — but exact LRU is expensive, so real systems use approximations (clock algorithm, active/inactive lists).</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p><strong>Thrashing</strong> is the catastrophic failure state where the OS spends more time swapping pages than executing code. Caused by over-committing memory — too many processes competing for too few frames. The only fix is to reduce process count. Modern Linux's active/inactive list hybrid, plus sophisticated memory cgroup accounting, makes thrashing rare — but it still happens under extreme memory pressure.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Module 3 Complete — Module 4 Begins</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 14 — Race Conditions &amp; Mutual Exclusion (Module 4 Begins)</strong><br><br>
+    Module 3 is complete. We have built the entire memory virtualization stack — from base-and-bound to paging, TLB caching, and demand paging with swap. <strong>Module 4: Process Synchronization</strong> begins now. Every mechanism we have studied — the page fault handler, the TLB, the scheduler, the memory allocator — must be protected from concurrent access. Two threads faulting on the same page simultaneously can corrupt the page tables. Two processes incrementing the same counter can lose updates. Module 4 is the discipline of coordination: mutexes, semaphores, critical sections, and the four Coffman conditions of deadlock. The shared-state hazard introduced by threads in L09 is now the central problem.
+  </div>
+  <p class="hint">File: L14.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
