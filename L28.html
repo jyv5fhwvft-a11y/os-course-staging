@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L28 · Grand Course Retrospective</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-gold { color: #FDE047; border-color: #EAB308; background: rgba(234,179,8,0.08); }
+  .badge-cosmic { color: #F0ABFC; border-color: #D946EF; background: rgba(217,70,239,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; background: linear-gradient(135deg, #60A5FA, #A78BFA, #F0ABFC); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: linear-gradient(90deg, #3B82F6, #8B5CF6, #EC4899); border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-gold { border-color: #EAB308; background: rgba(234,179,8,0.06); color: #FDE047; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .grid-7 { grid-template-columns: repeat(7, 1fr); }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.gold h3 { color: #FDE047; } .card.gold { border-color: #713F12; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .modules-arc { display: flex; flex-wrap: wrap; gap: 0.8vw; justify-content: center; max-width: 1100px; width: 100%; margin: 2vh auto; }
+  .module-chip { padding: 1.5vh 1.2vw; border-radius: 8px; border: 2px solid; text-align: center; font-family: "SF Mono", monospace; font-size: clamp(0.7rem, 0.85vw, 0.8rem); font-weight: 800; flex: 1; min-width: 110px; }
+  .m1 { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #60A5FA; }
+  .m2 { border-color: #10B981; background: rgba(16,185,129,0.06); color: #34D399; }
+  .m3 { border-color: #8B5CF6; background: rgba(139,92,246,0.06); color: #A78BFA; }
+  .m4 { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #F87171; }
+  .m5 { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FBBF24; }
+  .m6 { border-color: #14B8A6; background: rgba(20,184,166,0.06); color: #5EEAD4; }
+  .m7 { border-color: #84CC16; background: rgba(132,204,22,0.06); color: #BEF264; }
+  .timeline { display: flex; flex-direction: column; gap: 1.5vh; max-width: 1000px; width: 100%; margin: 2vh auto; }
+  .timeline-row { display: flex; align-items: center; gap: 1.5vw; padding: 2vh 2vw; border-radius: 10px; border: 2px solid; text-align: left; }
+  .timeline-row .time { font-family: "SF Mono", monospace; font-weight: 900; font-size: 1rem; min-width: 90px; }
+  .timeline-row .content { flex: 1; }
+  .timeline-row .content strong { display: block; margin-bottom: 0.4vh; font-size: clamp(0.9rem, 1.1vw, 1rem); }
+  .timeline-row .content span { font-size: clamp(0.75rem, 0.9vw, 0.85rem); line-height: 1.5; opacity: 0.85; }
+  .t0 { border-color: #14B8A6; background: rgba(20,184,166,0.06); color: #5EEAD4; }
+  .t0 .time { color: #5EEAD4; }
+  .t1 { border-color: #10B981; background: rgba(16,185,129,0.06); color: #34D399; }
+  .t1 .time { color: #34D399; }
+  .t2 { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #60A5FA; }
+  .t2 .time { color: #60A5FA; }
+  .t3 { border-color: #8B5CF6; background: rgba(139,92,246,0.06); color: #A78BFA; }
+  .t3 .time { color: #A78BFA; }
+  .t4 { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FBBF24; }
+  .t4 .time { color: #FBBF24; }
+  .trace-example { background: #020617; border: 2px solid #0EA5E9; border-radius: 12px; padding: 2.5vh 2vw; font-family: "SF Mono", monospace; font-size: clamp(0.7rem, 0.9vw, 0.8rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; margin: 2vh auto; line-height: 1.7; overflow-x: auto; }
+  .trace-example .syscall { color: #60A5FA; }
+  .trace-example .module-tag { color: #FBBF24; font-weight: 700; }
+  .trace-example .comment { color: #475569; font-style: italic; }
+  .trace-example .result { color: #34D399; font-weight: 700; }
+  .seven-questions { display: grid; grid-template-columns: 1fr 1fr; gap: 1vw 1.5vw; max-width: 1000px; width: 100%; margin: 2vh auto; }
+  .question-card { padding: 2vh 1.8vw; border-radius: 10px; border: 2px solid; text-align: left; }
+  .question-card h4 { font-size: 0.95rem; font-weight: 800; margin-bottom: 0.8vh; }
+  .question-card p { font-size: clamp(0.75rem, 0.95vw, 0.85rem); line-height: 1.5; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6, #EC4899); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  .final-title { font-size: clamp(2rem, 6vw, 4.5rem); font-weight: 900; line-height: 1.1; margin-bottom: 2vh; letter-spacing: -0.03em; background: linear-gradient(135deg, #60A5FA, #A78BFA, #F0ABFC, #FDE047); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4, .grid-7 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .timeline-row { flex-direction: column; text-align: center; } .seven-questions { grid-template-columns: 1fr; } .modules-arc { flex-direction: column; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L28</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-gold">🔰 START HERE // L28 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line"></div>
+  <p class="subtitle">Trace a single user transaction chronologically through all seven kernel manager subsystems in sequence, mapping out every active privilege ring crossover.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> Twenty-eight lectures. Seven modules. Thousands of individual facts — mutexes, page tables, inodes, interrupt vectors, ASLR, cgroups. But an operating system is not a list of facts. It is a <strong>single synchronized engine</strong>. The final question is the simplest: when you double-click a file, what <em>actually</em> happens? How do all the pieces we built — process management, memory, synchronization, file systems, I/O, security — synchronize into a single motion in the fraction of a second between your click and your document appearing?
+  </div>
+  <p class="hint">Press → to begin
+</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · Modules 1–7 Complete</h3><p>Every lecture from L00 (course intro) through L27 (modern isolation). This retrospective assumes fluent access to every subsystem.</p></div>
+    <div class="card amber"><h3>02 · Trace Tooling</h3><p>Familiarity with <code>strace</code>, <code>/proc</code>, <code>dmesg</code>, <code>gdb</code>, <code>ss</code>, and namespace inspection — tools used throughout the course.</p></div>
+    <div class="card amber"><h3>03 · Systemic Thinking</h3><p>Willingness to think <em>systemically</em>, not <em>atomically</em>. Trace a single operation across multiple modules in continuous sequence.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> This is the <em>final</em> lecture. Its purpose is not to teach new material but to <em>prove the synthesis</em>. Every subsystem the student has learned now appears as a distinct cog in a single motion. If they leave without seeing the OS as one engine, the course has failed them.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-gold">🎒 EVERYDAY SIMPLIFIED: THE GRAND CITY SYMPHONY</span>
+  <h2>The System Synthesis Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🌆🎼🌆</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Return to Lecture 00's opening image — a city with millions of people, all acting independently, all convinced they own the entire infrastructure. The people think they are the ones moving the city. But behind every light that turns on, every traffic light that changes, every letter that arrives, is a vast coordination of seven interlocking systems: electrical grids, traffic control, mail routing, plumbing, security, communications, and emergency response.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The operating system is that coordination layer. Every "click" is the city in motion — the beginning of seven simultaneous subsystems doing their jobs in careful sequence.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This metaphor draws the whole course into a single image — the city <em>is</em> the computer; the coordination <em>is</em> the OS.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-gold">🎒 EVERYDAY SIMPLIFIED: THE CLICK-TO-DOCUMENT PIPELINE</span>
+  <h2>The Pipeline Trace Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🖱️⚙️📄</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>When you click a file, you are not "opening a file." You are triggering a cascade: the hardware interrupt catches the click, the process manager wakes the window shell, the memory manager maps the file into RAM, the security layer verifies you are allowed, the storage layer finds the inode, the I/O layer streams the bytes to your screen. All seven modules, in order, in under a millisecond.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The click is the <em>trigger</em>. The seven modules are the <em>symphony</em>. Your document appearing is the <em>outcome</em>.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the metaphor of the entire course — a single user action as a chain of seven kernel activities.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-gold">🎒 EVERYDAY SIMPLIFIED: THE ESCORTED VISITOR</span>
+  <h2>The Privilege Ring Crossover Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🛂🏢🛂</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Every user action starts in Ring 3 — the "public lobby" of the system. But the "operations room" (Ring 0) is where the work actually happens. So the CPU escorts you through a security checkpoint (the syscall trap), into the operations room, lets you accomplish one task, and then escorts you back. This crossing is a <em>privilege ring crossover</em> — it is where the operating system itself does the work on your behalf.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Every syscall — <code>open()</code>, <code>read()</code>, <code>write()</code>, <code>fork()</code>, <code>exit()</code> — is a privilege ring crossover from Ring 3 to Ring 0 and back.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The retrospective highlights <em>where</em> each crossover occurs, revealing the invisible boundary that the entire OS is built around.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-gold">🎒 EVERYDAY SIMPLIFIED: THE GRAND CLOCK MOVEMENT</span>
+  <h2>The Reconciliation Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">⏰⚙️⏰</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A grandfather clock is not a single mechanism — it is a coordinated dance of seven wheels. Each wheel is useless in isolation; each has a distinct role; together they produce a single, silent, reliable motion. The operating system's seven modules are the wheels; a single user operation is the motion of the clock hands.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The operating system's subsystems are synchronized in the same way: process management drives memory management drives file systems drives I/O drives security drives back to process management.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the deepest metaphor of the course — that the operating system is a <em>unified mechanism</em>, not a collection of parts.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE SYNTHESIS SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>🧩 Atomic Knowledge</h3><p>Each subsystem as an isolated fact. Knowing every subsystem in isolation is like knowing every gear in the clock by name — useful, but incomplete.</p></div>
+    <div class="card emerald"><h3>⚙️ Unified Mechanism</h3><p>The whole system flowing as one. Understanding the coordinated motion of all seven modules is the final achievement.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">The single greatest insight of the course is that <strong>knowledge without synthesis is not understanding</strong>. The retrospective transforms isolated knowledge into unified understanding. That transformation is the entire purpose of L28.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-gold">💻 SYSTEMS COHESION: THE END-TO-END EXECUTION SETUP</span>
+  <h2>The Complete Trace Scenario</h2>
+  <p class="subtitle">A user double-clicks a spreadsheet on an external USB drive, and it opens. This single action exercises <strong>every module</strong> in sequence.</p>
+  <div class="modules-arc">
+    <div class="module-chip m1">M1 · L00–L04<br>Structure</div>
+    <div class="module-chip m2">M2 · L05–L09<br>Process</div>
+    <div class="module-chip m3">M3 · L10–L13<br>Memory</div>
+    <div class="module-chip m4">M4 · L14–L15<br>Sync</div>
+    <div class="module-chip m5">M5 · L16–L19<br>Files</div>
+    <div class="module-chip m6">M6 · L20–L21<br>I/O</div>
+    <div class="module-chip m7">M7 · L22–L27<br>Security</div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Phase 1 · USB Hotplug (Before the Click)</h3>
+      <p><strong>Module 6 (I/O):</strong> The USB drive's hotplug signal is delivered via interrupt (L20), and the USB mass storage driver initializes (L21).</p>
+      <p><strong>Module 5 (File):</strong> The filesystem on the USB is detected and mounted (L17).</p>
+    </div>
+    <div class="card emerald">
+      <h3>Phases 2–5 · The Full Execution</h3>
+      <p><strong>Phase 2:</strong> Mouse click → process schedule (Module 2).</p>
+      <p><strong>Phase 3:</strong> Demand paging from disk (Module 3).</p>
+      <p><strong>Phase 4:</strong> Path resolution, inode traversal, journaling (Module 5).</p>
+      <p><strong>Phase 5:</strong> ACL checks, capability drops, sandbox (Module 7).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-gold">💻 SYSTEMS COHESION: MODULE 6 FRONT DOOR</span>
+  <h2>Phase 1 — Hardware Interrupt &amp; USB Hotplug</h2>
+  <div class="timeline">
+    <div class="timeline-row t0">
+      <div class="time">t = 0 ms</div>
+      <div class="content"><strong>Physical insertion.</strong> The USB device's D+ line goes high; the USB host controller detects a new device.</div>
+    </div>
+    <div class="timeline-row t0">
+      <div class="time">t = 1 ms</div>
+      <div class="content"><strong>Hardware interrupt.</strong> The host controller fires an IRQ to the CPU (L20). The CPU traps into Ring 0, looks up the handler in the IVT (L03), and enters the USB driver's ISR.</div>
+    </div>
+    <div class="timeline-row t0">
+      <div class="time">t = 10 ms</div>
+      <div class="content"><strong>Enumeration.</strong> The USB driver sends control transfers to the new device (getting device descriptor, configuration, endpoints). This is standard USB enumeration.</div>
+    </div>
+    <div class="timeline-row t0">
+      <div class="time">t = 20 ms</div>
+      <div class="content"><strong>Driver binding.</strong> The kernel matches the device against registered drivers (via device_id tables), loads the correct storage driver (<code>usb-storage</code> or <code>uas</code>).</div>
+    </div>
+    <div class="timeline-row t0">
+      <div class="time">t = 40 ms</div>
+      <div class="content"><strong>Block device creation.</strong> A new block device is registered (<code>/dev/sdb</code>), and <code>udev</code> creates the node in <code>/dev</code> (per L21).</div>
+    </div>
+    <div class="timeline-row t0">
+      <div class="time">t = 50 ms</div>
+      <div class="content"><strong>Filesystem mount.</strong> The desktop environment auto-mounts the new filesystem at <code>/media/user/USB_NAME/</code> (via L17).</div>
+    </div>
+  </div>
+  <p class="hint" style="margin-top:2vh">Before the user has even clicked, modules 1, 3, 5, and 6 have been silently engaged. The entire boot and hotplug infrastructure established in prior modules is doing its job behind the scenes.</p>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-gold">💻 SYSTEMS COHESION: MODULE 2 &amp; 4 SCHEDULING</span>
+  <h2>Phase 2 — The Mouse Click &amp; Process Schedule</h2>
+  <div class="timeline">
+    <div class="timeline-row t1">
+      <div class="time">t = 55 ms</div>
+      <div class="content"><strong>Mouse interrupt.</strong> The mouse fires an interrupt. The kernel ISR reads the motion data and enqueues an event for the desktop GUI.</div>
+    </div>
+    <div class="timeline-row t1">
+      <div class="time">t = 56 ms</div>
+      <div class="content"><strong>GUI process dispatch.</strong> The desktop shell was blocked on its input queue. It is scheduled (L07), wakes up, receives the mouse click, and identifies the target file icon.</div>
+    </div>
+    <div class="timeline-row t1">
+      <div class="time">t = 60 ms</div>
+      <div class="content"><strong>fork().</strong> The shell calls <code>fork()</code> (L06) to spawn a new process for the spreadsheet app. The kernel clones the shell's PCB (L05) and the address space (via L11 COW).</div>
+    </div>
+    <div class="timeline-row t1">
+      <div class="time">t = 65 ms</div>
+      <div class="content"><strong>exec().</strong> The child process calls <code>execve("/usr/bin/gnumeric", ...)</code> to load the spreadsheet binary. New stack, heap, text segment.</div>
+    </div>
+    <div class="timeline-row t1">
+      <div class="time">t = 70 ms</div>
+      <div class="content"><strong>MLFQ scheduling.</strong> The scheduler enqueues the new process in the MLFQ ready queue. The CPU continues cycling among ready threads (L07–L08), ensuring fairness via aging.</div>
+    </div>
+  </div>
+  <p class="hint" style="margin-top:2vh">Modules 2 and 4 are now in full swing. The desktop shell's state — window positions, focus, memory — is protected by mutexes and semaphores (L14–L15), guaranteeing that concurrent GUI events do not corrupt the shell's state.</p>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-gold">💻 SYSTEMS COHESION: MODULE 3 MEMORY ROUTING</span>
+  <h2>Phase 3 — Memory Demand Paging &amp; TLB Caching</h2>
+  <div class="timeline">
+    <div class="timeline-row t2">
+      <div class="time">t = 80 ms</div>
+      <div class="content"><strong>First memory access.</strong> The spreadsheet process accesses a virtual address in the file data. The MMU looks up the address in the TLB (L12).</div>
+    </div>
+    <div class="timeline-row t2">
+      <div class="time">t = 80 ms</div>
+      <div class="content"><strong>TLB miss + page table walk.</strong> The MMU walks the page table (L11) — typically 4 levels on x86-64. If the page is not yet present (demand paging, L13), a <strong>page fault</strong> is triggered.</div>
+    </div>
+    <div class="timeline-row t2">
+      <div class="time">t = 81 ms</div>
+      <div class="content"><strong>Page fault handling.</strong> The CPU traps into Ring 0; the kernel's page fault handler identifies the faulting address. If legitimate, it initiates a disk read via DMA (from L20).</div>
+    </div>
+    <div class="timeline-row t2">
+      <div class="time">t = 90 ms</div>
+      <div class="content"><strong>DMA transfer.</strong> The USB controller reads the required blocks and writes them directly into a physical frame in RAM (L20's DMA).</div>
+    </div>
+    <div class="timeline-row t2">
+      <div class="time">t = 92 ms</div>
+      <div class="content"><strong>Page table update.</strong> The kernel installs the physical frame mapping in the page table (L11). The translation is cached in the TLB (L12).</div>
+    </div>
+    <div class="timeline-row t2">
+      <div class="time">t = 93 ms</div>
+      <div class="content"><strong>The read resumes.</strong> The original memory access completes, now with valid physical data.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-gold">💻 SYSTEMS COHESION: MODULE 5 FILE SYSTEM COMPLETE</span>
+  <h2>Phase 4 — File Resolution, Inode Traversal, Journaled Read</h2>
+  <div class="timeline">
+    <div class="timeline-row t3">
+      <div class="time">t = 100 ms</div>
+      <div class="content"><strong>Path resolution (L17).</strong> When the app calls <code>open("/media/user/USB/budget.ods", O_RDONLY)</code>, the VFS walks <code>/</code> → <code>media</code> → <code>user</code> → <code>USB</code> → <code>budget.ods</code>. Five directory lookups.</div>
+    </div>
+    <div class="timeline-row t3">
+      <div class="time">t = 105 ms</div>
+      <div class="content"><strong>Inode load (L18).</strong> The final inode is loaded. Its metadata (size, permissions, timestamps) is checked, then its block pointer tree is examined.</div>
+    </div>
+    <div class="timeline-row t3">
+      <div class="time">t = 110 ms</div>
+      <div class="content"><strong>Block pointer walk (L18).</strong> The file's first 48 KB are reached directly through the 12 direct pointers. Additional data via single-indirect pointer block.</div>
+    </div>
+    <div class="timeline-row t3">
+      <div class="time">t = 112 ms</div>
+      <div class="content"><strong>Journal check (L19).</strong> Before returning each block, the kernel verifies the block is not under a pending journal checkpoint. On unclean shutdown, the journal was replayed at boot.</div>
+    </div>
+    <div class="timeline-row t3">
+      <div class="time">t = 115 ms</div>
+      <div class="content"><strong>Disk read.</strong> For each block, the kernel issues a read request to the block device — DMA (L20) into RAM.</div>
+    </div>
+    <div class="timeline-row t3">
+      <div class="time">t = 120 ms</div>
+      <div class="content"><strong>Buffer cache fill.</strong> The block content is placed in the page cache — future reads of the same block are served from RAM without a disk trip.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-gold">💻 SYSTEMS COHESION: MODULE 7 SECURITY BOUNDARY</span>
+  <h2>Phase 5 — Security Enforcement &amp; Sandboxed Rendering</h2>
+  <div class="timeline">
+    <div class="timeline-row t4">
+      <div class="time">t = 125 ms</div>
+      <div class="content"><strong>ACL check (L22).</strong> When the app attempted <code>open()</code>, the kernel ACL check ran. The user's uid is compared against the file's ACL. If the user lacks read permission, the open fails with <code>EACCES</code>.</div>
+    </div>
+    <div class="timeline-row t4">
+      <div class="time">t = 126 ms</div>
+      <div class="content"><strong>Capability drop (L22).</strong> The child process inherits the shell's capabilities, but the exec of <code>gnumeric</code> drops unnecessary capabilities — the app does not need <code>CAP_SYS_ADMIN</code> or <code>CAP_NET_ADMIN</code>.</div>
+    </div>
+    <div class="timeline-row t4">
+      <div class="time">t = 128 ms</div>
+      <div class="content"><strong>Seccomp filter (L27).</strong> Modern desktop apps run inside a seccomp sandbox. The app is restricted to a narrow set of syscalls — it cannot call <code>ptrace()</code> or <code>mount()</code>.</div>
+    </div>
+    <div class="timeline-row t4">
+      <div class="time">t = 130 ms</div>
+      <div class="content"><strong>Encryption check (L25).</strong> If the USB drive were encrypted (LUKS), decryption would occur transparently during the DMA transfer. If the file were fetched from a network mount, TLS would have decrypted it.</div>
+    </div>
+    <div class="timeline-row t4">
+      <div class="time">t = 132 ms</div>
+      <div class="content"><strong>Isolation namespace (L27).</strong> The app runs inside its own PID and mount namespaces. It cannot see the host's PIDs, cannot access <code>/home/user</code> unless explicitly shared, and cannot interfere with other apps' state.</div>
+    </div>
+    <div class="timeline-row t4">
+      <div class="time">t = 135 ms</div>
+      <div class="content"><strong>Firewall/IDS (L26).</strong> If the app makes network connections, they are filtered by the network layer's firewall rules and monitored by the host's IDS.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-gold">💻 SYSTEMS COHESION: THE COMPLETE TRACE TIMELINE</span>
+  <h2>The Final Assembly — The Complete Trace</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>t = 0–50 ms</h3><p><strong>Module 6 (I/O).</strong> USB interrupt → driver binding → block device creation. <strong>Module 1 (Structure).</strong> Every interrupt crosses Ring 3 → Ring 0.</p></div>
+    <div class="card emerald"><h3>t = 55–70 ms</h3><p><strong>Module 2 (Process).</strong> <code>fork()</code> and <code>exec()</code>. <strong>Module 4 (Sync).</strong> Desktop shell's mutexes protect GUI state.</p></div>
+    <div class="card violet"><h3>t = 80–93 ms</h3><p><strong>Module 3 (Memory).</strong> Page faults, page table walks, TLB fills. <strong>Module 6 (I/O).</strong> DMA transfers from USB controller to RAM.</p></div>
+    <div class="card amber"><h3>t = 100–120 ms</h3><p><strong>Module 5 (File System).</strong> Path resolution, inode traversal, journal validation. Page cache fill.</p></div>
+    <div class="card crimson"><h3>t = 125–135 ms</h3><p><strong>Module 7 (Security).</strong> ACL checks, capability drops, seccomp filters, namespace isolation enforced throughout.</p></div>
+    <div class="card gold"><h3>t = 135 ms</h3><p><strong>The spreadsheet appears on screen.</strong> The seven-module trace is complete.</p></div>
+  </div>
+  <div class="callout callout-gold" style="margin-top:2vh">
+    <strong>The Verdict:</strong> 135 milliseconds. Seven modules. Dozens of privilege transitions. Hundreds of syscalls. Millions of memory accesses. <strong>One unified operation.</strong> This is the operating system.
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: THE COMPLETE SYNTHESIS MATRIX</span>
+  <h2>Core System Cohesion — Course-Wide Synthesis</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Module 1 · L00–L04</h3><p>Establishes every <em>privilege boundary</em> crossed in the trace.</p></div>
+    <div class="card emerald"><h3>Module 2 · L05–L09</h3><p>Provides the <em>process infrastructure</em> — fork, exec, scheduling, threading.</p></div>
+    <div class="card violet"><h3>Module 3 · L10–L13</h3><p>Provides the <em>memory infrastructure</em> — base/bound, paging, TLB, demand paging.</p></div>
+    <div class="card crimson"><h3>Module 4 · L14–L15</h3><p>Provides the <em>synchronization infrastructure</em> — mutexes, semaphores, deadlock avoidance.</p></div>
+    <div class="card amber"><h3>Module 5 · L16–L19</h3><p>Provides the <em>file system infrastructure</em> — geometry, path resolution, inode traversal, journaling.</p></div>
+    <div class="card cyan"><h3>Module 6 · L20–L21</h3><p>Provides the <em>I/O infrastructure</em> — interrupts, DMA, device driver dispatch.</p></div>
+    <div class="card gold"><h3>Module 7 · L22–L27</h3><p>Provides the <em>security infrastructure</em> — ACLs, authentication, memory safety, encryption, firewalling, isolation.</p></div>
+    <div class="card gold" style="grid-column: span 2"><h3>L28 — The Synthesis</h3><p>Is the <em>proof</em> that all 27 prior lectures form one system. This is the only lecture where all 28 modules are simultaneously active in a single user-visible operation.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RING 3 ↔ RING 0 TRACES</span>
+  <h2>Core System Cohesion — The Privilege Crossover Count</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Approximate Ring Crossovers</h3>
+      <p><strong>Phase 1 (USB hotplug):</strong> ~10 crossovers (interrupt handler → driver code → device node → mount).</p>
+      <p><strong>Phase 2 (Click &amp; spawn):</strong> ~5 crossovers (<code>read()</code> on input → <code>fork()</code> → <code>execve()</code>).</p>
+      <p><strong>Phase 3 (Memory):</strong> ~50 crossovers (page fault handlers, TLB fills, memory allocation).</p>
+      <p><strong>Phase 4 (File system):</strong> ~100 crossovers (path resolution, inode reads, DMA setup).</p>
+      <p><strong>Phase 5 (Security):</strong> ~20 crossovers (ACL checks, capability transitions, seccomp filters).</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Overwhelming Number</h3>
+      <p><strong>Total:</strong> ~185 privilege ring crossovers in 135 milliseconds — roughly <strong>one every 0.7 milliseconds</strong>.</p>
+      <p style="margin-top:1vh">The user sees "one click." The hardware sees 185 distinct crossings of the Ring 3 ↔ Ring 0 boundary.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>The entire OS exists to make these crossovers safe, fast, and invisible.</strong> This is the fundamental reality of the operating system.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: FIVE PARADIGM RETROSPECTIVE</span>
+  <h2>The Trace Across Five Kernel Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Retrospective</h3><p>The trace runs almost entirely in Ring 0 (with ~185 crossovers). Every interrupt, syscall, and page fault is handled with full privilege — maximum speed, minimum overhead, but the kernel's surface area is the entire attack surface.</p></div>
+    <div class="card emerald"><h3>Microkernel Retrospective</h3><p>The trace scatters across many user-space servers — input server, file system server, memory server, security server. Each cross-layer interaction is an IPC message. The trace involves ~185 × IPC overhead — slower overall but with perfect privilege isolation.</p></div>
+    <div class="card amber"><h3>Layered Retrospective</h3><p>The trace follows strict vertical layers — application → VFS → FS driver → block I/O → device driver → hardware. Each layer's interface is narrow and well-defined. Simpler to reason about, slightly more overhead per layer crossing.</p></div>
+    <div class="card"><h3>Modular Retrospective</h3><p>The trace uses the modular LKM architecture — the USB driver, the filesystem driver, and the security module are all dynamically loaded kernel modules. The trace works identically across module reloads; new devices and filesystems can be hot-plugged at any time.</p></div>
+    <div class="card gold"><h3>Hybrid Retrospective</h3><p>The trace combines all the above — kernel executes hot-path code in Ring 0, uses kernel modules for extensibility, uses user-space components (FUSE, D-Bus, systemd) for policy and orchestration, and can optionally run the entire trace inside a container (Kata, gVisor) with minimal change.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: THE MASTER SYNTHESIS TERMS</span>
+  <h2>Base Synthesis Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · System Synthesis</h3>
+      <p>The complete cross-functional tracing of kernel subsystems acting concurrently to execute an individual software application workload thread; the demonstration that the operating system is one integrated mechanism, not a collection of independent parts. The final insight of CS 301.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The single tick of the grandfather clock — every gear contributing to one motion.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Privilege Ring Crossover</h3>
+      <p>The transition of CPU execution from Ring 3 (unprivileged user mode) into Ring 0 (privileged kernel mode) and back, triggered by a system call trap or hardware interrupt; the fundamental physical mechanism that makes all operating system services safe and efficient. Approximately 185 of these occur per typical user operation.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The escorted visitor crossing the lobby security checkpoint into the operations room.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: THE END-TO-END TERMS</span>
+  <h2>Advanced Synthesis Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · End-to-End Trace</h3>
+      <p>The chronological, module-by-module walkthrough of a single user-visible operation (a mouse click, a file open, a network request) through every kernel subsystem that participates in making it happen; the diagnostic and pedagogical technique for understanding holistic system behavior. The L28 demonstration of the full course.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Following a single package through the entire city — from truck to warehouse to delivery truck to doorstep.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · System Cohesion</h3>
+      <p>The emergent property of a collection of subsystem mechanisms (process scheduler, memory manager, file system, I/O stack, security layer) that together produce a coherent, unified, reliable system behavior — a system that behaves as more than the sum of its parts. The property that makes the OS feel like a single engine rather than seven independent components.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The clock movement — seven independent gears, one silent, reliable tick.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Kernel Workload</h3>
+      <p>The actual real-time activity taking place inside the kernel, observed through tooling (<code>strace</code>, <code>/proc</code>, <code>perf</code>, <code>bpftrace</code>); distinct from the user-visible interface because the two are separated by the privilege ring crossover boundary. What the user sees as "one click" is what the kernel sees as 185 distinct transitions.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The traffic beneath the city — invisible from the sidewalk, but driving everything you can see.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-gold">💻 CODE DISSECTION: THE FULL strace TRACE</span>
+  <h2>The Real strace Output</h2>
+  <div class="trace-example">$ strace -f -e trace=openat,read,write,mmap,mprotect,brk,munmap,exit_group cat resume.txt
+
+<span class="syscall">openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3</span>     <span class="module-tag">← L17: path resolution</span>
+<span class="syscall">openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY) = 3</span>  <span class="module-tag">← L17: shared library inode</span>
+<span class="syscall">mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE, 3, 0) = 0x7f8e...</span>  <span class="module-tag">← L11/L13: mmap into RAM</span>
+<span class="syscall">openat(AT_FDCWD, "resume.txt", O_RDONLY) = 3</span>                    <span class="module-tag">← L17: target file open</span>
+<span class="syscall">mmap(NULL, 4096, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f8e...</span>      <span class="module-tag">← L11: page map for file data</span>
+<span class="syscall">read(3, "Alice Smith\nSoftware Engineer\n...", 8192) = 187</span>      <span class="module-tag">← L20: DMA read from disk</span>
+<span class="syscall">write(1, "Alice Smith\nSoftware Engineer\n...", 187) = 187</span>      <span class="module-tag">← L21: write to stdout</span>
+<span class="syscall">munmap(0x7f8e..., 4096) = 0</span>                                    <span class="module-tag">← L11: page unmap</span>
+<span class="syscall">close(3)</span>                                                        <span class="module-tag">← L17: file descriptor close</span>
+<span class="syscall">exit_group(0) = ?</span>                                              <span class="module-tag">← L05: process exit</span>
+
+<span class="result">+++ exited with 0 +++</span></div>
+  <p class="hint" style="margin-top:2vh">Twelve syscalls. Seven modules. One operation. This is the operating system in miniature — and every one of the twenty-eight lectures appears in the trace.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-gold">💻 CODE DISSECTION: TRACING THE COMPLETE SYSTEM</span>
+  <h2>Walking the Complete Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>openat("/etc/ld.so.cache")</h3><p><strong>Module 5 (L17).</strong> Path resolution for the dynamic linker cache. Five directory lookups. The entire path resolution pipeline activates.</p></div>
+    <div class="card"><h3>mmap(NULL, 8192, ..., 3, 0)</h3><p><strong>Module 3 (L11, L13).</strong> Maps 8 KB of the shared library into the process's virtual address space. Demand paging may defer actual physical page allocation.</p></div>
+    <div class="card emerald"><h3>openat("resume.txt")</h3><p><strong>Module 5 (L17).</strong> The actual target file. ACL checks (Module 7, L22) verify the user's UID against the file's permission bits.</p></div>
+    <div class="card"><h3>read(3, ...) = 187</h3><p><strong>Module 6 (L20).</strong> DMA transfers 187 bytes from disk into the page cache, then <code>copy_to_user</code> copies to user space. If cached, no disk read — just the copy.</p></div>
+    <div class="card amber"><h3>write(1, ...) = 187</h3><p><strong>Module 6 (L21).</strong> The <code>cat</code> command's output is written to stdout. In a terminal, this is the character device <code>/dev/tty</code> — the terminal emulator renders the characters on screen.</p></div>
+    <div class="card crimson"><h3>exit_group(0)</h3><p><strong>Module 2 (L05–L06).</strong> The process exits. The PCB is destroyed, memory is freed (Module 3), file descriptors are closed (Module 5), and any children are re-parented.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: THE COMPLETE COURSE NODE</span>
+  <h2>Master Mindmap Matrix — The Whole Course</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  ├── Module 1: OS Structure &amp; Design (L00–L04)
+  ├── Module 2: Process Management (L05–L09)
+  ├── Module 3: Memory Management (L10–L13)
+  ├── Module 4: Process Synchronization (L14–L15)
+  ├── Module 5: File &amp; Storage Management (L16–L19)
+  ├── Module 6: I/O Device Management (L20–L21)
+  └── Module 7: Security &amp; Protection (L22–L27)
+        └── <span class="active">L28: Grand Course Retrospective (ACTIVE NODE 🌟)</span>
+              ├── Complete End-to-End Trace Across All 7 Modules
+              └── Five Paradigm Synthesis &amp; System Cohesion</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: THE COURSE-WIDE SYNTHESIS</span>
+  <h2>Grand Course Summary — The Complete Syllabus Synthesis</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>The operating system is <strong>one engine</strong>, not a collection of independent subsystems. A single user action — a double-click on a file — traces through all seven modules: I/O interrupts, process spawning, memory demand paging, file path resolution, synchronization coordination, security ACL enforcement, and privilege ring crossovers.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>Every module is <strong>essential</strong>. The OS is not "process management <em>plus</em> memory management <em>plus</em> file systems <em>plus</em> security." It is <em>process management synchronizing with memory management synchronizing with file systems synchronizing with security</em>, all unified by the privilege boundary and the interrupt mechanism.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>The <strong>five kernel paradigms</strong> — Monolithic, Microkernel, Layered, Modular, Hybrid — are not competing philosophies. They are alternative <em>implementation strategies</em> for the same unified system, each chosen by a real-world operating system (Linux, seL4, Windows NT, macOS, MINIX 3) for its specific trade-offs. Understanding <em>why</em> each was chosen is the ultimate mark of a systems engineer.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-gold">🎓 THE FINAL GATEWAY: THE HORIZON BEYOND CS 301</span>
+  <h1 class="final-title">The Circle Closes</h1>
+  <div class="gateway-arrow" style="background: linear-gradient(135deg, #60A5FA, #A78BFA, #F0ABFC); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">✓</div>
+  <div class="seven-questions" style="margin-top:2vh">
+    <div class="question-card m1" style="border-color:#3B82F6;background:rgba(59,130,246,0.06);color:#93C5FD">
+      <h4 style="color:#60A5FA">Module 1</h4>
+      <p>How do we structure privileged software to protect hardware?</p>
+    </div>
+    <div class="question-card m2" style="border-color:#10B981;background:rgba(16,185,129,0.06);color:#6EE7B7">
+      <h4 style="color:#34D399">Module 2</h4>
+      <p>How do we share CPU time fairly and safely?</p>
+    </div>
+    <div class="question-card m3" style="border-color:#8B5CF6;background:rgba(139,92,246,0.06);color:#C4B5FD">
+      <h4 style="color:#A78BFA">Module 3</h4>
+      <p>How do we give each program the illusion of owning all memory?</p>
+    </div>
+    <div class="question-card m4" style="border-color:#EF4444;background:rgba(239,68,68,0.06);color:#FCA5A5">
+      <h4 style="color:#F87171">Module 4</h4>
+      <p>How do we coordinate concurrent threads without corrupting shared state?</p>
+    </div>
+    <div class="question-card m5" style="border-color:#F59E0B;background:rgba(245,158,11,0.06);color:#FCD34D">
+      <h4 style="color:#FBBF24">Module 5</h4>
+      <p>How do we map human names to physical storage blocks with crash safety?</p>
+    </div>
+    <div class="question-card m6" style="border-color:#14B8A6;background:rgba(20,184,166,0.06);color:#5EEAD4">
+      <h4 style="color:#5EEAD4">Module 6</h4>
+      <p>How do we unify 10,000 device drivers behind a single abstraction?</p>
+    </div>
+    <div class="question-card m7" style="border-color:#84CC16;background:rgba(132,204,22,0.06);color:#BEF264;grid-column: span 2">
+      <h4 style="color:#BEF264">Module 7</h4>
+      <p>How do we protect identity, data, and processes from attack?</p>
+    </div>
+  </div>
+  <div class="callout callout-gold" style="margin-top:2vh">
+    <strong>The Answer:</strong> Each question is a specific instance of the same overarching question. The operating system is the <em>universal answer</em> — the mechanism that makes computing safe, fair, fast, and usable in a hostile world.
+  </div>
+  <p class="hint" style="margin-top:2vh">🎓 <strong>CS 301: The Grand Synthesis is complete.</strong> 28 lectures · 7 modules · 7 lab assignments · one unified engine. The circle closes. The journey begins.</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
