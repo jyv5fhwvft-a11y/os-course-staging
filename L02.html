@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L02 · The Dual-Mode Barrier</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L02</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-crimson">🔰 START HERE // L02 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#EF4444"></div>
+  <p class="subtitle">Explain how the CPU hardware enforces isolation using privilege states, and analyze how monolithic, microkernel, hybrid, layered, and modular architectures distribute their software components across this boundary line.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> L01 described <em>where</em> the kernel's code lives — the Ring 0 address space. But why can't a user program simply <em>write itself</em> into that space? Why can't a buggy browser tab just call the disk driver's functions directly, or modify the page table, or disable CPU interrupts? The answer is not software — it is <strong>physical silicon</strong>. The CPU itself enforces a wall that no instruction stream can cross.
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L01 Architecture</h3><p>The five kernel architectures, and the concept of Ring 0 vs. user-space subsystems.</p></div>
+    <div class="card amber"><h3>02 · CPU Instruction Set</h3><p>The CPU executes assembly instructions one at a time, and some instructions (like <code>cli</code> or <code>hlt</code>) are inherently dangerous.</p></div>
+    <div class="card amber"><h3>03 · C Pointers</h3><p>A pointer is a raw address, and dereferencing it either succeeds or crashes depending on whether the CPU allows it.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> The dual-mode barrier is not an OS feature — it is a <strong>CPU feature</strong>. Even if you wrote a completely new operating system, the hardware would still enforce Ring 0/Ring 3 boundaries.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE MONOLITHIC SECURED CAMPUS</span>
+  <h2>The Monolithic Barrier</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢🗣️</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A monolithic company places its CEO, its entire tech team, and its cleaning staff in one massive open room. Everyone can touch any filing cabinet instantly — maximum efficiency. But if an entry-level worker makes a mistake and knocks over a filing cabinet, the entire company state can be corrupted. The barrier exists — but it is <em>outside</em> the room, at the building's outer entrance.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The hardware enforces only one boundary: user code vs. kernel code. Everything inside Ring 0 runs with full privilege — no additional hardware isolation between subsystems.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Monolithic distribution — everything in Ring 0, one wall at the entrance.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE MICROKERNEL SECURE BUILDING</span>
+  <h2>The Microkernel Barrier</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢🧱🏢</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A microkernel campus splits work between a tiny secure Ring 0 building and most work in unprivileged Ring 3 office pods. The management crew inside Ring 0 only coordinates — it does not handle paperwork itself. The actual work (files, printers, networks) happens in Ring 3. Every coordination between pods requires passing messages through a secure, slow pneumatic tube system.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Only the minimum necessary code lives in Ring 0. Everything else — drivers, file systems, network stacks — runs as user-space processes in Ring 3.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Microkernel distribution — most code in Ring 3, small core in Ring 0.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE LAYERED CAMPUS</span>
+  <h2>The Layered Barrier</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢3️⃣1️⃣</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A layered company stacks its operations across multiple floors with strict security clearances. Floor 3 workers cannot talk directly to Floor 1 — they must pass through Floor 2. Each floor has its own internal barrier that only allows specific interactions with the floor below. If any single floor locks its doors, the entire chain of command freezes.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The kernel is split into ordered layers (Layer 0 = hardware access, Layer N = user API). Each layer transition is a controlled boundary. The Ring 3 / Ring 0 hardware barrier sits between the topmost layer and user applications.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Layered distribution — multiple software boundaries inside Ring 0, plus the hardware boundary at the top.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE MODULAR CAMPUS</span>
+  <h2>The Modular Barrier</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢🔌🔧</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A modular company uses the fast open-floor model, but with secure hot-swappable desk docks. External contractors plug their specialized equipment into the main floor's power grid while the company runs. Communication remains instant, but a mistake by a contractor can still take down the entire corporate office because the contractor is <em>physically inside</em> the same room.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Loadable Kernel Modules (LKMs) are dynamically linked into Ring 0. The hardware barrier only distinguishes user vs. kernel — the newly loaded module gets the same Ring 0 privileges as the core kernel.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Modular distribution — the barrier is at the entrance, but once you're in Ring 0, dynamically loaded modules have full privileges.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE HYBRID CAMPUS</span>
+  <h2>The Hybrid Barrier</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢🏕️🖥️</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A hybrid company keeps its executives, memory planners, and high-speed storage teams in the fast Ring 0 center room. But it forces the risky multimedia team and external printer drivers to work outside in detached Ring 3 courtyard offices. Their crashes are isolated; the executive center stays alive.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The core kernel lives in Ring 0. Risky subsystems live in Ring 3 as user-space processes. The barrier is selectively applied per subsystem.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Hybrid distribution — critical code in Ring 0, risky code in Ring 3, based on the trust model.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE BARRIER DISTRIBUTION SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>🔒 Maximal Ring 0</h3><p>Monolithic puts everything inside the kernel. Maximum performance, minimum isolation.</p></div>
+    <div class="card emerald"><h3>🔓 Minimal Ring 0</h3><p>Microkernel keeps only a minimal core inside. Maximum isolation, higher IPC overhead.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">The barrier itself is universal — every OS enforces it. But <strong>what lives inside Ring 0</strong> varies dramatically. The barrier is non-negotiable; the distribution is the architectural decision.</p>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE PRIVILEGE RING ARCHITECTURE</span>
+  <h2>The Hardware Enforcement Mechanism</h2>
+  <div class="accent-line"></div>
+  <div class="card-grid grid-4" style="margin-top:3vh">
+    <div class="card crimson"><h3>Ring 0 · Kernel</h3><p>The most privileged ring. Executes any instruction, accesses any memory, controls any hardware.</p></div>
+    <div class="card amber"><h3>Ring 1</h3><p>Historically for device drivers (Windows) or hypervisor code (Xen). Rarely used in modern Linux/Windows.</p></div>
+    <div class="card amber"><h3>Ring 2</h3><p>Same as Ring 1 — rarely used in modern OSes.</p></div>
+    <div class="card emerald"><h3>Ring 3 · User</h3><p>The least privileged ring. Executes only unprivileged instructions, accesses only its own memory. All user applications run here.</p></div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>Current Privilege Level (CPL):</strong> A 2-bit field stored in the CS segment selector register tracks the current ring. Every instruction the CPU executes is checked against the CPL.
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE INSTRUCTION PRIVILEGE CLASSES</span>
+  <h2>Privileged vs. Unprivileged Instructions</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson">
+      <h3>🔒 Privileged (Ring 0 Only)</h3>
+      <p><code>cli</code> / <code>sti</code> — disable/enable interrupts</p>
+      <p><code>hlt</code> — halt the CPU</p>
+      <p><code>wrmsr</code> / <code>rdmsr</code> — access Model-Specific Registers</p>
+      <p><code>in</code> / <code>out</code> — direct I/O port access</p>
+      <p><code>lgdt</code> / <code>lidt</code> — load descriptor tables</p>
+      <p><code>mov</code> to <code>cr0</code>–<code>cr4</code> — modify control registers</p>
+    </div>
+    <div class="card emerald">
+      <h3>🔓 Unprivileged (Ring 3 OK)</h3>
+      <p>Arithmetic: <code>add</code>, <code>sub</code>, <code>mul</code></p>
+      <p>Logic: <code>and</code>, <code>or</code>, <code>xor</code></p>
+      <p>Data movement: <code>mov</code>, <code>push</code>, <code>pop</code></p>
+      <p>Control flow: <code>jmp</code>, <code>call</code>, <code>ret</code></p>
+      <p>Memory access — but only to addresses in the caller's page table (L11 preview).</p>
+    </div>
+  </div>
+  <div class="callout callout-crimson" style="margin-top:3vh">
+    <strong>Enforcement:</strong> When the CPU decodes a privileged instruction while CPL=3, it raises a <code>#GP</code> fault — the process is terminated. This is hardware-enforced, not software-enforced.
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE CONTROLLED BOUNDARY CROSSING</span>
+  <h2>The Trap to Ring 0</h2>
+  <div class="accent-line"></div>
+  <p class="subtitle">The <strong>only</strong> legal way for user code to invoke kernel functions is through a trap:</p>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>User-Side Setup</h3>
+      <p>1. <code>rax</code> = syscall number</p>
+      <p>2. <code>rdi</code>, <code>rsi</code>, <code>rdx</code>, <code>r10</code> = arguments</p>
+      <p>3. Execute the <code>syscall</code> instruction</p>
+    </div>
+    <div class="card emerald">
+      <h3>Hardware Transition</h3>
+      <p>1. CPU saves RIP in <code>rcx</code>, RFLAGS in <code>r11</code></p>
+      <p>2. CPL switches from 3 to 0</p>
+      <p>3. Jumps to handler address from <code>MSR_LSTAR</code></p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>The Cost:</strong> Every syscall takes ~100 ns to ~1 μs — significantly slower than a direct function call. This is why syscalls are batched, cached, and minimized in real applications.
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE BOUNDARY VIOLATION RESPONSE</span>
+  <h2>What Happens When User Code Violates the Barrier</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson">
+      <h3>The Violation Sequence</h3>
+      <p>1. User code attempts <code>cli</code> (privileged)</p>
+      <p>2. CPU decodes and detects privilege violation during the decode stage</p>
+      <p>3. Instruction is <strong>not executed</strong> — CPU raises <code>#GP</code></p>
+      <p>4. Control transfers to kernel's exception handler</p>
+      <p>5. Kernel sends <code>SIGSEGV</code> or <code>SIGILL</code> to the offending process</p>
+      <p>6. Process terminates (unless it has a signal handler)</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Verdict</h3>
+      <p>The barrier is not advisory — it is <strong>absolute</strong>. The CPU enforces it at the instruction level, before any effect can occur.</p>
+      <p style="margin-top:1vh">Every user-space crash from a privileged instruction is a demonstration that the hardware barrier works exactly as designed.</p>
+      <p style="margin-top:1vh;color:#FBBF24">Demonstration: <code>__asm__("cli")</code> from user space will <strong>always</strong> crash the program — it is physically impossible for it to succeed.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON THE ARCHITECTURAL FRAMEWORK</span>
+  <h2>Core System Cohesion — Relies On L01</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L01 Decided</h3><p>What code lives in the kernel.</p></div>
+    <div class="card violet"><h3>L02 Studies</h3><p>The hardware boundary that separates kernel code from user code.</p></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:2vh">
+    <div class="card"><h3>Monolithic</h3><p>All subsystem code lives inside Ring 0.</p></div>
+    <div class="card emerald"><h3>Microkernel</h3><p>Minimal code inside Ring 0; most subsystems outside, in Ring 3.</p></div>
+    <div class="card violet"><h3>Hybrid</h3><p>Critical code inside Ring 0; risky code outside.</p></div>
+    <div class="card"><h3>Modular</h3><p>Core inside Ring 0; modules dynamically added to Ring 0.</p></div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>Architectural Bond:</strong> L02 is the physical enforcement of L01's architecture. L01 decides the boundary placement; L02 explains how the hardware makes it inviolable.
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO THE ENTIRE SECURITY STACK</span>
+  <h2>Core System Cohesion — Feeds Into All Security Lectures</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L22 · Access Control</h3><p>ACL checks run in Ring 0 — a user process cannot modify its own permission bits.</p></div>
+    <div class="card"><h3>L23 · Authentication</h3><p>Password verification runs in Ring 0 — the password hash cannot be read or overwritten by user code.</p></div>
+    <div class="card"><h3>L24 · Program Exploits</h3><p>Buffer overflows run in Ring 3 — a compromised user process cannot directly affect the kernel. It must first find <em>another</em> vulnerability to cross the barrier.</p></div>
+    <div class="card"><h3>L25 · Encryption</h3><p>Keys are held in Ring 0 or protected hardware — user processes cannot inspect them.</p></div>
+    <div class="card"><h3>L27 · Isolation</h3><p>Containers, namespaces, and VMs all rely on the same privilege boundary — just at different granularities.</p></div>
+    <div class="card emerald"><h3>The Verdict</h3><p>L02 is the foundation of the entire security architecture. Remove it, and Module 7 collapses. Every subsequent lecture assumes this barrier exists.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: KERNEL BARRIER STRATEGIES</span>
+  <h2>Barrier Strategies Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Barrier</h3><p>All code in Ring 0. Only one wall — at the entrance from user space. The barrier is sharp at the outside, permeable at the inside.</p></div>
+    <div class="card emerald"><h3>Microkernel Barrier</h3><p>The barrier wraps only a minimal kernel. Every subsystem is a separate Ring 3 process. The barrier is drawn tightly around the smallest possible core.</p></div>
+    <div class="card amber"><h3>Layered Barrier</h3><p>Multiple software boundaries inside Ring 0 plus the hardware barrier at the top. Each layer boundary is <em>logical</em>, not <em>hardware</em>.</p></div>
+    <div class="card"><h3>Modular Barrier</h3><p>The hardware barrier is at the entrance. Modules loaded from disk become part of Ring 0 — they inherit full privilege. No additional barrier between module and core.</p></div>
+    <div class="card violet"><h3>Hybrid Barrier</h3><p>The hardware barrier wraps the core kernel tightly, and riskier subsystems loosely. Different subsystems get different barrier levels.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE PRIVILEGE VOCABULARY</span>
+  <h2>Base Privilege Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Current Privilege Level (CPL)</h3>
+      <p>The actual hardware bits inside the CPU register that track whether the system is executing in Ring 0 or Ring 3; physically encoded in the CS segment selector on x86-64. Every instruction is checked against the current CPL before it takes effect.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The security badge on your chest — the guard checks it at every door.)</p>
+    </div>
+    <div class="card emerald">
+      <h3>Term 02 · User Space (Ring 3)</h3>
+      <p>The restricted execution territory assigned to normal software applications, enforced by hardware privilege levels; processes running here can only execute unprivileged instructions and only access memory mapped in their own page tables.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The guest area of the hotel — comfortable, but you cannot access the vault.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE PRIVILEGE VOCABULARY</span>
+  <h2>Advanced Privilege Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card crimson">
+      <h3>Term 03 · Kernel Space (Ring 0)</h3>
+      <p>The unrestricted supervisor memory territory where the core operating system software holds absolute hardware authority; code running here can execute any instruction, access any physical memory, and control any hardware device.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The vault room of the hotel — full access to everything.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Privileged Instruction</h3>
+      <p>An assembly instruction (like <code>cli</code> to clear interrupts, <code>hlt</code> to halt the processor, or <code>wrmsr</code> to write MSRs) that can only be executed in Ring 0. Attempting a privileged instruction from Ring 3 raises a <code>#GP</code> fault.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The vault door keys — only the manager has them.)</p>
+    </div>
+    <div class="card amber">
+      <h3>Term 05 · Hardware Exception</h3>
+      <p>The immediate electronic trap fired by the CPU when an application in Ring 3 attempts to execute a privileged instruction or violates memory protections; the CPU aborts the instruction before its effect can occur.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The alarm that fires when someone tries to force the vault door.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: C BARRIER VIOLATION PANEL</span>
+  <h2>Demonstrating the Barrier Violation</h2>
+  <pre class="code-block"><span class="cm">// Demonstrating the hardware privilege barrier in C</span>
+<span class="cm">// COMPILE: gcc -o barrier barrier.c</span>
+<span class="cm">// RUN: ./barrier</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;signal.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;setjmp.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;unistd.h&gt;</span>
+
+<span class="kw">static</span> sigjmp_buf jump_env;
+
+<span class="cm">// Signal handler catches the SIGSEGV / SIGILL from privileged instr attempts</span>
+<span class="kw">static</span> <span class="kw">void</span> <span class="fn">sig_handler</span>(<span class="kw">int</span> sig) {
+    <span class="fn">printf</span>(<span class="str">"[SIGNAL HANDLER] Caught signal %d (%s)\n"</span>, sig,
+           sig == SIGSEGV ? <span class="str">"SIGSEGV — segmentation fault"</span> :
+           sig == SIGILL  ? <span class="str">"SIGILL — illegal instruction"</span> :
+                            <span class="str">"other"</span>);
+    <span class="fn">siglongjmp</span>(jump_env, <span class="num">1</span>);
+}
+
+<span class="cm">// Attempt to execute a privileged instruction from user space.</span>
+<span class="kw">void</span> <span class="fn">try_privileged_instruction</span>() {
+    <span class="fn">printf</span>(<span class="str">"\n[USER MODE] About to attempt privileged instruction 'cli'...\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"[USER MODE] Current privilege level: Ring 3 (user mode)\n\n"</span>);
+
+    <span class="kw">if</span> (<span class="fn">sigsetjmp</span>(jump_env, <span class="num">1</span>) == <span class="num">0</span>) {
+        <span class="cm">// Attempt to clear interrupts from user mode — ILLEGAL.</span>
+        __asm__ <span class="kw">volatile</span>(<span class="str">"cli"</span>);
+        <span class="fn">printf</span>(<span class="str">"[USER MODE] 'cli' succeeded — security disaster!\n"</span>);
+    } <span class="kw">else</span> {
+        <span class="fn">printf</span>(<span class="str">"[USER MODE] Instruction was blocked by the CPU hardware.\n"</span>);
+    }
+}
+
+<span class="cm">// Attempt to directly access physical memory at address 0.</span>
+<span class="kw">void</span> <span class="fn">try_protected_memory_access</span>() {
+    <span class="fn">printf</span>(<span class="str">"\n[USER MODE] About to dereference NULL pointer (address 0)...\n"</span>);
+
+    <span class="kw">if</span> (<span class="fn">sigsetjmp</span>(jump_env, <span class="num">1</span>) == <span class="num">0</span>) {
+        <span class="kw">volatile</span> <span class="kw">int</span>* null_ptr = (<span class="kw">int</span>*)<span class="num">0</span>;
+        <span class="kw">int</span> value = *null_ptr;  <span class="cm">// Will trigger SIGSEGV</span>
+        <span class="fn">printf</span>(<span class="str">"[USER MODE] Read value: %d\n"</span>, value);
+    } <span class="kw">else</span> {
+        <span class="fn">printf</span>(<span class="str">"[USER MODE] SIGSEGV caught — memory access was blocked.\n"</span>);
+    }
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="fn">signal</span>(SIGSEGV, sig_handler);
+    <span class="fn">signal</span>(SIGILL, sig_handler);
+
+    <span class="fn">printf</span>(<span class="str">"=== Ring 3 / Ring 0 Barrier Demonstration ===\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"Current process PID: %d\n"</span>, <span class="fn">getpid</span>());
+
+    <span class="fn">try_privileged_instruction</span>();
+    <span class="fn">try_protected_memory_access</span>();
+
+    <span class="fn">printf</span>(<span class="str">"\n[USER MODE] Both violations were hardware-enforced.\n"</span>);
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: TRACING THE CPU ENFORCEMENT</span>
+  <h2>Walking the Barrier Violation Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>signal(SIGSEGV, sig_handler)</h3><p>User space can install a SIGSEGV handler — but only because the kernel allows it. Signal delivery is <code>CPU trap → kernel handler → user handler</code>.</p></div>
+    <div class="card crimson"><h3>__asm__ volatile("cli")</h3><p>The privileged instruction attempt. The CPU's decoder detects the violation during decode, raises <code>#GP</code>, kernel converts to <code>SIGILL</code>. The instruction is <strong>not executed</strong>.</p></div>
+    <div class="card"><h3>signal(SIGILL, sig_handler)</h3><p>User program catches SIGILL. Without this, the program would terminate immediately. Even recovery is kernel-mediated.</p></div>
+    <div class="card amber"><h3>volatile int* null_ptr = (int*)0</h3><p>Address 0 is never mapped. The MMU detects the unmapped access during translation and raises a page fault. The kernel converts this to <code>SIGSEGV</code>.</p></div>
+    <div class="card emerald"><h3>The MMU Barrier</h3><p>Physical enforcement of memory isolation. Every access is translated through the page table. Invalid addresses fail at the MMU — the CPU never even begins the read.</p></div>
+    <div class="card violet"><h3>The Recovery</h3><p>Both <code>siglongjmp</code> calls return control to a safe point after the fault. The process survives. This demonstrates the barrier <em>enforces isolation without crashing the system</em>.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎯 INTERACTIVE WORKSHOP: THE LIVE BARRIER BREAK</span>
+  <h2>The Privilege Boundary Violation Lab</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>What to Do</h3><p>Instructor writes and runs a small, deliberately broken C program live — <code>__asm__("cli")</code>, NULL dereference, and <code>kill(1, SIGKILL)</code>.</p></div>
+    <div class="card"><h3>What You Will See</h3><p>Immediate crash: <code>Segmentation fault (core dumped)</code>. The <code>kill(1, SIGKILL)</code> fails with <code>EPERM</code> — the kernel rejected it before any hardware fault even occurred.</p></div>
+    <div class="card emerald"><h3>The Big Question</h3><p>What would happen if we removed the barrier? Answer: any app could kill systemd, corrupt memory, or disable interrupts — the entire system would be fundamentally untrustworthy.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Pedagogic Takeaway:</strong> Physical demonstration of the CPU and kernel jointly enforcing the barrier in real time. The student <em>sees</em> the hardware catch their own code.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 TRY IT LIVE: AUDITING LIVE BARRIER ENFORCEMENT</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> id                                           <span class="out"># UID = privilege domain</span>
+<span class="cmd">$</span> cat /proc/self/status | grep -i "uid\|gid"    <span class="out"># Credential details</span>
+<span class="cmd">$</span> cat /proc/self/status | grep -i "seccomp\|cap"  <span class="out"># Restrictions</span>
+<span class="cmd">$</span> capsh --print                                <span class="out"># Full capability enumeration</span>
+<span class="cmd">$</span> dmesg | grep -i "segfault" | tail -5         <span class="out"># Recent barrier events</span>
+<span class="cmd">$</span> cat /proc/sys/kernel/kptr_restrict           <span class="out"># Kernel address visibility</span>
+<span class="cmd">$</span> cat /proc/sys/kernel/dmesg_restrict          <span class="out"># dmesg accessibility</span>
+<span class="cmd">$</span> ulimit -a                                    <span class="out"># Resource limits across barrier</span></pre>
+  <p class="hint">Every line is a live view of the privilege barrier working on your own machine.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 1: OS Structure &amp; Design
+        └── <span class="active">L02: The Dual-Mode Barrier (ACTIVE NODE 🌟)</span>
+              ├── Ring 0 / Ring 3 Hardware Privilege Separation
+              └── The Syscall Trap &amp; Privileged Instruction Fault</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>The user-kernel barrier is enforced by <strong>silicon</strong>, not software. The CPU's Current Privilege Level register tracks whether code runs in Ring 0 or Ring 3, and every instruction is checked against it before executing. Privileged instructions throw a <code>#GP</code> fault when attempted in Ring 3.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>The <strong>only</strong> legal way to cross the barrier is the syscall trap — a special unprivileged instruction that triggers a controlled hardware transition to Ring 0. Every file operation, process creation, and memory allocation runs through this boundary.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>The architecture choice from L01 determines <strong>what lives inside</strong> the Ring 0 barrier. Monolithic puts everything in; microkernel puts almost nothing in; hybrid selectively chooses. The barrier itself is universal — the <em>distribution</em> is the design decision. This decision reverberates through every subsequent lecture, from paging (L11) to containers (L27).</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 03 — The Gatekeeper Mechanism (Syscall Interface)</strong><br><br>
+    We have established the <em>barrier</em> — the hardware wall between user and kernel. Now we must examine <em>the gate</em> — the syscall interface that mediates every crossing of that barrier. How does the CPU know which kernel function to call when a user program requests <code>read()</code>? How are arguments passed across the barrier? How does the kernel validate that user-supplied pointers are safe before touching them? This is the <strong>syscall dispatch mechanism</strong> — the most security-critical path in the entire operating system.
+  </div>
+  <p class="hint">File: L03.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
