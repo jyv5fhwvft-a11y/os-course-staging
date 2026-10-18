@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L19 · Crash Consistency & The Journaling Engine</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  .badge-cyan { color: #67E8F9; border-color: #06B6D4; background: rgba(6,182,212,0.08); }
+  .badge-orange { color: #FDBA74; border-color: #F97316; background: rgba(249,115,22,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-amber { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.cyan h3 { color: #67E8F9; } .card.cyan { border-color: #164E63; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .phase-flow { display: flex; flex-direction: column; gap: 1.5vh; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .phase-box { padding: 2.5vh 2vw; border-radius: 12px; border: 2px solid; text-align: left; }
+  .phase-box h4 { font-size: 1.15rem; font-weight: 800; margin-bottom: 1vh; }
+  .phase-box p { font-size: clamp(0.85rem, 1.05vw, 0.95rem); line-height: 1.55; }
+  .phase-1 { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .phase-1 h4 { color: #60A5FA; }
+  .phase-2 { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .phase-2 h4 { color: #FBBF24; }
+  .phase-3 { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .phase-3 h4 { color: #34D399; }
+  .crash-points { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2vw; max-width: 1000px; width: 100%; margin: 2vh auto; }
+  .crash-card { padding: 2.5vh 1.8vw; border-radius: 12px; border: 2px solid; text-align: left; position: relative; }
+  .crash-card h4 { font-size: 1.05rem; font-weight: 800; margin-bottom: 1vh; display: flex; align-items: center; gap: 0.6vw; }
+  .crash-card .crash-icon { font-size: 1.4rem; }
+  .crash-card p { font-size: clamp(0.8rem, 1vw, 0.9rem); line-height: 1.55; }
+  .crash-card .recovery { margin-top: 1.2vh; padding: 1vh 1vw; border-radius: 4px; font-family: "SF Mono", monospace; font-size: 0.8rem; font-weight: 800; text-align: center; }
+  .crash-1 { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .crash-1 h4 { color: #FBBF24; }
+  .crash-1 .recovery { background: rgba(239,68,68,0.15); color: #FCA5A5; }
+  .crash-2 { border-color: #F97316; background: rgba(249,115,22,0.06); color: #FDBA74; }
+  .crash-2 h4 { color: #FDBA74; }
+  .crash-2 .recovery { background: rgba(239,68,68,0.15); color: #FCA5A5; }
+  .crash-3 { border-color: #8B5CF6; background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  .crash-3 h4 { color: #A78BFA; }
+  .crash-3 .recovery { background: rgba(16,185,129,0.15); color: #6EE7B7; }
+  .crash-4 { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .crash-4 h4 { color: #34D399; }
+  .crash-4 .recovery { background: rgba(16,185,129,0.15); color: #6EE7B7; }
+  .journal-modes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.2vw; max-width: 1100px; width: 100%; margin: 2vh auto; }
+  .mode-card { padding: 2.5vh 1.5vw; border-radius: 12px; border: 2px solid; text-align: left; }
+  .mode-card h4 { font-size: 1.05rem; font-weight: 800; margin-bottom: 1vh; font-family: "SF Mono", monospace; }
+  .mode-card p { font-size: clamp(0.8rem, 1vw, 0.9rem); line-height: 1.55; }
+  .mode-card .rating { margin-top: 1.2vh; font-size: 0.75rem; font-weight: 800; text-align: center; padding: 0.6vh; border-radius: 4px; }
+  .mode-journal { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .mode-journal h4 { color: #34D399; }
+  .mode-journal .rating { background: rgba(16,185,129,0.2); color: #34D399; }
+  .mode-ordered { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .mode-ordered h4 { color: #60A5FA; }
+  .mode-ordered .rating { background: rgba(59,130,246,0.2); color: #60A5FA; }
+  .mode-writeback { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .mode-writeback h4 { color: #FBBF24; }
+  .mode-writeback .rating { background: rgba(245,158,11,0.2); color: #FBBF24; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .crash-points, .journal-modes { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L19</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-amber">🔰 START HERE // L19 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <p class="subtitle">Sequence the logical operational lifecycle transitions of a Write-Ahead Logging write pipeline to recover a file system safely after mid-write power loss.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> A single file append touches <em>three</em> separate disk structures: the inode's size field, the block allocation bitmap, and the actual data block. If power dies after two of three writes complete, the file system is left in an <strong>inconsistent state</strong> — pointing at blocks that were never allocated, or worse, marking blocks as free while an inode still claims them. How does the operating system survive a lightning strike at 2:47 AM without losing a single byte?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L18 Inodes</h3><p>The inode struct, <code>i_size</code>, <code>i_blocks</code>, the block pointer tree, and how metadata updates are scattered across disk structures.</p></div>
+    <div class="card amber"><h3>02 · L16 Disk Physics</h3><p>Writes take physical time (seek + rotate + transfer). We cannot afford to write every structure twice for every operation.</p></div>
+    <div class="card amber"><h3>03 · Module 4 Sync</h3><p>Mutexes and semaphores (L14–L15). Filesystem metadata is protected by kernel locks carrying the same topology; journaling must itself be deadlock-free.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> This is the <em>reliability engineering</em> lecture. Every backup tool, every database engine, and every cloud storage system on Earth inherits the journaling design we cover today. If students do not internalize the three-phase WAL protocol, they will never trust a filesystem to survive a crash.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🎒 EVERYDAY SIMPLIFIED: THE PENCIL-FIRST CHECK</span>
+  <h2>The Journaling Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📓🖊️💵</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>You want to transfer $1,000 to a business partner. If you start making changes across multiple account books and the room suddenly catches fire midway through, your records are half-updated and ruined. To prevent this, you keep a tiny journal chained to your desk. Before touching any main ledger, you write down: <em>"I intend to add $1,000 to Book B and subtract $1,000 from Book A."</em> Once that intent is written in ink, you can update the main books at your leisure. If fire destroys the room mid-update, recovery is trivial: read the journal, replay the intent.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The journal records <em>intention</em>. The main books record <em>execution</em>. Only after the intent is durable can execution proceed safely.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This maps directly to Write-Ahead Logging — the journal is the WAL, the main ledger is the filesystem metadata, and "ink" is the durable commit.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🎒 EVERYDAY SIMPLIFIED: THE SHIPPING MANIFEST</span>
+  <h2>The Write-Ahead Logging Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📋📦🚚</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A shipping warehouse cannot load a truck <em>before</em> writing down what is going into it. If the truck crashes, you need the manifest to know what was lost. The manifest is written <em>first</em>, <em>completely</em>, and <em>signed off</em> — only then does loading begin. Similarly, filesystem metadata changes are logged as a complete transaction before touching the actual disk blocks.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Manifest first → ship second → confirm third. Never ship before manifest completes.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the <em>ordering</em> requirement that makes WAL correct: log write → commit → checkpoint.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🎒 EVERYDAY SIMPLIFIED: THE ATOMIC BANK TRANSFER</span>
+  <h2>The Transaction Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏦✅❌</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A bank transfer must be <em>atomic</em> — either both accounts update or neither does. There is no such thing as "the money left Account A but never reached Account B." The transaction either completes fully or rolls back completely. This is the <em>transactional</em> guarantee that filesystem journaling borrows from database theory.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Begin transaction → write all changes to journal → commit point → checkpoint to main structures. Until commit, the transaction is <em>tentative</em>; after commit, it is <em>durable</em>.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Journaling provides atomicity and durability — two of the four ACID properties — at the file system level.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🎒 EVERYDAY SIMPLIFIED: THE COPYIST'S FINAL DRAFT</span>
+  <h2>The Checkpoint Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">✍️📖📚</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A scribe writes rough notes in a small journal, then copies them cleanly into a large leather-bound book labeled "Checkpoint." The journal is the rough working copy — quick, redundant, temporary. The checkpoint is the clean copy in the main book — verified, final, authoritative. Once a checkpoint is complete, the journal entry can be erased.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The checkpoint step copies the journaled intent into the actual filesystem structures. Only after checkpointing does the journal entry become obsolete.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Checkpointing is the <em>second phase</em> of the WAL pipeline. It is what makes the journal entry finally reflected in the real filesystem.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE DURABLE TRANSACTION SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson"><h3>❌ Crash During Write</h3><p>Recovery by journal <em>replay</em>: the committed transaction in the journal is re-applied to the main structures.</p></div>
+    <div class="card emerald"><h3>✅ Crash After Commit</h3><p>Recovery by journal <em>rollback</em>: incomplete transactions are discarded, filesystem reverts to the pre-operation state.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Journaling turns <em>every</em> power-loss scenario into a recoverable one. If crash occurs before commit → discard. If crash occurs after commit → replay. If crash occurs during checkpoint → resume. Every crash point is handled.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">💻 SYSTEMS COHESION: THE MULTI-BLOCK WRITE WINDOW</span>
+  <h2>The Metadata Corruption Problem</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Multi-Block Write Trace</h3>
+      <p>A single filesystem operation is rarely a single disk write. Even a trivial append touches multiple disjoint structures:</p>
+      <p><strong>Write #1:</strong> Data block (the actual bytes appended).</p>
+      <p><strong>Write #2:</strong> Inode update (<code>i_size</code> grows, <code>i_blocks</code> increments, pointer assigned).</p>
+      <p><strong>Write #3:</strong> Block bitmap update (mark newly allocated block as no longer free).</p>
+    </div>
+    <div class="card crimson">
+      <h3>The Crash Windows</h3>
+      <p>Power loss between any two writes leaves an inconsistent state:</p>
+      <p><strong>Between #1 and #2:</strong> Block filled but no inode owns it — <em>silent data loss</em>.</p>
+      <p><strong>Between #2 and #3:</strong> Inode points to a block still marked free — <em>future write may overwrite live data</em>.</p>
+      <p><strong>Between #3 and #1:</strong> Block allocated but empty — <em>filesystem leak</em>.</p>
+    </div>
+  </div>
+  <div class="callout callout-crimson" style="margin-top:3vh">
+    <strong>The Verdict:</strong> Without protection, <em>any</em> power loss can leave the filesystem in a corrupted state — even a single-byte write is dangerous.
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">💻 SYSTEMS COHESION: THE THREE-PHASE WAL PIPELINE</span>
+  <h2>The Write-Ahead Logging Protocol</h2>
+  <div class="phase-flow">
+    <div class="phase-box phase-1">
+      <h4>Phase 1 — Journal Write</h4>
+      <p>The filesystem writes the <em>intended</em> metadata changes (inode update, bitmap update, etc.) as a complete transaction to the journal area on disk. Not yet committed — this is a <em>tentative</em> intent.</p>
+    </div>
+    <div class="phase-box phase-2">
+      <h4>Phase 2 — Commit</h4>
+      <p>Once the journal transaction is durable (flushed to physical media), the filesystem writes a <em>commit marker</em> or checksum. This marks the transaction as <em>valid</em> and <em>authoritative</em>.</p>
+    </div>
+    <div class="phase-box phase-3">
+      <h4>Phase 3 — Checkpoint</h4>
+      <p>The filesystem writes the journaled changes to their actual final locations in the main filesystem structures. After completion, the journal entry is discarded.</p>
+    </div>
+  </div>
+  <div class="callout callout-amber" style="margin-top:2vh">
+    <strong>The critical insight:</strong> The journal write must complete before the main write begins. If power dies mid-main-write, the journal still holds the full intent and recovery can replay it.
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">💻 SYSTEMS COHESION: THE RECOVERY DECISION TREE</span>
+  <h2>The Four Crash Points of a Journal Transaction</h2>
+  <div class="crash-points">
+    <div class="crash-card crash-1">
+      <h4><span class="crash-icon">💥</span> Crash 1: During Journal Write</h4>
+      <p>The journal entry is incomplete — a partial transaction with no commit marker.</p>
+      <div class="recovery">RECOVERY: DISCARD</div>
+    </div>
+    <div class="crash-card crash-2">
+      <h4><span class="crash-icon">💥</span> Crash 2: After Journal, Before Commit</h4>
+      <p>Journal entry is complete, but no commit marker exists. The transaction was never authoritatively committed.</p>
+      <div class="recovery">RECOVERY: DISCARD</div>
+    </div>
+    <div class="crash-card crash-3">
+      <h4><span class="crash-icon">💥</span> Crash 3: After Commit, Before Checkpoint</h4>
+      <p>Journal holds a valid committed transaction, but main structures were never updated.</p>
+      <div class="recovery">RECOVERY: REPLAY</div>
+    </div>
+    <div class="crash-card crash-4">
+      <h4><span class="crash-icon">💥</span> Crash 4: During Checkpoint</h4>
+      <p>Journal still holds the committed transaction. Main structures are partially updated.</p>
+      <div class="recovery">RECOVERY: REPLAY (idempotent)</div>
+    </div>
+  </div>
+  <div class="callout callout-emerald" style="margin-top:2vh">
+    <strong>The Verdict:</strong> Journaling eliminates <em>all</em> crash-inconsistency windows by making the commit marker the single authoritative decision point. The commit marker is the entire safety mechanism.
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">💻 SYSTEMS COHESION: PERFORMANCE TRADE-OFF DIMENSIONS</span>
+  <h2>Metadata Journaling vs Full Data Journaling</h2>
+  <div class="journal-modes">
+    <div class="mode-card mode-journal">
+      <h4>data=journal</h4>
+      <p>Both file data and metadata are written to the journal first, then checkpointed. Maximum durability — a crash mid-write cannot corrupt data either — but roughly halves write throughput.</p>
+      <div class="rating">MAXIMUM DURABILITY</div>
+    </div>
+    <div class="mode-card mode-ordered">
+      <h4>data=ordered</h4>
+      <p>Only filesystem metadata is journaled; data blocks are written directly to their final location. Metadata is consistent, data is written before metadata commits. The Linux default.</p>
+      <div class="rating">RECOMMENDED · DEFAULT</div>
+    </div>
+    <div class="mode-card mode-writeback">
+      <h4>data=writeback</h4>
+      <p>Neither data nor its temporal relationship to metadata is tracked by the journal. Fastest, but a crash can leave a file whose metadata was committed while its data was never written.</p>
+      <div class="rating">HIGHEST THROUGHPUT</div>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>The Verdict:</strong> <code>data=ordered</code> is the industry sweet spot: metadata is journaled, data is streamed to its final location before the corresponding metadata commit is issued.
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">💻 SYSTEMS COHESION: PHYSICAL VS LOGICAL LOGGING</span>
+  <h2>Journal Granularity — Physical vs Logical</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Physical Logging</h3>
+      <p>Records the exact <em>bytes</em> of each block being changed — the raw disk blocks of the inode, the bitmap, and any pointer blocks.</p>
+      <p style="margin-top:1vh"><strong>Pros:</strong> Replay is a simple byte-copy, no filesystem logic needed.</p>
+      <p><strong>Cons:</strong> Journal entries are large because every physical block is journaled in full.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Logical Logging</h3>
+      <p>Records the <em>high-level operation</em> — "append 1024 bytes to inode #9042."</p>
+      <p style="margin-top:1vh"><strong>Pros:</strong> Journal entries are tiny and efficient.</p>
+      <p><strong>Cons:</strong> Replay requires running filesystem logic to translate intent into actual block writes; more complex recovery code.</p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>The Verdict:</strong> ext3 and ext4 use <em>physical</em> logging for reliability; XFS and ZFS use hybrid approaches that combine logical intent with physical block diffs for efficiency.
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON INODE METADATA</span>
+  <h2>Core System Cohesion — Relies On L18</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>The Journaled Mutations</h3><p>Every metadata mutation journaled in L19 is a modification to an L18 inode structure: <code>i_size</code>, <code>i_blocks</code>, or the pointer tree itself. The journal is, in a sense, a <em>shadow copy</em> of L18 metadata.</p></div>
+    <div class="card"><h3>The Recovery</h3><p>If a crash corrupts an inode's pointer tree but the journal holds a complete committed transaction, recovery can rewrite the entire inode state from the journal, restoring L18's structural integrity.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>L18's pointer tree is the <em>target</em> of L19's journaling. Without L18, there would be no metadata to protect. Without L19, L18's pointer tree could not survive a crash.</p></div>
+    <div class="card emerald"><h3>Feeds Into Module 7</h3><p>The journal is also an audit trail — ownership, timestamps, permission changes flow through the same WAL. This feeds Module 7's access control (L22–L23) and forensic recovery workflows.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO SECURITY AND FORENSICS</span>
+  <h2>Core System Cohesion — Feeds Into Module 7</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Security Audit Trail</h3><p>The journal records <em>who</em> initiated each transaction — ownership, timestamps, permission changes flow through the same WAL. This makes the journal both a recovery mechanism and an audit trail.</p></div>
+    <div class="card"><h3>Forensic Recovery</h3><p>Uncommitted journal entries can be recovered (carefully) to reconstruct recent filesystem activity — valuable for incident response and digital forensics.</p></div>
+    <div class="card"><h3>Data Privacy</h3><p>Journal contents must be protected — a journal leak can expose metadata about deleted files. Modern filesystems encrypt journal entries on encrypted volumes.</p></div>
+    <div class="card emerald"><h3>The Verdict</h3><p>L19 is the last file-system lecture, but its implications ripple through Module 7. Every security operation is ultimately persisted by the journaling engine.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: JOURNALING ARCHITECTURES</span>
+  <h2>Journaling Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Journaling</h3><p>Journaling is implemented in-kernel (ext3/ext4's JBD2 in Linux). The journal is an on-disk region with a dedicated kernel thread (<code>jbd2/sda1-8</code>). Full kernel privilege — fast, but any JBD2 bug can crash the kernel.</p></div>
+    <div class="card emerald"><h3>Microkernel Journaling</h3><p>The filesystem server (in user space) runs its own journaling. FUSE daemons cannot rely on kernel crash consistency, so they must implement their own WAL. Fully isolated — a buggy journaling daemon crashes alone.</p></div>
+    <div class="card amber"><h3>Layered Journaling</h3><p>The journaling layer sits between the filesystem and the block device driver. LVM, dm-crypt, and dm-journal wrap journaling at the block layer, independent of filesystem choice. Multiple filesystems can share the same block-layer journal.</p></div>
+    <div class="card"><h3>Modular Journaling</h3><p>Core filesystem module contains journaling logic, but the journaling <em>mode</em> (<code>data=journal</code>/<code>ordered</code>/<code>writeback</code>) is a runtime mount option. Swap modes without recompiling the kernel.</p></div>
+    <div class="card violet"><h3>Hybrid Journaling</h3><p>In-kernel metadata journaling (fast path) combined with user-space copy-on-write snapshots (ZFS, Btrfs). The kernel provides transactional consistency; the user-space layer provides point-in-time rollback, replication, and integrity scrubbing.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE JOURNALING VOCABULARY</span>
+  <h2>Base Journaling Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Crash Consistency</h3>
+      <p>The ability of a file system to recover structural data integrity safely and coherently after an ungraceful system crash or power loss event, guaranteeing that no partial transaction leaves the filesystem in an inconsistent state. The property that makes journaling <em>necessary</em> rather than optional.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Surviving the lightning strike without losing a single byte of the ledger.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Journaling (Write-Ahead Log)</h3>
+      <p>A reliability mechanism that logs all structural changes into an isolated scratch space on disk before executing updates on main file structures, enabling recovery by replay or discard depending on commit state. The three-phase protocol (journal → commit → checkpoint) is the universal implementation.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The shipping manifest written <em>before</em> the truck is loaded.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE JOURNALING VOCABULARY</span>
+  <h2>Advanced Recovery Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Checkpointing</h3>
+      <p>The file system cycle step that safely copies verified, journaled file modifications out of the log buffer and writes them down onto the primary disk layout; after checkpointing, the journal entry is discarded as obsolete. This is Phase 3 of the WAL pipeline — the actual application of intent.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Copying the rough notes into the clean final draft.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Metadata Journaling</h3>
+      <p>A performance optimization mode that logs only structural layout mutations (inodes, bitmaps, directory entries) into the journal log, allowing raw file content bytes to stream directly to data blocks without journaling overhead. The <code>data=ordered</code> mode is the industry standard.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Journaling the "chapter plan" but not every paragraph of the story.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Idempotent Replay</h3>
+      <p>A recovery property where re-applying a journaled transaction produces the same final state regardless of how many times the replay runs; crucial for crash recovery because recovery may itself be interrupted and restarted. Physical logging (block byte-copies) is inherently idempotent; logical logging requires careful validation.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Re-copying a page into a notebook produces the same page — copying it twice does not make it "more copied".)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">💻 CODE DISSECTION: C JOURNAL TRANSACTION SIMULATOR</span>
+  <h2>Simulated WAL Transaction in C</h2>
+  <pre class="code-block"><span class="cm">// Simulating a Write-Ahead Logging transaction pipeline</span>
+<span class="cm">// Compile: gcc -o journal journal.c &amp;&amp; ./journal</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string.h&gt;</span>
+
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    <span class="kw">int</span> inode_id;
+    <span class="kw">int</span> old_size;
+    <span class="kw">int</span> new_size;
+    <span class="kw">int</span> allocated_block;
+    <span class="kw">int</span> checksum;
+} JournalEntry;
+
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    JournalEntry entry;
+    <span class="kw">int</span> commit_marker;    <span class="cm">// 0 = no commit, 1 = committed</span>
+    <span class="kw">int</span> checkpoint_done;  <span class="cm">// 0 = not applied, 1 = applied</span>
+} Journal;
+
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    <span class="kw">int</span> inode_id;
+    <span class="kw">int</span> size;
+    <span class="kw">int</span> block_bitmap_allocated;
+} MainFS;
+
+<span class="kw">void</span> <span class="fn">journal_write</span>(Journal* j, <span class="kw">int</span> inode, <span class="kw">int</span> old_sz, <span class="kw">int</span> new_sz, <span class="kw">int</span> blk) {
+    <span class="fn">printf</span>(<span class="str">"[PHASE 1] Journaling intent: inode %d, %d -&gt; %d bytes, block %d\n"</span>,
+           inode, old_sz, new_sz, blk);
+    j-&gt;entry.inode_id = inode;
+    j-&gt;entry.old_size = old_sz;
+    j-&gt;entry.new_size = new_sz;
+    j-&gt;entry.allocated_block = blk;
+    j-&gt;entry.checksum = <span class="num">0xDEADBEEF</span>;
+}
+
+<span class="kw">void</span> <span class="fn">journal_commit</span>(Journal* j) {
+    <span class="fn">printf</span>(<span class="str">"[PHASE 2] Commit marker written: transaction is now durable.\n"</span>);
+    j-&gt;commit_marker = <span class="num">1</span>;
+}
+
+<span class="kw">void</span> <span class="fn">journal_checkpoint</span>(Journal* j, MainFS* fs) {
+    <span class="fn">printf</span>(<span class="str">"[PHASE 3] Checkpointing to main filesystem structures...\n"</span>);
+    fs-&gt;inode_id = j-&gt;entry.inode_id;
+    fs-&gt;size = j-&gt;entry.new_size;
+    fs-&gt;block_bitmap_allocated = <span class="num">1</span>;
+    j-&gt;checkpoint_done = <span class="num">1</span>;
+    <span class="fn">printf</span>(<span class="str">"[PHASE 3] Checkpoint complete. Journal entry is now obsolete.\n"</span>);
+}
+
+<span class="kw">void</span> <span class="fn">crash_recovery</span>(Journal* j, MainFS* fs) {
+    <span class="fn">printf</span>(<span class="str">"\n=== CRASH RECOVERY STARTED ===\n"</span>);
+    <span class="kw">if</span> (!j-&gt;commit_marker) {
+        <span class="fn">printf</span>(<span class="str">"No commit marker found. Discarding incomplete transaction.\n"</span>);
+        <span class="fn">printf</span>(<span class="str">"Filesystem reverted to pre-operation state (safe).\n"</span>);
+    } <span class="kw">else if</span> (!j-&gt;checkpoint_done) {
+        <span class="fn">printf</span>(<span class="str">"Commit marker found but checkpoint incomplete.\n"</span>);
+        <span class="fn">printf</span>(<span class="str">"Replaying journal entry to complete the transaction.\n"</span>);
+        <span class="fn">journal_checkpoint</span>(j, fs);
+    } <span class="kw">else</span> {
+        <span class="fn">printf</span>(<span class="str">"Both commit and checkpoint complete. No recovery needed.\n"</span>);
+    }
+    <span class="fn">printf</span>(<span class="str">"=== RECOVERY COMPLETE ===\n"</span>);
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    MainFS fs = {<span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>};
+    Journal j = {{<span class="num">0</span>}, <span class="num">0</span>, <span class="num">0</span>};
+
+    <span class="cm">// --- Normal write (all 3 phases complete) ---</span>
+    <span class="fn">journal_write</span>(&amp;j, <span class="num">9042</span>, <span class="num">0</span>, <span class="num">1024</span>, <span class="num">500</span>);
+    <span class="fn">journal_commit</span>(&amp;j);
+    <span class="fn">journal_checkpoint</span>(&amp;j, &amp;fs);
+
+    <span class="cm">// --- Simulate crash AFTER commit but BEFORE checkpoint ---</span>
+    <span class="fn">printf</span>(<span class="str">"\n--- Simulating crash AFTER commit, BEFORE checkpoint ---\n"</span>);
+    Journal j2 = {{<span class="num">0</span>}, <span class="num">0</span>, <span class="num">0</span>};
+    MainFS fs2 = {<span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>};
+    <span class="fn">journal_write</span>(&amp;j2, <span class="num">9043</span>, <span class="num">0</span>, <span class="num">2048</span>, <span class="num">501</span>);
+    <span class="fn">journal_commit</span>(&amp;j2);
+    <span class="cm">// Crash happens here — no checkpoint</span>
+    <span class="fn">crash_recovery</span>(&amp;j2, &amp;fs2);
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">💻 CODE DISSECTION: TRACING THE FOUR CRASH POINTS</span>
+  <h2>Walking the WAL Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>journal_write()</h3><p><strong>Phase 1.</strong> Writes the <em>intent</em> to the journal entry structure. Note that the main filesystem <code>fs</code> is still untouched at this point — the main structures have not been modified.</p></div>
+    <div class="card"><h3>journal_commit()</h3><p><strong>Phase 2.</strong> Sets the commit marker. From this instant, the transaction is <em>authoritative</em>. Recovery rules that follow will hinge entirely on this bit.</p></div>
+    <div class="card emerald"><h3>journal_checkpoint()</h3><p><strong>Phase 3.</strong> Copies the journaled intent into <code>fs</code> (inode size, block bitmap). This is the "actual" write to real filesystem structures.</p></div>
+    <div class="card crimson"><h3>crash_recovery()</h3><p><strong>The decision tree.</strong> No commit → discard. Commit but no checkpoint → replay. Both complete → no-op.</p></div>
+    <div class="card violet"><h3>The 4 Crash Points</h3><p>Map exactly to where you interrupt between these calls:</p><p>· <strong>Crash 1 &amp; 2</strong> (no commit) → <code>if (!commit_marker)</code> → discard</p><p>· <strong>Crash 3</strong> (commit, no checkpoint) → <code>else if (!checkpoint_done)</code> → replay</p><p>· <strong>Crash 4</strong> (mid-checkpoint) → replay from beginning (idempotent)</p></div>
+    <div class="card amber"><h3>The Verdict</h3><p>The single <code>commit_marker</code> bit is the <em>entire</em> safety mechanism. Everything else is bookkeeping. Crash consistency reduces to a single binary decision point.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎯 INTERACTIVE WORKSHOP: THE PHYSICAL WAL RELAY</span>
+  <h2>The Power-Loss Crash Recovery Simulation</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Student 01 · Journal Writer</h3><p>Holds a small notepad — writes transaction intents in Phase 1. Only adds the "commit stamp" when the instructor says "commit."</p></div>
+    <div class="card amber"><h3>Student 02 · Commit Recorder</h3><p>Holds a red "COMMIT" stamp — stamps the journal entry once Phase 1 completes.</p></div>
+    <div class="card emerald"><h3>Student 03 · Checkpoint Copier</h3><p>Holds the main ledger — copies the journal entry into the ledger <em>only after</em> the commit stamp.</p></div>
+    <div class="card crimson"><h3>Student 04 · Crash Referee</h3><p>Randomly shouts "POWER FAILURE!" at any moment during the transaction. Determines the crash point.</p></div>
+    <div class="card violet"><h3>The Classroom Execution</h3><p>Perform a transaction step by step. Let the Crash Referee shout at unpredictable moments — sometimes during Phase 1, sometimes between Phase 2 and 3, sometimes mid-checkpoint. Each time, the class must decide: <em>discard</em> or <em>replay</em>.</p></div>
+    <div class="card emerald"><h3>The Discovery</h3><p>Every crash scenario has exactly one correct recovery action. The <strong>commit stamp</strong> is <em>always</em> the deciding factor. Students physically experience the binary decision point.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">💻 TRY IT LIVE: AUDITING REAL JOURNAL STATE</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> sudo tune2fs -l /dev/sda1 | grep -i journal   <span class="out"># Journal presence and size</span>
+<span class="cmd">$</span> sudo dumpe2fs -h /dev/sda1 | grep -i features  <span class="out"># Journaling feature flags</span>
+<span class="cmd">$</span> mount | grep " / "                            <span class="out"># Check current data mode</span>
+<span class="cmd">$</span> sudo filefrag /var/log/syslog                 <span class="out"># Extent layout inspection</span>
+<span class="cmd">$</span> sudo dmesg | grep -i "recovery\|journal"      <span class="out"># Boot-time recovery messages</span>
+<span class="cmd">$</span> cat /proc/fs/jbd2/sda1-8/info 2&gt;/dev/null    <span class="out"># Live JBD2 status</span>
+<span class="cmd">$</span> sudo tune2fs -l /dev/sda1 | grep -i "journal size"  <span class="out"># Journal size in blocks</span>
+<span class="cmd">$</span> cat /etc/fstab                                 <span class="out"># Mount options (data=ordered)</span></pre>
+  <p class="hint">On ext4, the journal is a dedicated 128 MB region on disk. The <code>data=ordered</code> mode is the default on most distributions. Look for <code>EXT4-fs recovery complete</code> in <code>dmesg</code> after an unclean boot — that confirms the journal was replayed.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 5: File &amp; Storage Management
+        └── <span class="active">L19: Crash Consistency &amp; Journaling (ACTIVE NODE 🌟)</span>
+              ├── Write-Ahead Logging (Journal → Commit → Checkpoint)
+              └── Recovery Decision Tree &amp; Metadata/Data Journaling Modes</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>A single file operation touches multiple disk structures. Power loss between any two writes creates a specific, predictable corruption state — filesystem leak, silent data loss, or pointer aliasing. <strong>No filesystem can be safe without crash consistency guarantees.</strong></p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>The <strong>Write-Ahead Logging pipeline</strong> resolves this with a three-phase protocol: journal the intent, commit the transaction with a durable marker, then checkpoint the intent into main structures. <strong>The commit marker is the entire safety mechanism</strong> — every recovery decision depends on it.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>Metadata journaling modes (<code>data=journal</code>, <code>data=ordered</code>, <code>data=writeback</code>) trade durability against throughput. <code>data=ordered</code> is the industry sweet spot — metadata is journaled while data blocks stream directly to their final location, delivering crash consistency at near-full speed.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Module 5 Complete — Module 6 Begins</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 20 — The I/O Communication Matrix: Polling, Interrupts, and DMA (Module 6 Begins)</strong><br><br>
+    Module 5 is complete. We have climbed from spinning platters, through file names and inodes, all the way to crash-consistent journaling. Now we descend into <strong>Module 6: I/O Device Management</strong> — the hardware boundary where the kernel communicates with keyboards, mice, network cards, and disks through three architectural strategies: polling, interrupts, and direct memory access. We will see how the journaling writes from L19 actually reach the physical disk — and how the CPU avoids burning its entire execution budget just to notice a key has been pressed.
+  </div>
+  <p class="hint">File: L20.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
