@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L05 · Process Anatomy & The PCB Ledger</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .memory-map { display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; gap: 3px; width: 100%; max-width: 500px; margin: 2vh auto; }
+  .mem-segment { padding: 2vh 1.5vw; border-radius: 8px; text-align: center; font-weight: 700; font-size: clamp(0.85rem, 1.1vw, 1rem); }
+  .mem-text { background: rgba(168,85,247,0.15); border: 2px solid #8B5CF6; color: #C084FC; }
+  .mem-data { background: rgba(59,130,246,0.15); border: 2px solid #3B82F6; color: #60A5FA; }
+  .mem-heap { background: rgba(16,185,129,0.15); border: 2px solid #10B981; color: #34D399; }
+  .mem-stack { background: rgba(245,158,11,0.15); border: 2px solid #F59E0B; color: #FBBF24; }
+  .mem-gap { background: transparent; border: 2px dashed #1E293B; color: #475569; padding: 0.5vh; font-size: 0.75rem; }
+  .state-flow { display: flex; align-items: center; justify-content: center; gap: 0.8vw; flex-wrap: wrap; margin: 2vh 0; }
+  .state-box { padding: 1.5vh 1.2vw; border: 2px solid #3B82F6; border-radius: 10px; background: rgba(59,130,246,0.06); text-align: center; min-width: 110px; }
+  .state-box h4 { font-size: 0.95rem; font-weight: 800; color: #60A5FA; }
+  .state-arrow { font-size: 1.5rem; color: #F59E0B; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .state-flow { flex-direction: column; } .state-arrow { transform: rotate(90deg); } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L05</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-blue">🔰 START HERE // L05 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line"></div>
+  <p class="subtitle">Diagram the internal memory layout of a process and define every tracking metric stored inside the Process Control Block (PCB) kernel ledger.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> Three hundred programs are running on your laptop right now, and <em>every single one of them believes it owns the entire machine</em>. Each thinks it has its own CPU, its own memory, its own address space starting from zero. But the physical machine has one CPU, one RAM chip, and one address space starting from zero. What does the OS actually track about each program to maintain this elaborate fiction?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · Module 1 Complete</h3><p>The dual-mode barrier (L02), the syscall boundary (L03), and the distinction between kernel and user space.</p></div>
+    <div class="card amber"><h3>02 · C Memory Layout</h3><p>The difference between code, global data, heap-allocated memory, and stack-allocated locals. <code>int x;</code> inside a function is not the same as at file scope.</p></div>
+    <div class="card amber"><h3>03 · C Pointers &amp; Structs</h3><p>We will read kernel struct definitions together — the PCB is essentially a large struct.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> The memory layout we cover today is the exact target that L24 (buffer overflow) will exploit and L11 (paging) will partition. L05 is where we introduce the <em>map</em> that those lectures will later attack and virtualize.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE BUSINESS CORPORATE ACCOUNTANT</span>
+  <h2>The Process Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢📋💼</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A massive office building where multiple completely different businesses share the workspace. Each business thinks it is the <em>only</em> company there. To keep them organized, the building manager has a thick ledger folder for every business. Inside each folder: how much money they have (register values), which office doors they have keys to (file descriptors), and which line of their contract they are on (program counter).</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>When a business pauses, the accountant records the exact state. When it resumes, the accountant restores everything as if it never left.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The PCB — the ledger file that lets the OS pause and resume processes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE SAVED-STATE SNAPSHOT</span>
+  <h2>The PCB Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🎮💾⚡</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>When you pause a video game and save, the game captures <em>everything</em>: your health, your position, your inventory, your current quest, your timers. When you later load the save, the game resumes as if no time has passed. The PCB is the OS's save-game snapshot for a process — captures registers, program counter, memory mapping, file descriptors — the complete state needed to resume.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>During a context switch, the OS saves the current process's state into its PCB and loads a different process's state from its PCB.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Why you can run three hundred processes on one CPU — each is paused, saved, and resumed via its PCB snapshot.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE FOUR-DRAWER CABINET</span>
+  <h2>The Memory Segments Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🗄️📁📄</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A filing cabinet with four labeled drawers: Top drawer (Text) — immutable instructions, the compiled program. Second drawer (Data) — global variables. Third drawer (Heap) — dynamically allocated memory growing upward. Bottom drawer (Stack) — local variables and function call frames growing downward as calls nest.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Text sits low (protected by permissions). Stack grows down from high addresses. Heap grows up from Data. They expand toward each other — a deliberate collision arrangement.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The map that L11 paging will partition and L24 exploits will violate.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE BOOKMARK SET</span>
+  <h2>The Register State Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📖🔖📌</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A reader at a desk needs several bookmarks: one for the current story page (program counter), one for a stack of notes being scribbled (register values), one for a list of documents currently in use (file descriptors). If the reader gets called away, all bookmarks must be placed so that upon return, everything resumes exactly where it was.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The PCB stores the program counter, all general-purpose register values, and the FD table — the complete set of bookmarks needed for resumption.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Every register is part of the process's state, and losing any register value destroys the process's progress.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE LEDGER &amp; DRAWING SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>🟢 Paused Process</h3><p>State frozen in the PCB. Waiting in a queue. Ready to be restored at any moment.</p></div>
+    <div class="card emerald"><h3>🔵 Running Process</h3><p>State reflected in live registers and memory. Executing on the CPU right now.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">A process oscillates between these two states. The PCB is the <strong>bridge</strong> between them. Every scheduler decision is a save/restore cycle through the PCB.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE PROCESS ADDRESS SPACE LAYOUT</span>
+  <h2>The Four Memory Segments</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2vw;max-width:1100px;width:100%;margin-top:2vh">
+    <div class="memory-map">
+      <div class="mem-segment mem-stack">Stack (local vars, grows ↓)</div>
+      <div class="mem-gap">← gaps toward each other →</div>
+      <div class="mem-segment mem-heap">Heap (malloc, grows ↑)</div>
+      <div class="mem-segment mem-data">Data (globals)</div>
+      <div class="mem-segment mem-text">Text (code)</div>
+    </div>
+    <div style="text-align:left">
+      <div class="card" style="margin-bottom:1.5vh"><h3>Text Segment</h3><p>Compiled machine instructions. Read-only, executable. Often <strong>shared</strong> between multiple runs of the same binary.</p></div>
+      <div class="card" style="margin-bottom:1.5vh"><h3>Data Segment</h3><p>Global and static variables. Two sub-regions: <code>.data</code> for initialized globals, <code>.bss</code> for zero-initialized.</p></div>
+      <div class="card" style="margin-bottom:1.5vh"><h3>Heap</h3><p>Dynamically allocated memory from <code>malloc()</code>, <code>calloc()</code>, <code>new</code>. Grows <strong>upward</strong>.</p></div>
+      <div class="card"><h3>Stack</h3><p>Local variables and function call frames. Grows <strong>downward</strong>. The stack pointer register tracks the current top.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE KERNEL LEDGER</span>
+  <h2>The Process Control Block (PCB)</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>PCB Field Categories</h3>
+      <p><strong>Identification:</strong> PID, PPID, UID/GID (owner identity for L22 access control).</p>
+      <p><strong>State:</strong> New, Ready, Running, Blocked, Terminated.</p>
+      <p><strong>Program Counter:</strong> Virtual address of next instruction.</p>
+      <p><strong>CPU Registers:</strong> All general-purpose registers, stack pointer, flags.</p>
+      <p><strong>Memory Management:</strong> Pointer to page table (L11), base/bound info (L10).</p>
+      <p><strong>File Descriptors:</strong> Table of open FDs (L17).</p>
+      <p><strong>Scheduling:</strong> Priority, remaining slice, CPU time used.</p>
+      <p><strong>Accounting:</strong> Total CPU time, start time, exit status.</p>
+      <p><strong>Signals:</strong> Handler table for SIGTERM, SIGINT, etc.</p>
+      <p><strong>Links:</strong> Parent and children PCB pointers.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Verdict</h3>
+      <p>The PCB is the <strong>complete</strong> state of the process. Every other subsystem contributes a field to it.</p>
+      <p style="margin-top:1vh">In Linux, the PCB is <code>struct task_struct</code> — a huge structure with hundreds of fields on modern kernels. It holds not just the fields listed left, but also namespaces (L27), cgroup memberships (L27), seccomp filters (L24), credentials (L23), and more.</p>
+      <p style="margin-top:1vh;color:#FBBF24"><strong>Every lecture from here on out manipulates this struct.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE LIFECYCLE STATE MACHINE</span>
+  <h2>The Five Process States</h2>
+  <div class="state-flow">
+    <div class="state-box"><h4>New</h4></div>
+    <div class="state-arrow">→</div>
+    <div class="state-box"><h4>Ready</h4></div>
+    <div class="state-arrow">→</div>
+    <div class="state-box"><h4>Running</h4></div>
+    <div class="state-arrow">→</div>
+    <div class="state-box"><h4>Terminated</h4></div>
+  </div>
+  <div class="state-flow" style="margin-top:2vh">
+    <div class="state-box" style="opacity:0"><h4>–</h4></div>
+    <div class="state-arrow" style="opacity:0">→</div>
+    <div class="state-box" style="opacity:0"><h4>–</h4></div>
+    <div class="state-arrow">→</div>
+    <div class="state-box" style="border-color:#F59E0B;background:rgba(245,158,11,0.06)"><h4 style="color:#FBBF24">Blocked</h4></div>
+    <div class="state-arrow" style="opacity:0">→</div>
+    <div class="state-box" style="opacity:0"><h4>–</h4></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>State Transitions</h3><p><strong>New → Ready:</strong> PCB fully initialized.</p><p><strong>Ready → Running:</strong> Scheduler picks this process.</p><p><strong>Running → Blocked:</strong> Process waits on I/O or lock.</p><p><strong>Running → Ready:</strong> Time slice expires (preemption).</p><p><strong>Blocked → Ready:</strong> I/O completes or lock releases.</p><p><strong>Running → Terminated:</strong> exit() called.</p></div>
+    <div class="card emerald"><h3>The Verdict</h3><p>Only one thread per physical core can be in the <strong>Running</strong> state at any instant. The other states allow the system to have hundreds of processes without needing hundreds of cores.</p><p style="margin-top:1vh"><strong>Running → Blocked</strong> is what makes I/O-bound workloads efficient — the CPU is freed for others while the blocked process waits.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE KERNEL'S PROCESS REGISTRY</span>
+  <h2>The Process Table and the task_struct Layout</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Process Table</h3>
+      <p>A doubly-linked list of <code>struct task_struct</code> objects. Each represents one process (or thread).</p>
+      <p style="margin-top:1vh"><strong>The current pointer:</strong> A per-CPU variable pointing to the currently running process's <code>task_struct</code>. Switching processes = changing <code>current</code>.</p>
+      <p style="margin-top:1vh"><strong>The task_struct is large:</strong> hundreds of fields on a modern kernel. It holds all PCB categories plus namespaces, cgroups, seccomp filters, credentials.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Process Tree</h3>
+      <p>Every process has a <code>parent</code> pointer and a <code>children</code> list.</p>
+      <p style="margin-top:1vh">The root of the tree is <strong>PID 1</strong> (<code>init</code>/<code>systemd</code>), established at boot in L04.</p>
+      <p style="margin-top:1vh">Every process on the system is a descendant of PID 1. The kernel's process table is a tree, not a flat list.</p>
+      <p style="margin-top:1vh;color:#FBBF24"><strong>The process table is the kernel's global index of every active process.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE PCB IN MOTION</span>
+  <h2>Context Switch and PCB Save/Restore</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Context Switch Pipeline</h3>
+      <p><strong>1. Interrupt/syscall:</strong> Current process is interrupted (from L20, L03, or scheduler L07).</p>
+      <p><strong>2. Save state:</strong> Kernel saves all registers into the outgoing process's PCB (rip, rsp, general registers, flags).</p>
+      <p><strong>3. Scheduler decision:</strong> The scheduler picks the next process (L07).</p>
+      <p><strong>4. Load state:</strong> Kernel loads the incoming process's saved registers from its PCB.</p>
+      <p><strong>5. Resume:</strong> CPU returns to the resumed process's saved program counter.</p>
+      <p><strong>6. Continue:</strong> The new process resumes exactly where it left off.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Cost</h3>
+      <p>A context switch costs microseconds — register saves, TLB flushes (from L12), cache pollution.</p>
+      <p style="margin-top:1vh"><strong>Why it matters:</strong> Modern schedulers minimize context switches. Round Robin at 1 ms quantum means 1000 context switches per second per CPU core.</p>
+      <p style="margin-top:1vh;color:#FBBF24"><strong>The fundamental rhythm of multitasking — but not free.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON RING BARRIER</span>
+  <h2>Core System Cohesion — Relies On L03 Syscalls &amp; L02 Dual-Mode</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Every PCB Operation Is a Syscall</h3><p><code>fork()</code>, <code>execve()</code>, <code>wait()</code>, <code>exit()</code>, <code>getpid()</code> — each crosses the Ring 3 → Ring 0 barrier from L02 and is dispatched via the syscall table from L03.</p><p style="margin-top:1vh;color:#60A5FA">The kernel's response to each of these is to modify or create a PCB inside kernel space.</p></div>
+    <div class="card violet"><h3>The Barrier Makes the PCB Trustworthy</h3><p>Without the dual-mode barrier, a user process could directly manipulate its own PCB — corrupting its own state or impersonating another process.</p><p style="margin-top:1vh;color:#A78BFA">The Ring 0 boundary is what makes the PCB ledger trustworthy.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO EXECUTION &amp; SCHEDULING</span>
+  <h2>Core System Cohesion — Feeds Into L06 &amp; L07–L08</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L06 (fork)</h3><p>Clones a PCB — copies every field, then diverges the child (new PID, COW address space from L11).</p></div>
+    <div class="card"><h3>L06 (exec)</h3><p>Overwrites specific PCB fields (new text/data, reset PC) while preserving identity (PID, owner, FDs).</p></div>
+    <div class="card"><h3>L07–L08 (Scheduler)</h3><p>Reads and updates the scheduling fields — priority, accumulated CPU time, remaining quantum.</p></div>
+    <div class="card"><h3>L09 (Threads)</h3><p>Introduces a variant PCB (kernel threads) with shared memory fields — same struct, different sharing flags.</p></div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>Architectural Bond:</strong> If students do not have a solid grasp of the PCB struct from L05, L06–L09 are much harder to follow. Everything after L05 manipulates this struct.
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: PROCESS TRACKING STRATEGIES</span>
+  <h2>PCB Strategies Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic PCB</h3><p>Single global <code>task_struct</code> layout, allocated from kernel slab allocators. Every field is set at creation and updated by kernel code paths. Fast, uniform, but inflexible — adding new process fields requires kernel-wide changes.</p></div>
+    <div class="card emerald"><h3>Microkernel PCB</h3><p>Process state is split between kernel (minimal — small thread control block with register state and address-space reference) and user-space servers (richer per-process state). The kernel maintains only what is required for isolation and scheduling.</p></div>
+    <div class="card amber"><h3>Layered PCB</h3><p>Structured in layers — hardware register save area at bottom, scheduler metrics above, memory references above, security credentials at top. Each layer evolves independently; the compiler enforces layering through struct composition.</p></div>
+    <div class="card"><h3>Modular PCB</h3><p>The kernel's <code>task_struct</code> layout is fixed, but LSM hooks allow security metadata to be attached via specialized modules — the process holds a per-module blob pointer. Extensibility without kernel recompilation.</p></div>
+    <div class="card violet"><h3>Hybrid PCB</h3><p>Core scheduling fields in-kernel for hot-path performance; security context (namespace pointers, cgroup membership, seccomp filters) in dedicated structures referenced from the PCB. Modern Linux is functionally hybrid.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE PROCESS VOCABULARY</span>
+  <h2>Base Process Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Process</h3>
+      <p>An active instance of a running software application containing its own dedicated execution context and address boundaries; unlike a static program binary, a process has runtime state — registers, memory, file descriptors, program counter — tracked by a kernel PCB.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(A business actively operating in the shared office building, with its own ledger folder.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Process Control Block (PCB)</h3>
+      <p>The definitive kernel data structure used to track, schedule, and preserve a process's metadata — including PID, process state, program counter, CPU registers, memory management information, file descriptor table, and scheduling metrics. It is the complete snapshot of a process's state at any moment.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The accountant's ledger — the complete saved-state file for one business.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE PROCESS VOCABULARY</span>
+  <h2>Advanced Process Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Program Counter (PC)</h3>
+      <p>A specialized physical CPU register that stores the memory address of the next instruction waiting to be executed; saved into the PCB on context switch and restored on resumption. On x86-64, this is the RIP register.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The bookmark that tells the reader exactly where to resume.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Process States</h3>
+      <p>The operational lifecycle flag of a task — one of New, Ready, Running, Blocked/Waiting, or Terminated — tracked in the PCB's state field; transitions between states are triggered by syscalls, scheduler decisions, and I/O events.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The traffic light of process progress — waiting, running, blocked, done.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Context Switch</h3>
+      <p>The physical hardware/software process of saving the active CPU register state into the outgoing process's PCB and restoring a different task's context from its PCB; the CPU then resumes executing the new process exactly where it was last paused.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The pause-and-resume rhythm that lets hundreds of programs share one CPU.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: C PCB INSPECTION PANEL</span>
+  <h2>Inspecting a Process's PCB from User Space</h2>
+  <pre class="code-block"><span class="cm">// Inspecting a running process's PCB-visible state from user space</span>
+<span class="cm">// On Linux, /proc/self/ exposes the kernel's task_struct to user space</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;stdlib.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;unistd.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">inspect_self_process</span>() {
+    <span class="kw">pid_t</span> pid = <span class="fn">getpid</span>();
+    <span class="kw">pid_t</span> ppid = <span class="fn">getppid</span>();
+    <span class="kw">char</span> path[<span class="num">128</span>], buffer[<span class="num">1024</span>];
+    FILE* f;
+
+    <span class="fn">printf</span>(<span class="str">"=== Process PCB Inspection (PID %d) ===\n\n"</span>, pid);
+
+    <span class="cm">// --- Identity fields ---</span>
+    <span class="fn">printf</span>(<span class="str">"[IDENTITY]\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  PID:     %d\n"</span>, pid);
+    <span class="fn">printf</span>(<span class="str">"  PPID:    %d\n"</span>, ppid);
+    <span class="fn">printf</span>(<span class="str">"  UID:     %d\n"</span>, <span class="fn">getuid</span>());
+    <span class="fn">printf</span>(<span class="str">"  GID:     %d\n"</span>, <span class="fn">getgid</span>());
+    <span class="fn">printf</span>(<span class="str">"  Session: %d\n"</span>, <span class="fn">getsid</span>(<span class="num">0</span>));
+    <span class="fn">printf</span>(<span class="str">"  PGRP:    %d\n"</span>, <span class="fn">getpgrp</span>());
+
+    <span class="cm">// --- Process state from /proc/self/stat ---</span>
+    <span class="fn">printf</span>(<span class="str">"\n[STATE]\n"</span>);
+    f = <span class="fn">fopen</span>(<span class="str">"/proc/self/stat"</span>, <span class="str">"r"</span>);
+    <span class="kw">if</span> (f) {
+        <span class="kw">char</span> comm[<span class="num">64</span>], state;
+        <span class="kw">int</span> ppid_v, pgrp_v, session_v;
+        <span class="kw">unsigned long</span> minflt, cminflt, majflt, cmajflt;
+        <span class="kw">long</span> cutoff, priority, nice;
+        <span class="kw">int</span> num_threads;
+        <span class="fn">fscanf</span>(f, <span class="str">"%d %s %c %d %d %d %lu %lu %lu %lu %ld %ld %ld %d"</span>,
+               &amp;pid, comm, &amp;state, &amp;ppid_v, &amp;pgrp_v, &amp;session_v,
+               &amp;minflt, &amp;cminflt, &amp;majflt, &amp;cmajflt,
+               &amp;cutoff, &amp;priority, &amp;nice, &amp;num_threads);
+        <span class="fn">fclose</span>(f);
+        <span class="fn">printf</span>(<span class="str">"  State:     %c (%s)\n"</span>, state,
+               state == <span class="str">'R'</span> ? <span class="str">"Running"</span> :
+               state == <span class="str">'S'</span> ? <span class="str">"Sleeping/Blocked"</span> :
+               state == <span class="str">'T'</span> ? <span class="str">"Stopped"</span> : <span class="str">"Other"</span>);
+        <span class="fn">printf</span>(<span class="str">"  Threads:   %d\n"</span>, num_threads);
+        <span class="fn">printf</span>(<span class="str">"  Priority:  %ld\n"</span>, priority);
+    }
+
+    <span class="cm">// --- Memory segments from /proc/self/maps ---</span>
+    <span class="fn">printf</span>(<span class="str">"\n[MEMORY SEGMENTS (from /proc/self/maps)]\n"</span>);
+    f = <span class="fn">fopen</span>(<span class="str">"/proc/self/maps"</span>, <span class="str">"r"</span>);
+    <span class="kw">if</span> (f) {
+        <span class="kw">int</span> line_count = <span class="num">0</span>;
+        <span class="kw">while</span> (<span class="fn">fgets</span>(buffer, <span class="kw">sizeof</span>(buffer), f) &amp;&amp; line_count &lt; <span class="num">8</span>) {
+            buffer[<span class="fn">strcspn</span>(buffer, <span class="str">"\n"</span>)] = <span class="num">0</span>;
+            <span class="fn">printf</span>(<span class="str">"  %s\n"</span>, buffer);
+            line_count++;
+        }
+        <span class="fn">fclose</span>(f);
+    }
+
+    <span class="cm">// --- Open file descriptors ---</span>
+    <span class="fn">printf</span>(<span class="str">"\n[FILE DESCRIPTORS]\n"</span>);
+    <span class="fn">snprintf</span>(path, <span class="kw">sizeof</span>(path), <span class="str">"/proc/self/fd"</span>);
+    <span class="kw">char</span> cmd[<span class="num">160</span>];
+    <span class="fn">snprintf</span>(cmd, <span class="kw">sizeof</span>(cmd), <span class="str">"ls -la %s 2&gt;/dev/null | head -6"</span>, path);
+    <span class="fn">system</span>(cmd);
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="fn">inspect_self_process</span>();
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: TRACING PCB FIELDS</span>
+  <h2>Walking the PCB Inspection Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>getpid() · getppid() · getuid() · getgid()</h3><p>Direct syscalls reading PCB identity fields. <code>getpid()</code> reads <code>current-&gt;pid</code> — a single field access on the running <code>task_struct</code>.</p></div>
+    <div class="card"><h3>fopen("/proc/self/stat")</h3><p>Opens a <em>virtual file</em> (a /proc node from L17) that exposes raw <code>task_struct</code> fields as text. The kernel synthesizes it on read — no disk involved.</p></div>
+    <div class="card"><h3>fscanf parsing state</h3><p>Reads pid, comm (executable name), state (R/S/T/Z), ppid, pgrp, session, minor/major page faults, priority, nice, num_threads — directly from the PCB.</p></div>
+    <div class="card"><h3>fopen("/proc/self/maps")</h3><p>Lists memory mappings — the Text, Data, Heap, Stack, and shared library segments from L05's memory layout. Each line shows start, end, permissions, and file backing.</p></div>
+    <div class="card"><h3>ls /proc/self/fd</h3><p>Lists open FDs as symlinks to their targets. This is the FD table from L17, exposed to user space.</p></div>
+    <div class="card emerald"><h3>The /proc filesystem</h3><p>A kernel-synthesized virtual filesystem where the kernel exposes PCB fields, memory maps, and FD tables as readable files. The primary way tools like <code>ps</code>, <code>top</code>, <code>htop</code> inspect process state.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎯 INTERACTIVE WORKSHOP: THE PHYSICAL PROCESS LAYOUT</span>
+  <h2>The Human PCB Blueprint Map</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Student 01 · Text Segment</h3><p>Holds a card labeled "<code>printf()</code> machine code." Stands in the Text segment zone on the chalkboard.</p></div>
+    <div class="card"><h3>Student 02 · Data Segment</h3><p>Holds "global int x = 42." Stands in the Data segment zone.</p></div>
+    <div class="card"><h3>Student 03 · Heap</h3><p>Holds "<code>malloc(1024)</code> return pointer." Stands in the Heap zone (growing up).</p></div>
+    <div class="card"><h3>Student 04 · Stack</h3><p>Holds "local function loop index." Stands in the Stack zone (growing down from top).</p></div>
+    <div class="card emerald"><h3>Student 05 · PCB</h3><p>Holds the ledger folder. Stands <em>outside</em> the memory map — PCB lives in kernel space, not in the process's address space.</p></div>
+    <div class="card amber"><h3>The Big Question</h3><p>What happens if Heap-growing-up collides with Stack-growing-down? Answer: the process has run out of memory — the fundamental virtual memory ceiling L13 will solve via demand paging and swap.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Pedagogic Takeaway:</strong> Physical intuition for the four-segment memory layout, the growth directions, and the fact that the PCB lives <em>outside</em> the process address space — crucial for understanding context switches.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 TRY IT LIVE: AUDITING LIVE PROCESS LEDGERS</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> cat /proc/self/stat                    <span class="out"># Raw PCB dump for this command</span>
+<span class="cmd">$</span> cat /proc/self/status                  <span class="out"># Human-readable PCB fields</span>
+<span class="cmd">$</span> cat /proc/self/maps                    <span class="out"># Memory segment mappings</span>
+<span class="cmd">$</span> ls -la /proc/self/fd                   <span class="out"># File descriptor table</span>
+<span class="cmd">$</span> ls -la /proc/1/                        <span class="out"># PCB directory for PID 1 (systemd)</span>
+<span class="cmd">$</span> cat /proc/1/cmdline                    <span class="out"># Executable name of PID 1</span>
+<span class="cmd">$</span> ps aux | head -10                      <span class="out"># View of every process's PCB</span>
+<span class="cmd">$</span> ps -eLf | head -20                     <span class="out"># Per-thread view (L09 preview)</span>
+<span class="cmd">$</span> pstree -p | head -20                   <span class="out"># The full process tree</span>
+<span class="cmd">$</span> top -b -n 1 | head -15                 <span class="out"># Live PCB-driven state</span></pre>
+  <p class="hint">Every line is the "ledger" made visible — the PCB is not abstract.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 2: Process Management
+        └── <span class="active">L05: Process Anatomy &amp; The PCB Ledger (ACTIVE NODE 🌟)</span>
+              ├── Four Memory Segments &amp; Five Process States
+              └── PCB Fields, task_struct &amp; Context Switch Save/Restore</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>A process is a running program with its own address space, organized into four segments — <strong>Text</strong> (instructions), <strong>Data</strong> (globals), <strong>Heap</strong> (dynamic allocations growing up), and <strong>Stack</strong> (local variables growing down). The layout is enforced by the ELF format, the compiler, and the kernel's loader.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>The Process Control Block is the kernel's <strong>complete ledger</strong> for a process — PID, state, program counter, all CPU registers, page table pointer, FD table, scheduling metrics, signal handlers, and parent/child links. Without it, no process could be paused and resumed.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>A context switch is the <strong>save-restore cycle</strong> through the PCB: save the current process's register state, load the next process's register state, resume execution exactly where the next process left off. It is the fundamental rhythm of multitasking — not free, but the foundation of modern OS behavior.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 06 — Process Execution Mechanics: fork, exec, and Context Switch</strong><br><br>
+    Now that we have the PCB ledger, we will <em>use</em> it. We will dissect <code>fork()</code> — the system call that clones a PCB to create a child process — and <code>exec()</code> — the system call that overwrites a PCB's address space to load a new binary. We will trace the famous "fork-return-0-in-child-returns-PID-in-parent" pattern line by line, and we will see exactly what a context switch does to every field of the PCB we studied today. The entire Unix process model rests on these two syscalls.
+  </div>
+  <p class="hint">File: L06.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
