@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L10 · Relocation Models & Base-and-Bound Isolation</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .ram-grid { display: grid; grid-template-columns: repeat(20, 1fr); gap: 2px; max-width: 1000px; width: 100%; margin: 2vh auto; }
+  .ram-cell { height: 24px; border-radius: 2px; font-size: 0.55rem; display: flex; align-items: center; justify-content: center; font-family: "SF Mono", monospace; font-weight: 700; }
+  .ram-empty { background: #1E293B; color: #475569; }
+  .ram-procA { background: #3B82F6; color: #fff; }
+  .ram-procB { background: #10B981; color: #020617; }
+  .ram-procC { background: #8B5CF6; color: #fff; }
+  .ram-frag { background: rgba(239,68,68,0.3); border: 1px dashed #EF4444; color: #F87171; }
+  .ram-label { font-size: 0.7rem; color: #475569; text-align: center; margin-top: 0.5vh; font-family: "SF Mono", monospace; }
+  .math-box { max-width: 850px; padding: 2vh 2vw; border-radius: 12px; background: rgba(59,130,246,0.06); border: 2px solid #3B82F6; text-align: left; margin: 2vh auto; }
+  .math-box h4 { color: #60A5FA; font-size: 1.1rem; margin-bottom: 1vh; }
+  .math-box p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.65; }
+  .math-box .formula { color: #FBBF24; font-family: "SF Mono", monospace; font-weight: 800; font-size: clamp(1rem, 1.3vw, 1.2rem); }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .ram-grid { grid-template-columns: repeat(10, 1fr); } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L10</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-blue">🔰 START HERE // L10 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line"></div>
+  <p class="subtitle">Manually derive valid physical memory address locations from logical addresses given specific Base and Bound hardware register limits, and catch security bounds exceptions.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> Every program is compiled as if it owns the entire machine's memory — starting from address zero and going up to whatever size it needs. But in a multiprogrammed system, five programs are running simultaneously, all convinced they start at address zero. If each actually wrote to physical address zero, they would obliterate each other. How does the hardware trick five programs into sharing one RAM chip, each believing it owns the whole thing?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · Module 2 Complete</h3><p>Processes (L05), context switch (L06), and threading (L09). Every process has its own virtual view of memory — we will now build that view.</p></div>
+    <div class="card amber"><h3>02 · Hardware Registers</h3><p>The concept of CPU registers holding fixed values during execution. Base and bound registers are hardware, not software.</p></div>
+    <div class="card amber"><h3>03 · Binary Address Arithmetic</h3><p>Comfort with hexadecimal numbers, addition of addresses, and comparing numeric ranges (<code>&lt;</code>, <code>&gt;=</code>).</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> Base-and-bound is the <em>first</em> attempt at memory virtualization. It fails — but understanding <em>why</em> it fails is essential preparation for L11's paging, which succeeds.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE HOTEL ROOM NUMBERING ILLUSION</span>
+  <h2>The Relocation Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏨🔑🚪</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Every guest at a hotel resort receives an automated room booklet saying they are in "Room 100" (the <em>logical address</em>). When they go to find their room, they use a master keycard lock. The hotel's physical architecture silently maps each guest's "Room 100" to a completely different floor. Guest A's "Room 100" is really room 500. Guest B's "Room 100" is really room 800. They both think they occupy room 100, but the front desk <em>relocates</em> them seamlessly.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Base register holds the physical starting offset. Guest's logical 100 + base 500 = physical 600.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Every guest (program) believes the same illusion, but the OS silently provides a different physical location.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE HOTEL KEYCARD BOUND</span>
+  <h2>The Bound Check Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🛡️🚫🚪</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The hotel also tells Guest A their room is a small 10-room suite (the <em>bound</em>). If Guest A tries to open "Room 115" (logical address 15, past their bound of 10), the keycard <em>fails</em> instantly. The door is not just locked — the system actively rejects the attempt and sounds a security alert.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The Bound register holds the maximum allowable offset. If the logical address is &lt; 0 or &gt;= bound, the CPU raises a bounds exception.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The bound is what <em>prevents</em> Guest A from wandering into Guest B's suite. It is the security mechanism.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE OFFICE CUBICLE SHARING</span>
+  <h2>The Multiprogramming Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢👥🔄</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>An office building has one large open floor. Different teams (processes) are placed in non-overlapping cubicle blocks. Team A gets cubicles 0–49, Team B gets cubicles 50–99, Team C gets cubicles 100–149. Each team's internal numbering starts at 0 (their "desk 0", "desk 1" — the logical addresses), but their physical cubicle numbers are their block offset plus their internal index.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Each process is loaded at a different physical base in RAM. The OS gives each process a different base register pointing to its block.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Contiguous allocation of each process's address space — the first approximation of memory virtualization.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE SWISS CHEESE</span>
+  <h2>The Fragmentation Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🧀🕳️📊</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The office building is now riddled with holes. A team of 20 cubicles left, freeing cubicles 20–39. A new team of 15 arrives, fits in 20–34. Then a team of 10 arrives — they need 10 cubicles, but the only free space is cubicles 35–39 (only 5 cubicles) plus 15 more scattered cubicles elsewhere. Total free space exists (say 40 cubicles total), but no single contiguous block is large enough for the new team. This is <strong>external fragmentation</strong> — the memory exists, but it is scattered.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Base-and-bound requires contiguous physical blocks. When processes finish and new ones arrive, the memory becomes fragmented.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Fragmentation is the fatal flaw of base-and-bound. L11's paging will solve it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE RELOCATION SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>✅ What Base-and-Bound Provides</h3><p>Relocation (each process sees address 0), isolation (bounds prevent overlap), and fast lookup (one addition + one comparison).</p></div>
+    <div class="card crimson"><h3>❌ What It Fails At</h3><p>Requires contiguous physical blocks. Large free space totals become useless when fragmented. Cannot support virtual memory larger than physical RAM.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Base-and-bound is the <strong>first approximation</strong>. It works for batch systems with small processes but collapses under multitasking workloads. Its failures motivate paging.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE LOGICAL VS PHYSICAL DISTINCTION</span>
+  <h2>Logical Address vs Physical Address</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Logical Address (Virtual)</h3>
+      <p>An address generated by the compiler and CPU instruction stream during development and runtime execution.</p>
+      <p style="margin-top:1vh"><strong>Also called:</strong> virtual address, program address, process address.</p>
+      <p style="margin-top:1vh"><strong>Property:</strong> Always starts at 0 for each process. The program thinks it owns all memory.</p>
+      <p style="margin-top:1vh"><strong>Example:</strong> The assembly instruction <code>mov 0x100, %rax</code> — reads from logical address 0x100 (256).</p>
+    </div>
+    <div class="card emerald">
+      <h3>Physical Address</h3>
+      <p>The actual, hardware-wired slot location inside the physical RAM chip matrix.</p>
+      <p style="margin-top:1vh"><strong>Also called:</strong> real address, actual RAM address.</p>
+      <p style="margin-top:1vh"><strong>Property:</strong> Shared globally among all running processes. Each byte of RAM has exactly one physical address.</p>
+      <p style="margin-top:1vh"><strong>Example:</strong> RAM chip slot 0x1400 (5120) — some specific physical byte location.</p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>The core abstraction:</strong> The base register silently translates logical addresses into physical addresses at runtime, invisible to the process.
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE HARDWARE ARBITRATION TRIAD</span>
+  <h2>Base and Bound Registers</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Base Register</h3>
+      <p>A physical CPU tracking register that stores the absolute <em>starting</em> physical address of a program's active memory slot.</p>
+      <p style="margin-top:1vh">Set by the OS on context switch. Read by the MMU on every address access.</p>
+      <p style="margin-top:1vh;color:#FBBF24">Example: Base = 14000 means the process's logical address 0 maps to physical address 14000.</p>
+    </div>
+    <div class="card amber">
+      <h3>Bound Register</h3>
+      <p>A physical hardware safety register tracking the <em>maximum size</em> allocation block granted to a running process context.</p>
+      <p style="margin-top:1vh">Set by the OS on context switch. Read by the MMU on every address access.</p>
+      <p style="margin-top:1vh;color:#FBBF24">Example: Bound = 2000 means logical addresses 0–1999 are valid; 2000+ triggers a bounds exception.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The MMU</h3>
+      <p>The Memory Management Unit — hardware inside the CPU that performs the translation and bounds check on every memory access.</p>
+      <p style="margin-top:1vh"><strong>Per-access work:</strong> One addition (logical + base) and one comparison (logical &lt; bound).</p>
+      <p style="margin-top:1vh;color:#34D399">Extremely fast — hardware circuits perform this in a single clock cycle.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE ADDRESS TRANSLATION FORMULA</span>
+  <h2>The Translation Mechanism</h2>
+  <div class="math-box">
+    <h4>The Translation Rule</h4>
+    <p>Every memory access follows this exact hardware sequence:</p>
+    <p style="margin-top:1.5vh"><span class="formula">1. Check:</span> if (logical_addr &lt; 0) OR (logical_addr &gt;= Bound) → <strong>FAULT</strong></p>
+    <p><span class="formula">2. Translate:</span> physical_addr = logical_addr + Base</p>
+    <p><span class="formula">3. Access:</span> Read or write to physical_addr</p>
+    <p style="margin-top:1.5vh;color:#94A3B8">If the check fails, the CPU raises a segmentation fault before the memory access occurs. The kernel's trap handler (L03) catches the exception and typically terminates the process.</p>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>✅ Valid Translation Example</h3>
+      <p><strong>Process configuration:</strong> Base = 14000, Bound = 2000.</p>
+      <p><strong>Logical address:</strong> 450.</p>
+      <p><strong>Check:</strong> 450 &lt; 2000 ✓ (passes bounds check).</p>
+      <p><strong>Translate:</strong> 450 + 14000 = 14450.</p>
+      <p><strong>Result:</strong> Physical address 14450. <span style="color:#34D399">Valid execution.</span></p>
+    </div>
+    <div class="card crimson">
+      <h3>❌ Failed Translation Example</h3>
+      <p><strong>Process configuration:</strong> Base = 14000, Bound = 2000.</p>
+      <p><strong>Logical address:</strong> 2100.</p>
+      <p><strong>Check:</strong> 2100 ≥ 2000 ✗ (exceeds bound!).</p>
+      <p><strong>Result:</strong> Hardware triggers a CPU exception trap.</p>
+      <p style="color:#F87171"><strong>The process is terminated with a Segmentation Fault.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE MULTIPROGRAMMING SETUP</span>
+  <h2>Multiple Processes Sharing Physical RAM</h2>
+  <p class="subtitle" style="margin-bottom:1vh">Physical RAM partitioned into contiguous blocks, each owned by one process.</p>
+  <div class="ram-grid">
+    <div class="ram-cell ram-procA" style="grid-column: span 4;">A</div>
+    <div class="ram-cell ram-procA" style="grid-column: span 4;">A</div>
+    <div class="ram-cell ram-procB" style="grid-column: span 4;">B</div>
+    <div class="ram-cell ram-procB" style="grid-column: span 4;">B</div>
+    <div class="ram-cell ram-empty" style="grid-column: span 2;">free</div>
+    <div class="ram-cell ram-procC" style="grid-column: span 2;">C</div>
+  </div>
+  <div class="ram-label">0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 &nbsp;&nbsp;&nbsp; 8192 &nbsp;&nbsp;&nbsp; 12288 &nbsp;&nbsp; 16384 &nbsp;&nbsp; 20480</div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Process A</h3><p><strong>Base:</strong> 0x0000<br><strong>Bound:</strong> 0x2000 (8192 bytes)<br><strong>Occupies:</strong> Physical 0–8191</p></div>
+    <div class="card emerald"><h3>Process B</h3><p><strong>Base:</strong> 0x2000 (8192)<br><strong>Bound:</strong> 0x2000 (8192 bytes)<br><strong>Occupies:</strong> Physical 8192–16383</p></div>
+    <div class="card violet"><h3>Process C</h3><p><strong>Base:</strong> 0x4800 (18432)<br><strong>Bound:</strong> 0x0800 (2048 bytes)<br><strong>Occupies:</strong> Physical 18432–20479</p></div>
+  </div>
+  <p class="hint" style="margin-top:2vh">Three processes, three base/bound pairs, one physical RAM. No overlap. All three believe they own the whole machine.</p>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: THE FATAL FLAW</span>
+  <h2>External Fragmentation</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Problem</h3>
+      <p>Base-and-bound requires contiguous physical blocks. When processes finish and new ones arrive, the memory becomes full of small "holes" between allocations.</p>
+      <p style="margin-top:1vh">A new process needs 8 KB. Total free space is 20 KB — but scattered across 5 fragments of 4 KB each. <strong>No single fragment is large enough.</strong></p>
+      <p style="margin-top:1vh">This is called <strong>external fragmentation</strong> — the memory exists, but not where it is needed.</p>
+    </div>
+    <div class="card amber">
+      <h3>The Mitigation (and Why It Fails)</h3>
+      <p><strong>Compaction:</strong> Shift all occupied blocks together, combining holes into one large block. Works but requires copying every process in memory — extremely slow.</p>
+      <p style="margin-top:1vh"><strong>Allocation policies:</strong> First-fit, best-fit, worst-fit. Reduce but do not eliminate fragmentation.</p>
+      <p style="margin-top:1vh;color:#FBBF24"><strong>Compaction only works if all processes can be moved</strong> — which requires virtual memory, which base-and-bound cannot provide.</p>
+    </div>
+  </div>
+  <div class="callout callout-crimson" style="margin-top:3vh">
+    <strong>The Verdict:</strong> Base-and-bound's fixed-size contiguous allocation is fundamentally incompatible with long-running multiprogramming systems. Its failures drive the invention of paging (L11).
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON DUAL-MODE BARRIER</span>
+  <h2>Core System Cohesion — Relies On L02</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>The Base/Bound Registers Are Privileged</h3><p>Only Ring 0 code (the kernel) can read or modify the base and bound registers. If user code could write them, it could set its own base to cover the entire RAM chip and read other processes' memory.</p></div>
+    <div class="card violet"><h3>The Dual-Mode Barrier Protects the Registers</h3><p>When the CPU executes a context switch (L06), the kernel writes new base/bound values into the registers. In Ring 3, those writes would trigger a <code>#GP</code> fault.</p></div>
+    <div class="card"><h3>The Bounds Check Is Enforced Every Access</h3><p>The MMU checks the bound on every memory access — but the check relies on the bound register holding its correct value, which relies on the hardware privilege barrier from L02.</p></div>
+    <div class="card emerald"><h3>Removing the Barrier Collapses the System</h3><p>If user code could modify the bound register, it could break out of its memory sandbox and access any process's memory. The base/bound scheme is only as secure as the dual-mode barrier.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO PAGING AND BEYOND</span>
+  <h2>Core System Cohesion — Feeds Into L11 &amp; L13</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L11 (Paging)</h3><p>Paging fixes base-and-bound's fatal flaw: it splits memory into small fixed-size frames, eliminating external fragmentation entirely. Each process's pages can be scattered anywhere in physical RAM — no contiguity requirement.</p></div>
+    <div class="card"><h3>L12 (TLB)</h3><p>Paging introduces the page table, which requires walking on every access. The TLB caches recent translations to hide this cost — the base-and-bound single-addition becomes a cached-TLB hit.</p></div>
+    <div class="card"><h3>L13 (Demand Paging)</h3><p>Once paging is in place, the OS can defer loading pages until they are actually accessed. Virtual memory larger than RAM becomes possible — impossible with base-and-bound.</p></div>
+    <div class="card emerald"><h3>The Iteration</h3><p>Base-and-bound → paging → TLB → demand paging → swap. Each layer fixes the previous layer's weakness. This is the entire arc of Module 3.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: MEMORY MODEL STRATEGIES</span>
+  <h2>Relocation Strategies Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Relocation</h3><p>Base/bound hardware registers managed directly by the kernel's memory manager. Fastest (hardware-level check) but inflexible — the kernel must track all memory allocations and fragmentation manually.</p></div>
+    <div class="card emerald"><h3>Microkernel Relocation</h3><p>The kernel maintains only a minimal address space descriptor (base, bound, or an equivalent capability). User-space memory managers enforce higher-level policies. Slower, but the isolation is provable — base/bound is a kernel primitive, not a policy.</p></div>
+    <div class="card amber"><h3>Layered Relocation</h3><p>Hardware MMU performs the check → kernel maintains page tables → user-space memory allocator manages its own heap. Each layer adds policy but never bypasses the hardware bound check.</p></div>
+    <div class="card"><h3>Modular Relocation</h3><p>The kernel's memory manager is modular — different MMU configurations (base/bound, paging, segmentation) loaded per hardware platform. Modern Linux uses paging exclusively but supports segmentation via modules.</p></div>
+    <div class="card violet"><h3>Hybrid Relocation</h3><p>Base/bound for simple embedded devices, paging for general-purpose systems, segmentation + paging for x86 legacy compatibility. Modern OSes offer multiple memory models based on workload.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE RELOCATION VOCABULARY</span>
+  <h2>Base Relocation Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Logical Address</h3>
+      <p>A virtual address generated by the compiler and CPU instruction stream during development and runtime execution. It starts at address 0 for every process and represents the process's internal view of memory. Also called a <em>virtual address</em>.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The hotel guest's assigned "Room 100" — the address they think they have.)</p>
+    </div>
+    <div class="card emerald">
+      <h3>Term 02 · Physical Address</h3>
+      <p>The actual, hardware-wired slot location inside the physical RAM chip matrix. It is shared globally among all processes, and each byte of RAM has exactly one physical address. Also called a <em>real address</em>.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The real room number — what the hotel manager actually knows.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE RELOCATION VOCABULARY</span>
+  <h2>Advanced Relocation Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Base Register</h3>
+      <p>A physical CPU tracking chip that stores the absolute starting physical address of a program's active memory slot. Set by the kernel on context switch, read by the MMU on every memory access. Every logical address is offset by the base to produce the physical address.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The front desk's mapping from "Room 100" to the guest's real floor.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Bound Register</h3>
+      <p>A physical hardware safety register tracking the maximum size allocation block granted to a running process context. If any logical address exceeds the bound, the CPU raises a segmentation fault before the memory access occurs — the security mechanism that prevents a process from reading or writing outside its allocated region.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The hotel keycard that fails when a guest tries "Room 115" past their 10-room bound.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · External Fragmentation</h3>
+      <p>A memory management problem where total free space is sufficient for a new allocation, but no single contiguous block is large enough because free space is scattered across small holes between existing allocations. The fatal flaw of contiguous allocation schemes like base-and-bound.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The Swiss cheese — plenty of cheese total, but no single solid slice large enough.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: C BASE-AND-BOUND SIMULATOR</span>
+  <h2>Simulating the MMU Translation</h2>
+  <pre class="code-block"><span class="cm">// Simulating base-and-bound MMU address translation in C</span>
+<span class="cm">// Demonstrates valid access, bounds violation, and multi-process isolation</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;stdlib.h&gt;</span>
+
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    <span class="kw">int</span> pid;
+    <span class="kw">unsigned int</span> base;
+    <span class="kw">unsigned int</span> bound;
+} ProcessRegisters;
+
+<span class="cm">// The MMU translation function — runs on every memory access</span>
+<span class="kw">int</span> <span class="fn">mmu_translate</span>(ProcessRegisters* proc, <span class="kw">unsigned int</span> logical_addr,
+                   <span class="kw">unsigned int</span>* physical_out) {
+    <span class="cm">// 1. Bounds check</span>
+    <span class="kw">if</span> (logical_addr &gt;= proc-&gt;bound) {
+        <span class="fn">printf</span>(<span class="str">"  [PID %d] FAULT: logical 0x%X exceeds bound 0x%X\n"</span>,
+               proc-&gt;pid, logical_addr, proc-&gt;bound);
+        <span class="kw">return</span> -<span class="num">1</span>;  <span class="cm">// Segmentation fault</span>
+    }
+
+    <span class="cm">// 2. Translate</span>
+    *physical_out = logical_addr + proc-&gt;base;
+    <span class="fn">printf</span>(<span class="str">"  [PID %d] logical 0x%X -&gt; physical 0x%X\n"</span>,
+           proc-&gt;pid, logical_addr, *physical_out);
+    <span class="kw">return</span> <span class="num">0</span>;
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="cm">// Three processes, each with its own base and bound</span>
+    ProcessRegisters processes[] = {
+        { .pid = <span class="num">1001</span>, .base = <span class="num">0x0000</span>, .bound = <span class="num">0x2000</span> },  <span class="cm">// 0-8KB</span>
+        { .pid = <span class="num">1002</span>, .base = <span class="num">0x2000</span>, .bound = <span class="num">0x2000</span> },  <span class="cm">// 8-16KB</span>
+        { .pid = <span class="num">1003</span>, .base = <span class="num">0x4800</span>, .bound = <span class="num">0x0800</span> },  <span class="cm">// 18-20KB</span>
+    };
+
+    <span class="fn">printf</span>(<span class="str">"=== Base-and-Bound MMU Translation ===\n\n"</span>);
+
+    <span class="cm">// Test cases: (process_index, logical_address)</span>
+    <span class="kw">struct</span> { <span class="kw">int</span> p; <span class="kw">unsigned int</span> la; } tests[] = {
+        { <span class="num">0</span>, <span class="num">0x0100</span> },  <span class="cm">// Process 1, address 0x100 → valid</span>
+        { <span class="num">0</span>, <span class="num">0x1FFF</span> },  <span class="cm">// Process 1, address 0x1FFF (just below bound) → valid</span>
+        { <span class="num">0</span>, <span class="num">0x2000</span> },  <span class="cm">// Process 1, address 0x2000 (at bound) → FAULT</span>
+        { <span class="num">1</span>, <span class="num">0x0040</span> },  <span class="cm">// Process 2, address 0x40 → valid</span>
+        { <span class="num">1</span>, <span class="num">0x1F00</span> },  <span class="cm">// Process 2, address 0x1F00 → valid</span>
+        { <span class="num">2</span>, <span class="num">0x0400</span> },  <span class="cm">// Process 3, address 0x400 → valid</span>
+        { <span class="num">2</span>, <span class="num">0x0800</span> },  <span class="cm">// Process 3, address 0x800 (at bound) → FAULT</span>
+    };
+
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; <span class="num">7</span>; i++) {
+        <span class="kw">unsigned int</span> physical;
+        <span class="kw">int</span> result = <span class="fn">mmu_translate</span>(&amp;processes[tests[i].p],
+                                       tests[i].la, &amp;physical);
+        <span class="kw">if</span> (result != <span class="num">0</span>) {
+            <span class="fn">printf</span>(<span class="str">"  [PID %d] → SIGSEGV: process would be terminated\n\n"</span>,
+                   processes[tests[i].p].pid);
+        }
+    }
+
+    <span class="fn">printf</span>(<span class="str">"\n=== Isolation Demonstration ===\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"Each process sees its OWN logical address 0x0100:\n"</span>);
+    <span class="kw">unsigned int</span> phys;
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; <span class="num">3</span>; i++) {
+        <span class="fn">mmu_translate</span>(&amp;processes[i], <span class="num">0x0100</span>, &amp;phys);
+    }
+    <span class="fn">printf</span>(<span class="str">"Same logical address, three DIFFERENT physical addresses!\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"This is base-and-bound isolation.\n"</span>);
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: TRACING THE MMU TRANSLATION</span>
+  <h2>Walking the Base-and-Bound Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>mmu_translate(proc, logical, &amp;physical)</h3><p>The core MMU function. In real hardware, this is a single-cycle logic circuit. In our C simulation, it is a few operations that exactly mirror the hardware behavior.</p></div>
+    <div class="card crimson"><h3>if (logical &gt;= proc-&gt;bound)</h3><p><strong>The bounds check.</strong> If the logical address equals or exceeds the bound, the memory access is <em>rejected before it happens</em>. In real hardware, this triggers a #GP fault. In the OS, the kernel catches the fault and terminates the offending process.</p></div>
+    <div class="card"><h3>*physical_out = logical + base</h3><p><strong>The translation.</strong> A single addition. This is why base-and-bound is extremely fast — one hardware adder per memory access. In contrast, paging (L11) requires a page table walk unless the TLB (L12) has a cached translation.</p></div>
+    <div class="card emerald"><h3>The Isolation Demo</h3><p>All three processes access logical address <code>0x0100</code>. They get <em>three different</em> physical addresses (0x0100, 0x2100, 0x4900). Each process believes it has "address 0x0100" — but each is actually pointing to a different byte in the shared RAM chip.</p></div>
+    <div class="card"><h3>Test case 0x2000 → FAULT</h3><p>Process 1 attempts to access address 0x2000, which is exactly at its bound. The MMU rejects the access, and the process would be terminated with SIGSEGV. This is the same failure mode as a real NULL pointer dereference or buffer overflow.</p></div>
+    <div class="card amber"><h3>The Seamless Illusion</h3><p>The entire demonstration shows that each process sees its own isolated address space starting from 0. This is the <em>entire point</em> of base-and-bound: it makes the multiprogramming illusion possible.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎯 INTERACTIVE WORKSHOP: THE PHYSICAL RELOCATION MACHINE</span>
+  <h2>The Chalkboard Relocation Machine</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>The Setup</h3><p>Draw a grid of 100 numbered squares on the board representing physical RAM. Hand two students dry-erase markers.</p></div>
+    <div class="card amber"><h3>Student 01 · Process A</h3><p><strong>Base:</strong> 20 · <strong>Bound:</strong> 10<br>Can access logical 0–9 → physical 20–29.</p></div>
+    <div class="card emerald"><h3>Student 02 · Process B</h3><p><strong>Base:</strong> 50 · <strong>Bound:</strong> 15<br>Can access logical 0–14 → physical 50–64.</p></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Valid Commands</h3>
+      <p>"Student 1, access logical 5" → physical 25 ✓</p>
+      <p>"Student 2, access logical 10" → physical 60 ✓</p>
+      <p>"Student 1, access logical 8" → physical 28 ✓</p>
+    </div>
+    <div class="card crimson"><h3>Invalid Commands</h3>
+      <p>"Student 1, access logical 15" → exceeds bound 10 → "SIGSEGV!"</p>
+      <p>"Student 2, access logical 20" → exceeds bound 15 → "SIGSEGV!"</p>
+      <p>"Student 1, access logical 22" → exceeds bound 10 → "SIGSEGV!"</p>
+    </div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Discussion:</strong> Now have both students write their names at their physical addresses. Ask the class: "Did Student 1's writes affect Student 2?" Answer: <em>No, because their base/bound pairs do not overlap.</em> That is isolation.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 TRY IT LIVE: AUDITING REAL RELOCATION AND ADDRESSES</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> cat /proc/self/maps                       <span class="out"># Memory regions of current process</span>
+<span class="cmd">$</span> cat /proc/self/stat | awk '{print $23, $24, $25}'  <span class="out"># Start/end stack</span>
+<span class="cmd">$</span> head -3 /proc/self/maps                    <span class="out"># First 3 virtual mappings</span>
+<span class="cmd">$</span> sudo cat /proc/1/maps | head -3            <span class="out"># PID 1's virtual mappings</span>
+<span class="cmd">$</span> cat /proc/self/status | grep -i "vm"        <span class="out"># Virtual memory status</span>
+<span class="cmd">$</span> cat /sys/kernel/mm/transparent_hugepage/enabled  <span class="out"># Huge page setting</span>
+<span class="cmd">$</span> cat /proc/sys/vm/overcommit_memory          <span class="out"># Memory commit policy</span>
+<span class="cmd">$</span> sudo dmesg | grep -i "segfault" | tail -5   <span class="out"># Recent bounds violations</span></pre>
+  <p class="hint">Notice that every process's <code>/proc/self/maps</code> starts at a similar virtual base — because all processes share the same logical address space conventions, but map to <em>different</em> physical memory.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 3: Memory Management
+        └── <span class="active">L10: Relocation Models &amp; Base-and-Bound (ACTIVE NODE 🌟)</span>
+              ├── Logical vs Physical Address &amp; Hardware MMU
+              └── Bounds Check Mechanism &amp; External Fragmentation Limits</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p><strong>Base-and-bound</strong> is the first form of memory virtualization. Each process has a base register (its physical starting address) and a bound register (its maximum size). The MMU adds base to every logical address and checks against the bound.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>The scheme provides <strong>relocation and isolation</strong>: each process sees address 0, and the bounds check prevents overlap. But it requires <strong>contiguous physical blocks</strong>, which leads to <strong>external fragmentation</strong> — free memory scattered across small holes that cannot satisfy large allocations.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>Base-and-bound is <strong>fast</strong> (one addition, one comparison per access) but <strong>fundamentally limited</strong>. It cannot support processes larger than physical RAM, cannot support virtual memory, and cannot eliminate fragmentation. Its failures motivate L11's paging — the solution that all modern operating systems use.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 11 — The Paging Model &amp; Fixed-Size Translation Matrix</strong><br><br>
+    Base-and-bound is fast but fatally fragmented. The fix is dramatic: chop memory into tiny fixed-size units called pages (virtual) and frames (physical), then map them through a <strong>page table</strong>. Any page can go into any frame — no contiguity required. External fragmentation disappears. But a new cost appears: every memory access now requires two trips to RAM (one for the page table, one for the data). We will trace a full 32-bit virtual address through the page table, walk through the MMU translation step by step, and see how fixed-size paging eliminates the Swiss cheese problem forever.
+  </div>
+  <p class="hint">File: L11.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
