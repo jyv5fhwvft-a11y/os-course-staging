@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L27 · Modern Isolation Paradigms</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  .badge-indigo { color: #A5B4FC; border-color: #6366F1; background: rgba(99,102,241,0.08); }
+  .badge-pink { color: #F9A8D4; border-color: #EC4899; background: rgba(236,72,153,0.08); }
+  .badge-fuchsia { color: #F0ABFC; border-color: #D946EF; background: rgba(217,70,239,0.08); }
+  .badge-cyan { color: #67E8F9; border-color: #06B6D4; background: rgba(6,182,212,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-cyan { border-color: #06B6D4; background: rgba(6,182,212,0.06); color: #67E8F9; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.cyan h3 { color: #67E8F9; } .card.cyan { border-color: #164E63; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .isolation-spectrum { display: flex; align-items: center; justify-content: center; gap: 0.5vw; width: 100%; max-width: 1100px; margin: 2vh auto; }
+  .spectrum-box { flex: 1; padding: 2.5vh 1vw; border-radius: 10px; border: 2px solid; text-align: center; font-size: clamp(0.7rem, 0.9vw, 0.8rem); }
+  .spec-sandbox { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .spec-ns { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .spec-cont { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .spec-microvm { border-color: #A78BFA; background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  .spec-vm { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .spec-arrow { font-size: 1.2rem; color: #475569; }
+  .spec-label { text-align: center; color: #475569; font-size: 0.75rem; margin-top: 1vh; font-family: "SF Mono", monospace; }
+  .ns-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6vw 1.5vw; max-width: 1000px; width: 100%; margin: 2vh auto; }
+  .ns-item { padding: 1.5vh 1.2vw; border-radius: 8px; border: 2px solid; text-align: left; font-size: clamp(0.75rem, 0.95vw, 0.85rem); }
+  .ns-item strong { display: block; font-family: "SF Mono", monospace; margin-bottom: 0.5vh; font-size: 0.95rem; }
+  .ns-pid { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .ns-pid strong { color: #60A5FA; }
+  .ns-net { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .ns-net strong { color: #34D399; }
+  .ns-mnt { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .ns-mnt strong { color: #FBBF24; }
+  .ns-uts { border-color: #A78BFA; background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  .ns-uts strong { color: #A78BFA; }
+  .ns-ipc { border-color: #EC4899; background: rgba(236,72,153,0.06); color: #F9A8D4; }
+  .ns-ipc strong { color: #F9A8D4; }
+  .ns-user { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .ns-user strong { color: #F87171; }
+  .cgroup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8vw 1.5vw; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .cg-item { padding: 1.8vh 1.2vw; border-radius: 8px; border: 2px solid; text-align: left; font-size: clamp(0.75rem, 0.95vw, 0.85rem); }
+  .cg-item strong { display: block; font-family: "SF Mono", monospace; color: #FBBF24; margin-bottom: 0.5vh; font-size: 0.95rem; }
+  .cg-cpu { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .cg-mem { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .cg-io { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .cg-pids { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .runtime-stack { display: flex; flex-direction: column; align-items: center; gap: 0.8vh; max-width: 800px; width: 100%; margin: 2vh auto; }
+  .runtime-layer { padding: 1.8vh 2vw; border-radius: 8px; border: 2px solid; text-align: center; font-family: "SF Mono", monospace; font-size: clamp(0.8rem, 1vw, 0.9rem); font-weight: 800; min-width: 320px; }
+  .rt-cli { border-color: #10B981; background: rgba(16,185,129,0.08); color: #34D399; }
+  .rt-engine { border-color: #3B82F6; background: rgba(59,130,246,0.08); color: #60A5FA; }
+  .rt-shim { border-color: #F59E0B; background: rgba(245,158,11,0.08); color: #FBBF24; }
+  .rt-oci { border-color: #8B5CF6; background: rgba(139,92,246,0.08); color: #A78BFA; }
+  .rt-kernel { border-color: #EF4444; background: rgba(239,68,68,0.08); color: #F87171; }
+  .rt-arrow { font-size: 1.3rem; color: #475569; font-weight: 800; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .isolation-spectrum { flex-direction: column; } .spec-arrow { transform: rotate(90deg); } .ns-grid, .cgroup-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L27</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-cyan">🔰 START HERE // L27 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#06B6D4"></div>
+  <p class="subtitle">Compare the structural isolation boundaries of sandboxing, namespaces, and containers against full hardware hypervisors.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> L26 taught us to build a strong perimeter — a firewall at the network edge, IDS/IPS inside, and certificates proving every connection. But modern workloads run on shared cloud hardware, behind a dozen external APIs, pulling dependencies from the entire internet. <strong>There is no trusted interior anymore</strong> — the network is hostile by default. How do we isolate every workload at the process level, so that a breach in one container cannot touch its neighbors on the same physical machine?
+  </div>
+  <p class="hint">Press → to begin
+</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L05 Process Anatomy</h3><p>Address spaces, PIDs, file descriptors, and the PCB. Containers are just heavily customized processes with altered visibility.</p></div>
+    <div class="card amber"><h3>02 · L11 Virtual Memory</h3><p>Page tables and address spaces. Namespaces reuse this to isolate memory between containers on the same host.</p></div>
+    <div class="card amber"><h3>03 · L22 Access Control</h3><p>Linux capabilities and privilege dropping — a container does not need to be root inside if it drops capabilities from the host.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> Emphasize that a container is <em>not</em> a magic new technology. It is a very clever reuse of every isolation primitive we have studied: namespaces restrict <em>what the process can see</em>; cgroups restrict <em>what the process can consume</em>; and the container runtime orchestrates them together. Nothing new at the kernel level — just unprecedented composition.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan">🎒 EVERYDAY SIMPLIFIED: THE PADDED ROOM</span>
+  <h2>The Sandbox Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🛏️🧸🚪</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A patient is placed in a padded room. They can move around, do whatever they want, and suffer no harm — but they cannot break anything outside the room because the room contains nothing breakable. Every external interaction must go through a narrow window, and the room itself is padded to absorb the impact of anything they do.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>A sandbox restricts an application's ability to interact with the system — it can only perform the operations the OS explicitly allows. Modern sandboxes (Chrome's site isolation, iOS app sandboxes, Android app sandboxes) restrict every syscall and every file access.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Sandboxing is the most restrictive isolation tier — the process is boxed in, with only the resources it explicitly needs.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan">🎒 EVERYDAY SIMPLIFIED: THE APARTMENT COMPLEX</span>
+  <h2>The Namespace Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢🏠🏢</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Tenants live in separate apartments inside one building. The foundation, plumbing, and electrical systems are all shared — there is only one building. But each apartment has its own private space. Tenants cannot see into each other's apartments, cannot read each other's mail, cannot walk into each other's kitchens. All the sharing is physical infrastructure, not living space.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Linux namespaces partition <em>visibility</em> — each namespace is a private view of some system resource (PIDs, network interfaces, mount points, hostname, user IDs). Two containers share the same host kernel but see completely different system state.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Namespaces are the <em>view restriction</em> primitive — they hide resources, not consume them separately.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan">🎒 EVERYDAY SIMPLIFIED: THE PORTABLE SHIPPING CRATE</span>
+  <h2>The Container Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📦🏭🚢</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A container is a shipping crate you can lift out of one building and drop into another — instantly operational, no rebuilding required. It carries everything the application needs inside it (code, dependencies, libraries), and the crate's walls provide isolation from the outside building.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>A container is a <em>packaged</em> set of namespaces, cgroups, and filesystem layers — an application and all its dependencies, isolated from the host and from other containers, portable across hosts.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Containers bundle the isolation primitives into a portable, deployable unit — they are the <em>product</em> of the primitives, not a new primitive themselves.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan">🎒 EVERYDAY SIMPLIFIED: THE SEPARATE BUILDING</span>
+  <h2>The Hypervisor Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢🧱🏢</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>When maximum isolation is required, you build a completely separate building on separate land. No shared foundation, no shared plumbing, no shared electricity. Each building has its own physical infrastructure. The cost is enormous — you need new land, new foundation, new pipes — but the isolation is complete.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>A hypervisor emulates physical hardware, creating a fully independent guest OS inside a virtual machine. Each guest has its own kernel, its own drivers, and its own hardware abstraction — but pays the full cost of booting an entire OS.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>VMs provide the strongest isolation because they <em>duplicate the kernel</em> — a kernel exploit in one VM does not affect the others.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE ISOLATION SPECTRUM SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="isolation-spectrum">
+    <div class="spectrum-box spec-sandbox">🛏️ Sandbox<br><span style="font-size:0.65rem;opacity:0.7">Max restriction</span></div>
+    <div class="spec-arrow">→</div>
+    <div class="spectrum-box spec-ns">🏠 Namespaces<br><span style="font-size:0.65rem;opacity:0.7">View isolation</span></div>
+    <div class="spec-arrow">→</div>
+    <div class="spectrum-box spec-cont">📦 Containers<br><span style="font-size:0.65rem;opacity:0.7">Packaged isolation</span></div>
+    <div class="spec-arrow">→</div>
+    <div class="spectrum-box spec-microvm">🚀 MicroVMs<br><span style="font-size:0.65rem;opacity:0.7">Hybrid</span></div>
+    <div class="spec-arrow">→</div>
+    <div class="spectrum-box spec-vm">🧱 VMs<br><span style="font-size:0.65rem;opacity:0.7">Max isolation</span></div>
+  </div>
+  <div class="spec-label">Lightweight ← → Heavyweight</div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Isolation is not binary — it is a <strong>spectrum</strong>. Namespaces and sandboxes are lightweight (microseconds to start, megabytes of RAM); containers add packaging; VMs are heavyweight (seconds to boot, gigabytes of RAM) but provide the strongest boundary. Modern systems <em>blend</em> them: containers inside VMs, sandboxes inside containers.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan">💻 SYSTEMS COHESION: THE ISOLATION BUILDING BLOCKS</span>
+  <h2>The Linux Namespace Primitives</h2>
+  <div class="ns-grid">
+    <div class="ns-item ns-pid"><strong>PID</strong>Isolates the process ID space. A process inside sees itself as PID 1, with its own process tree — independent of the host PIDs.</div>
+    <div class="ns-item ns-net"><strong>NET</strong>Isolates network interfaces, IP addresses, routing tables, and firewall rules. Each container gets its own loopback and virtual ethernet pair.</div>
+    <div class="ns-item ns-mnt"><strong>MNT</strong>Isolates the filesystem mount tree. Different containers can see different root filesystems.</div>
+    <div class="ns-item ns-uts"><strong>UTS</strong>Isolates hostname and domain name. Two containers on the same host can claim the same hostname.</div>
+    <div class="ns-item ns-ipc"><strong>IPC</strong>Isolates System V IPC and POSIX message queues. Shared memory does not leak across containers.</div>
+    <div class="ns-item ns-user"><strong>USER</strong>Isolates UID/GID mappings. A process with UID 0 inside a user namespace maps to an unprivileged UID on the host — a critical security feature.</div>
+  </div>
+  <div class="callout callout-cyan" style="margin-top:2vh">
+    <strong>The Verdict:</strong> Each namespace solves one isolation problem. Containers compose them — a typical container uses PID, network, mount, UTS, IPC, user, and cgroup namespaces simultaneously. The result is a completely isolated view of the system.
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan">💻 SYSTEMS COHESION: THE RESOURCE THROTTLE</span>
+  <h2>Control Groups (cgroups) — Resource Limits</h2>
+  <div class="cgroup-grid">
+    <div class="cg-item cg-cpu"><strong>cpu</strong>Enforces CPU time shares (<code>cpu.weight</code>) and bandwidth caps (<code>cpu.max</code> — e.g., "100ms per 100ms period" = 1 core).</div>
+    <div class="cg-item cg-mem"><strong>memory</strong>Enforces memory limits (<code>memory.max</code>), swap limits, and OOM-kill behavior.</div>
+    <div class="cg-item cg-io"><strong>io</strong>Enforces block device read/write bandwidth caps (<code>io.max</code>). A container cannot saturate the host disk.</div>
+    <div class="cg-item cg-pids"><strong>pids</strong>Limits the number of processes the cgroup can create — a fork bomb inside one container cannot exhaust the host's PID space.</div>
+  </div>
+  <div class="callout callout-cyan" style="margin-top:2vh">
+    <strong>The Verdict:</strong> Namespaces without cgroups are isolation without limits — a single container could exhaust host memory. cgroups prevent this and are the crucial second half of container isolation. Namespaces hide <em>what the process can see</em>; cgroups cap <em>how much the process can consume</em>.
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan">💻 SYSTEMS COHESION: THE CONTAINER STACK</span>
+  <h2>The Container Runtime Architecture</h2>
+  <div class="runtime-stack">
+    <div class="runtime-layer rt-cli">docker / podman / nerdctl</div>
+    <div class="rt-arrow">↓</div>
+    <div class="runtime-layer rt-engine">containerd / CRI-O</div>
+    <div class="rt-arrow">↓</div>
+    <div class="runtime-layer rt-shim">runc / crun / kata-containers</div>
+    <div class="rt-arrow">↓</div>
+    <div class="runtime-layer rt-oci">OCI Runtime Spec (config.json, rootfs)</div>
+    <div class="rt-arrow">↓</div>
+    <div class="runtime-layer rt-kernel">Linux kernel primitives (namespaces, cgroups, capabilities, seccomp)</div>
+  </div>
+  <div class="callout callout-cyan" style="margin-top:2vh">
+    <strong>The Verdict:</strong> A container is a <em>composition</em>, not a primitive. The CLI calls the engine, the engine calls the shim, the shim clones a process with namespaces and cgroups applied, chroots into the container filesystem, and <code>execve</code>s the entrypoint. Every component we studied in L22–L26 plays a role: file permissions (L22), capabilities (L22), and namespaces (L27).
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan">💻 SYSTEMS COHESION: THE FULL HARDWARE DUPLICATION</span>
+  <h2>Hypervisor-Based Isolation</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Hypervisor Types</h3>
+      <p><strong>Type 1 (bare-metal):</strong> Hypervisor runs directly on hardware, with guest OSes on top. Examples: KVM, Xen, VMware ESXi, Hyper-V. Fastest (near-native performance), used in data centers.</p>
+      <p style="margin-top:1vh"><strong>Type 2 (hosted):</strong> Hypervisor runs as an application on a host OS. Examples: VirtualBox, VMware Workstation. Slower (extra layer) but convenient for desktop use.</p>
+    </div>
+    <div class="card crimson">
+      <h3>The Isolation Properties</h3>
+      <p><strong>Full kernel duplication:</strong> Each VM has its own kernel, its own drivers, its own filesystem, its own network stack.</p>
+      <p style="margin-top:1vh"><strong>Hardware-level trap:</strong> Guest memory accesses are checked by hardware (EPT, NPT) — a guest kernel cannot read another guest's memory even in Ring 0 of the guest.</p>
+      <p style="margin-top:1vh"><strong>Cost:</strong> Booting a VM takes seconds to minutes and consumes GB of RAM.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan">💻 SYSTEMS COHESION: THE VM-CONTAINER HYBRID</span>
+  <h2>Kata Containers and the Hybrid Model</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Kata Containers</h3>
+      <p>Container interface over a lightweight VM. Uses OCI image format for portability but runs each container in its own micro-VM (Firecracker, QEMU) for full hardware isolation.</p>
+      <p style="margin-top:1vh"><strong>Cost:</strong> ~10× slower startup than pure containers.</p>
+    </div>
+    <div class="card violet">
+      <h3>gVisor</h3>
+      <p>A user-space kernel that intercepts all container syscalls, providing most of the isolation benefits of a VM without the VM overhead.</p>
+      <p style="margin-top:1vh"><strong>Trade-off:</strong> Medium isolation, medium overhead — a compromise between container and VM.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Firecracker MicroVM</h3>
+      <p>Amazon's lightweight hypervisor — boots in ~125 ms, uses ~5 MB RAM — designed specifically for container-like workloads with VM isolation.</p>
+      <p style="margin-top:1vh"><strong>Cost:</strong> The gold standard for multi-tenant cloud workloads.</p>
+    </div>
+  </div>
+  <div class="callout callout-emerald" style="margin-top:2vh">
+    <strong>The Verdict:</strong> Hybrid isolation is the emerging standard for multi-tenant cloud workloads — it captures the security of the VM with the ergonomics of the container. Pure containers have maximum performance; MicroVMs have maximum isolation.
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON PROCESS, MEMORY, AND ACCESS CONTROL</span>
+  <h2>Core System Cohesion — Relies On L05, L11, L22</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L05 (Process Anatomy)</h3><p>A container is just a process with a customized PID namespace and mount namespace — the PCB still exists, just with different visible state.</p></div>
+    <div class="card"><h3>L11 (Virtual Memory)</h3><p>Namespaces partition the <em>virtual address space</em> view; each container sees only its own mappings.</p></div>
+    <div class="card"><h3>L22 (Access Control)</h3><p>Linux capabilities and seccomp policies restrict which syscalls a container process can invoke — the container's privilege set is the intersection of the process's inherent capabilities and the container policy.</p></div>
+    <div class="card emerald"><h3>The Architectural Bond</h3><p>Every isolation primitive in L27 comes from a prior lecture. The container is the <em>synthesis</em> — the proof that all the modules compose.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO THE GRAND SYNTHESIS</span>
+  <h2>Core System Cohesion — Feeds Into L28</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>The Complete Stack</h3><p>Every subsystem in the course — process management (M2), memory management (M3), synchronization (M4), file systems (M5), I/O (M6), and security (M7) — now has a concrete realization in the container architecture.</p></div>
+    <div class="card"><h3>L28's Trace</h3><p>L28 will trace a single user transaction through all seven modules in sequence. The container is the environment in which that transaction happens — and understanding it is the final piece before synthesis.</p></div>
+    <div class="card violet"><h3>The Pre-Retrospective</h3><p>L27 is the last technical lecture before the retrospective. Every concept from L00–L26 culminates here.</p></div>
+    <div class="card emerald"><h3>The Verdict</h3><p>The container is not the destination — it is the <em>proof that every subsystem fits together</em>. The retrospective will make this explicit.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: KERNEL ISOLATION STRATEGIES</span>
+  <h2>Isolation Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Isolation</h3><p>Namespaces and cgroups are built directly into the kernel. <code>clone()</code>, <code>setns()</code>, and <code>unshare()</code> manipulate kernel global tables. Fast — but the <em>entire isolation logic</em> is in the shared kernel, meaning a kernel bug can break isolation for every container at once.</p></div>
+    <div class="card emerald"><h3>Microkernel Isolation</h3><p>Isolation is structural, not built — every process is a separate IPC server. A "container" is just a set of user-space servers that share an IPC namespace. Much stronger isolation (each process is fully isolated by default), but slower due to the IPC overhead of every operation.</p></div>
+    <div class="card amber"><h3>Layered Isolation</h3><p>Each layer adds a distinct isolation boundary — hardware MMU (L11) → user/kernel boundary (L02) → container namespace → host ring separation. Multiple layers, each independently verifiable.</p></div>
+    <div class="card"><h3>Modular Isolation</h3><p>Container runtime is a user-space module (containerd, CRI-O); kernel primitives are pluggable (different namespace drivers). Isolation policy can be composed dynamically — this is the actual Linux model.</p></div>
+    <div class="card cyan"><h3>Hybrid Isolation</h3><p>Containers for the common case (fast startup, shared kernel), MicroVMs (Firecracker) for multi-tenant cloud workloads requiring stronger isolation. Modern Kubernetes clusters run both — standard pods on shared-kernel nodes, sensitive workloads on Kata/microVM-isolated nodes.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE ISOLATION VOCABULARY</span>
+  <h2>Base Isolation Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Sandbox</h3>
+      <p>A highly restrictive execution environment that intercepts and blocks dangerous application system calls to prevent system modifications; the most restrictive isolation tier, typically used to contain untrusted code (browser renderers, mobile apps). A sandbox prevents the code from doing anything the OS has not explicitly authorized.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The padded room — anything inside can only do what the room explicitly allows.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Namespace</h3>
+      <p>A native kernel configuration feature that isolates system resource visibility (PIDs, networks, mounts, hostname, user IDs) for a targeted group of processes; each namespace presents its own private view of that system resource, invisible to processes outside the namespace. The view-isolation primitive on which containers are built.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The apartment unit — shared plumbing but a private living space you cannot peek into.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE ISOLATION VOCABULARY</span>
+  <h2>Advanced Isolation Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Cgroup</h3>
+      <p>A kernel resource throttling primitive used to cap maximum allocation consumption thresholds (CPU time slices, memory bytes, block I/O bandwidth, PID count) around a process stream; namespaces isolate <em>what</em> the process can see, cgroups isolate <em>how much</em> the process can consume.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The utility meter that limits how much electricity the apartment can draw.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Container</h3>
+      <p>A portable, self-contained user-space isolation runtime package that executes natively on a shared host kernel; it composes namespaces (visibility isolation) and cgroups (resource isolation) to isolate a workload without booting a separate kernel. The container format is orchestrated by containerd/runc and standardized by OCI.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The shipping crate — portable, self-contained, ready to open in any building.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Hypervisor</h3>
+      <p>A virtualization abstraction layer that emulates physical hardware components, requiring an independent guest operating system layer; provides the strongest isolation because each guest has its own kernel, but pays the full cost of booting a complete OS.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The separate building with its own foundation, plumbing, and electricity.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan">💻 CODE DISSECTION: C NAMESPACE ISOLATION SIMULATOR</span>
+  <h2>Creating a Namespace in C</h2>
+  <pre class="code-block"><span class="cm">// Demonstrating a new PID and UTS namespace via clone() in C</span>
+<span class="cm">// Compile: gcc -o ns ns.c &amp;&amp; sudo ./ns</span>
+<span class="cm">// (root required to create namespaces)</span>
+<span class="cm">#define _GNU_SOURCE</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;stdlib.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;sched.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;sys/wait.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;unistd.h&gt;</span>
+
+<span class="kw">#define</span> STACK_SIZE (<span class="num">1024</span> * <span class="num">1024</span>)  <span class="cm">// 1MB child stack</span>
+
+<span class="kw">static char</span> child_stack[STACK_SIZE];
+
+<span class="kw">int</span> <span class="fn">child_entry</span>(<span class="kw">void</span>* arg) {
+    <span class="fn">printf</span>(<span class="str">"\n[CHILD] Inside new namespace...\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"[CHILD] PID in my own view: %d\n"</span>, <span class="fn">getpid</span>());
+    <span class="fn">printf</span>(<span class="str">"[CHILD] Parent PID view: %d\n"</span>, <span class="fn">getppid</span>());
+    <span class="cm">// In a PID namespace, this process is PID 1, and getppid() = 0</span>
+    <span class="kw">return</span> <span class="num">0</span>;
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="fn">printf</span>(<span class="str">"[HOST] Parent PID: %d\n"</span>, <span class="fn">getpid</span>());
+    <span class="fn">printf</span>(<span class="str">"[HOST] Creating child in new PID + UTS namespace...\n"</span>);
+
+    <span class="cm">// CLONE_NEWPID = new process ID namespace</span>
+    <span class="cm">// CLONE_NEWUTS = new hostname namespace</span>
+    <span class="kw">int</span> flags = CLONE_NEWPID | CLONE_NEWUTS | SIGCHLD;
+
+    <span class="kw">int</span> pid = <span class="fn">clone</span>(child_entry, child_stack + STACK_SIZE, flags, NULL);
+    <span class="kw">if</span> (pid == -<span class="num">1</span>) {
+        <span class="fn">perror</span>(<span class="str">"clone"</span>);
+        <span class="kw">return</span> <span class="num">1</span>;
+    }
+
+    <span class="fn">printf</span>(<span class="str">"[HOST] Waiting for child to finish...\n"</span>);
+    <span class="fn">waitpid</span>(pid, NULL, <span class="num">0</span>);
+    <span class="fn">printf</span>(<span class="str">"[HOST] Child exited. Back in original namespace.\n"</span>);
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan">💻 CODE DISSECTION: TRACING NAMESPACE ISOLATION</span>
+  <h2>Walking the Namespace Creation Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>clone(child_entry, ..., CLONE_NEWPID | CLONE_NEWUTS, NULL)</h3><p><strong>The core isolation call.</strong> Creates a new process that shares nothing visible with the parent's process tree or hostname. This is the fundamental kernel primitive that containers are built on.</p></div>
+    <div class="card emerald"><h3>CLONE_NEWPID</h3><p><strong>New PID namespace.</strong> The child's <code>getpid()</code> will return <code>1</code> (because it is the first process in the new namespace). The host never sees this child as PID 1 — the host still sees it as its own assigned PID.</p></div>
+    <div class="card violet"><h3>CLONE_NEWUTS</h3><p><strong>New UTS namespace.</strong> The child can call <code>sethostname()</code> and change its hostname — but the change is scoped to its UTS namespace. The host's hostname is unaffected.</p></div>
+    <div class="card"><h3>[CHILD] Inside new namespace...</h3><p><strong>The isolated view.</strong> The child process is now isolated. It cannot see the parent's PID tree, its hostname is its own, and its view of the system is completely partitioned from the parent.</p></div>
+    <div class="card"><h3>[HOST] Back in original namespace.</h3><p>When the child exits, its namespaces are destroyed (unless preserved by another process). The parent remains in its original namespace — unaffected, unaware of the isolation that existed beneath it.</p></div>
+    <div class="card cyan"><h3>The Docker Equivalent</h3><p>This code is a miniature version of what <code>docker run</code> does. The engine calls <code>clone()</code> with the right flag combination, then applies cgroups, then <code>execve</code>s the container entrypoint. Same primitive.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎯 INTERACTIVE WORKSHOP: THE HOST KERNEL RESOURCE SHARE AUDIT</span>
+  <h2>The Shared vs Isolated Sort</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Students 01–10 · The Classifiers</h3><p>Each receives a card labeled with a technical component from a running container host.</p></div>
+    <div class="card amber"><h3>Student 11 · The Judge</h3><p>Reads the correct classification after each student votes.</p></div>
+    <div class="card emerald"><h3>The Two Columns</h3><p>The board has two columns: <strong>Shared with Host Kernel</strong> and <strong>Isolated Container Sandbox</strong>. Each student places their card in one.</p></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>The Card Deck</h3>
+      <p>· The <code>sys_scheduler</code> core clock code</p>
+      <p>· The <code>/dev/sda</code> block device interface</p>
+      <p>· A <code>/tmp</code> directory inside the container</p>
+      <p>· The kernel's physical memory allocator</p>
+      <p>· The container's <code>/dev/null</code> node</p>
+      <p>· The host's network interface driver (eth0)</p>
+      <p>· The container's virtual eth0 interface</p>
+      <p>· The kernel's system call dispatch table</p>
+      <p>· The container's PID 1 process</p>
+      <p>· The host's PID 1 (systemd)</p>
+    </div>
+    <div class="card emerald"><h3>The Discovery</h3>
+      <p><strong>Always shared:</strong> The kernel core, block device drivers, physical memory allocator, syscall dispatch.</p>
+      <p><strong>Always isolated:</strong> The <code>/tmp</code>, <code>/dev/null</code>, container PID 1, virtual eth0.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>The boundary between shared kernel and isolated namespace</strong> is the essence of container security. A kernel exploit is a container escape — because the shared kernel is the single point of failure.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan">💻 TRY IT LIVE: AUDITING REAL CONTAINER ISOLATION</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> lsns                                    <span class="out"># List all namespaces on the host</span>
+<span class="cmd">$</span> lsns -t pid                             <span class="out"># List PID namespaces</span>
+<span class="cmd">$</span> ps aux | grep containerd                <span class="out"># See container runtime processes</span>
+<span class="cmd">$</span> sudo cat /proc/1/status | grep -i "NSpid"  <span class="out"># PID namespace chain for PID 1</span>
+<span class="cmd">$</span> ls /sys/fs/cgroup/                       <span class="out"># cgroups v2 hierarchy</span>
+<span class="cmd">$</span> docker run -d --rm alpine sleep 300      <span class="out"># Start a test container</span>
+<span class="cmd">$</span> docker stats                             <span class="out"># Live resource usage per container</span>
+<span class="cmd">$</span> docker exec &lt;container&gt; lsns            <span class="out"># Namespaces inside the container</span>
+<span class="cmd">$</span> docker exec &lt;container&gt; cat /proc/self/cgroup  <span class="out"># cgroup membership</span></pre>
+  <p class="hint"><code>lsns</code> shows every namespace on the host — real container hosts have dozens active. <code>/proc/1/status NSpid</code> shows the PID namespace chain — how the process's PID appears in each namespace. <code>docker stats</code> shows the cgroup <code>memory.max</code> value as the "memory limit" column.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 7: Security &amp; Protection
+        └── <span class="active">L27: Modern Isolation Paradigms (ACTIVE NODE 🌟)</span>
+              ├── Hypervisor Hardware Emulation vs Container Native Primitives
+              └── Namespaces (View) + Cgroups (Limits) + Hybrid MicroVMs</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>Containers are not a new kernel technology — they are a <strong>composition</strong> of existing primitives: namespaces (isolate visibility), cgroups (isolate resource consumption), and file permissions/capabilities (isolate privilege). Every isolation element comes from prior lectures (L02, L05, L11, L22).</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p><strong>Hypervisors</strong> provide the strongest isolation because they duplicate the entire guest kernel — at the cost of ~10× more memory and ~10× slower startup. <strong>Containers</strong> provide faster startup and higher density at the cost of shared-kernel vulnerability (a kernel exploit is a container escape).</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>Modern isolation is <strong>hybrid</strong>: containers for ergonomic deployment, MicroVMs (Firecracker, Kata) for multi-tenant cloud security, gVisor for syscall isolation without full VM overhead. The choice depends on the threat model, not on any universal "best" answer.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 28 — Grand Course Retrospective</strong><br><br>
+    We have now completed all 28 lectures across 7 modules. Every subsystem we built — process management, memory, synchronization, file systems, I/O, and security — is now in place. The final lecture traces a single user action — double-clicking a spreadsheet on a USB drive — through <em>every</em> kernel subsystem in sequence: from the hardware interrupt (L20) that detects the USB, through path resolution (L17), inode traversal (L18), journaling (L19), page faults (L13), TLB hits (L12), authentication (L23), access control (L22), and container namespaces (L27). By the end, the operating system becomes a single continuous clockwork — not a collection of independent topics, but a unified engine.
+  </div>
+  <p class="hint">File: L28.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
