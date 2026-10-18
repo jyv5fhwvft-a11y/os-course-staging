@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L24 · Program Exploits</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  .badge-indigo { color: #A5B4FC; border-color: #6366F1; background: rgba(99,102,241,0.08); }
+  .badge-slate { color: #CBD5E1; border-color: #475569; background: rgba(71,85,105,0.15); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-slate { border-color: #475569; background: rgba(71,85,105,0.15); color: #CBD5E1; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.slate h3 { color: #CBD5E1; } .card.slate { border-color: #334155; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .stack-frame { max-width: 500px; width: 100%; margin: 2vh auto; font-family: "SF Mono", monospace; }
+  .stack-row { display: flex; align-items: center; padding: 1.5vh 1vw; border: 2px solid; margin-bottom: 2px; border-radius: 4px; font-size: clamp(0.75rem, 1vw, 0.85rem); }
+  .stack-row .label { flex: 1; text-align: left; font-weight: 700; }
+  .stack-row .value { font-family: "SF Mono", monospace; font-weight: 800; }
+  .stack-in { background: rgba(245,158,11,0.08); border-color: #F59E0B; color: #FCD34D; }
+  .stack-in .label { color: #FBBF24; }
+  .stack-target { background: rgba(239,68,68,0.08); border-color: #EF4444; color: #FCA5A5; }
+  .stack-target .label { color: #F87171; }
+  .stack-canary { background: rgba(139,92,246,0.08); border-color: #8B5CF6; color: #C4B5FD; }
+  .stack-canary .label { color: #A78BFA; }
+  .stack-buffer { background: rgba(16,185,129,0.08); border-color: #10B981; color: #6EE7B7; }
+  .stack-buffer .label { color: #34D399; }
+  .stack-label { text-align: center; font-size: 0.75rem; color: #475569; margin-bottom: 0.5vh; font-family: "SF Mono", monospace; }
+  .defenses { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.2vw; max-width: 1100px; width: 100%; margin: 2vh auto; }
+  .defense-card { padding: 3vh 1.8vw; border-radius: 12px; border: 2px solid; text-align: left; }
+  .defense-card .icon { font-size: 2.2rem; margin-bottom: 1.2vh; }
+  .defense-card h4 { font-size: 1.2rem; font-weight: 800; margin-bottom: 1.2vh; }
+  .defense-card p { font-size: clamp(0.8rem, 1vw, 0.9rem); line-height: 1.55; margin-bottom: 0.6vh; }
+  .defense-card .blocks { margin-top: 1.5vh; padding: 1vh 1vw; border-radius: 4px; font-family: "SF Mono", monospace; font-size: 0.75rem; font-weight: 700; text-align: center; }
+  .def-canary { border-color: #8B5CF6; background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  .def-canary h4 { color: #A78BFA; }
+  .def-canary .blocks { background: rgba(139,92,246,0.15); color: #A78BFA; }
+  .def-aslr { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .def-aslr h4 { color: #60A5FA; }
+  .def-aslr .blocks { background: rgba(59,130,246,0.15); color: #60A5FA; }
+  .def-nx { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .def-nx h4 { color: #34D399; }
+  .def-nx .blocks { background: rgba(16,185,129,0.15); color: #34D399; }
+  .attack-flow { display: flex; flex-direction: column; gap: 1.2vh; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .attack-step { display: flex; gap: 1.5vw; align-items: center; padding: 2vh 2vw; border-radius: 10px; border: 2px solid; text-align: left; }
+  .attack-step .num { font-size: 1.8rem; font-weight: 900; min-width: 60px; }
+  .attack-step p { font-size: clamp(0.85rem, 1.05vw, 0.95rem); line-height: 1.5; }
+  .att-1 { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .att-2 { border-color: #F97316; background: rgba(249,115,22,0.06); color: #FDBA74; }
+  .att-3 { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .att-4 { border-color: #DC2626; background: rgba(220,38,38,0.06); color: #FCA5A5; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .defenses { grid-template-columns: 1fr; } .attack-step { flex-direction: column; text-align: center; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L24</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-crimson">🔰 START HERE // L24 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#EF4444"></div>
+  <p class="subtitle">Explain how a stack buffer overflow hijacks CPU control flow pipelines, and state the protective roles of ASLR and Stack Canaries.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> In 1988, the Morris Worm exploited a buffer overflow in <code>fingerd</code> and infected 10% of the internet. In 2024, buffer overflows still dominate CVE disclosures — Microsoft, Google, and Apple all still patch them every month. <strong>Forty years after we learned the cause, we still write them.</strong> Why is this one class of bug so persistent — and why does modern hardware and compiler support fight so hard to contain the damage?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L05 Process Anatomy</h3><p>Process memory layout: Text, Data, Heap, <strong>Stack</strong>, and how the Call instruction pushes a return address that the Return instruction pops.</p></div>
+    <div class="card amber"><h3>02 · L23 Authentication</h3><p>Credential parsing, the most common attack surface — login prompts, password verifiers, token parsers are prime targets for buffer overflows.</p></div>
+    <div class="card amber"><h3>03 · C String Operations</h3><p><code>strcpy</code>, <code>strcat</code>, <code>gets</code>, and their dangerous unbounded behavior. Understanding why <code>strcpy</code> has no maximum length.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> Buffer overflows are <em>not</em> a flaw of the C language itself. They are a flaw of <em>trusting input length</em>. Every language, including Rust and Go, has had overflow-equivalent bugs — they are simply much harder to write. This is a language-level <em>policy</em> problem, not a compiler-level one.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">🎒 EVERYDAY SIMPLIFIED: THE OVERFILLED SHELF</span>
+  <h2>The Buffer Overflow Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📦📦🚨</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The floor manager assigns you a tight shelf slot — exactly 10 boxes' worth of space. Directly next to it is a critical emergency button that halts the entire facility. If you overfill your slot with 15 boxes, the extra 5 spill over onto the emergency button. You were not supposed to reach the button — but nobody stopped you from putting too many boxes on the shelf.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The buffer is the shelf. The return address is the emergency button. The <code>strcpy</code> that copied the input is the employee ignoring the "10 box" limit.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This maps directly to unchecked <code>strcpy()</code> — a function that copies until it sees a null terminator, regardless of the destination buffer size.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">🎒 EVERYDAY SIMPLIFIED: THE BOOKMARK</span>
+  <h2>The Return Address Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📖🔖📖</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>When you are reading a book and take a break, you place a bookmark to remember where to resume. If someone snatches the book, moves your bookmark to a completely different chapter, and hands it back, you will "resume reading" — but in the <em>wrong place</em>. A CPU executes the same way: the "bookmark" (return address on the stack) tells it where to resume. An attacker who overwrites that bookmark can make the CPU resume execution in an attacker-chosen location.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The return address on the stack is the physical bookmark. A buffer overflow that overwrites it hijacks the CPU's next instruction pointer.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is <em>the</em> mechanism of code-injection exploits — the CPU is convinced to jump somewhere it was never supposed to go.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">🎒 EVERYDAY SIMPLIFIED: THE TRIPWIRE</span>
+  <h2>The Stack Canary Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🪢🚨🛡️</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Guards lay a hidden tripwire just before the critical door. Anyone who overfills the space behind the tripwire will <em>cross</em> it — setting off the alarm. The guard now knows an attacker tried to reach the door, and shuts everything down before they can.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The compiler inserts a random "canary" value between the buffer and the return address. If the canary changes, the stack has been tampered with — abort.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Stack Canaries are a compiler-inserted check for buffer overflow that converts "attacker gets code execution" into "program aborts with SIGABRT."</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">🎒 EVERYDAY SIMPLIFIED: THE SHUFFLED ROOM NUMBERS</span>
+  <h2>The ASLR Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏨🔀🔍</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>If every hotel's Presidential Suite were always on floor 10, room 1001, burglars would know exactly where to break in. So the hotel renumbers the rooms every single day. Now the burglar must <em>find</em> the suite — and cannot succeed without an inside tip.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>ASLR (Address Space Layout Randomization) randomizes the base address of the stack, heap, and shared libraries on every process launch. An attacker cannot hardcode the jump target — they must first <em>leak</em> a memory address to discover the randomized location.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>ASLR does not stop the overflow — it stops the <em>exploit</em> by removing predictability.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE EXPLOIT DEFENSE SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card violet"><h3>🔍 Compiler Armor</h3><p>Stack Canaries — detect tampering before the return address is used.</p></div>
+    <div class="card"><h3>🎲 OS Armor</h3><p>ASLR — randomizes addresses so the attacker cannot hardcode targets.</p></div>
+    <div class="card emerald"><h3>⛔ Hardware Armor</h3><p>NX/DEP — marks the stack non-executable, blocking injected shellcode.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Each layer independently blocks a specific exploitation strategy. An attacker must defeat <strong>all three simultaneously</strong> — which is exponentially harder than defeating any one. This is defense-in-depth.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: THE PHYSICAL EXPLOIT TARGET</span>
+  <h2>The Stack Frame Layout</h2>
+  <div class="stack-label">High addresses ↑</div>
+  <div class="stack-frame">
+    <div class="stack-row stack-in"><span class="label">Caller's local vars</span><span class="value">[unused]</span></div>
+    <div class="stack-row stack-in"><span class="label">Argument 7+ (spilled)</span><span class="value">[data]</span></div>
+    <div class="stack-row stack-target"><span class="label">Saved Return Address</span><span class="value">← TARGET</span></div>
+    <div class="stack-row stack-canary"><span class="label">Saved RBP (frame pointer)</span><span class="value">[saved]</span></div>
+    <div class="stack-row stack-buffer"><span class="label">Local buffer[64]</span><span class="value">← VICTIM</span></div>
+    <div class="stack-row stack-in"><span class="label">Callee's local vars</span><span class="value">[data]</span></div>
+  </div>
+  <div class="stack-label">Low addresses ↓</div>
+  <div class="callout callout-crimson" style="margin-top:2vh">
+    <strong>The layout order (critical):</strong> Local buffers are at <em>lower</em> addresses; the saved return address is at <em>higher</em> addresses. A buffer overflow that writes <em>upward</em> (as <code>strcpy</code> does) fills the buffer, then spills into saved RBP, then into saved return address — reaching the attacker's target.
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: STEP-BY-STEP HIJACK</span>
+  <h2>The Attack Mechanism</h2>
+  <div class="attack-flow">
+    <div class="attack-step att-1">
+      <div class="num">1</div>
+      <p><strong>Reconnaissance:</strong> The attacker identifies an unchecked <code>strcpy</code>, <code>gets</code>, or <code>sprintf</code> in the target program — any write to a local buffer that does not bound input length.</p>
+    </div>
+    <div class="attack-step att-2">
+      <div class="num">2</div>
+      <p><strong>Craft payload:</strong> Three logical segments — padding (fills the buffer), shellcode (malicious machine code, typically ~30 bytes to spawn a shell), and the return address override (bytes to overwrite the saved return address, pointing back into the shellcode).</p>
+    </div>
+    <div class="attack-step att-3">
+      <div class="num">3</div>
+      <p><strong>Trigger the overflow:</strong> The program receives the oversized input through its vulnerable function. <code>strcpy</code> copies it byte-by-byte, spilling past the buffer boundary, through saved RBP, and into the return address slot.</p>
+    </div>
+    <div class="attack-step att-4">
+      <div class="num">4</div>
+      <p><strong>The hijack:</strong> When the vulnerable function executes <code>ret</code>, it pops the corrupted return address into RIP. The CPU begins executing the attacker's instructions instead of the legitimate caller's.</p>
+    </div>
+  </div>
+  <div class="callout callout-slate" style="margin-top:2vh">
+    <strong>The Verdict:</strong> This attack requires <em>both</em> an unchecked write <em>and</em> control over the overwritten bytes. When both are present, buffer overflows become arbitrary code execution — the highest severity of security failure.
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: THE COMPILER-INJECTED TRIPWIRE</span>
+  <h2>Stack Canaries</h2>
+  <pre class="code-block"><span class="cm">// WITHOUT canary: classic vulnerable function</span>
+<span class="kw">void</span> <span class="fn">vulnerable</span>() {
+    <span class="kw">char</span> buffer[<span class="num">64</span>];
+    <span class="fn">strcpy</span>(buffer, user_input);   <span class="cm">// ← UNCHECKED WRITE</span>
+}
+
+<span class="cm">// WITH canary: compiler-inserted protection (simplified assembly view)</span>
+<span class="kw">void</span> <span class="fn">hardened</span>() {
+    <span class="kw">char</span> buffer[<span class="num">64</span>];
+    <span class="kw">unsigned long</span> canary = __stack_chk_guard;  <span class="cm">// Random per-process</span>
+    <span class="fn">strcpy</span>(buffer, user_input);
+    <span class="cm">// ... rest of function body ...</span>
+    <span class="kw">if</span> (canary != __stack_chk_guard) {
+        __stack_chk_fail();  <span class="cm">// Abort before returning!</span>
+    }
+}</pre>
+  <div class="card-grid grid-2" style="margin-top:2vh">
+    <div class="card">
+      <h3>How It Works</h3>
+      <p>The compiler inserts a random "canary" value between the local buffer and the saved return address.</p>
+      <p style="margin-top:1vh">Before the function executes <code>ret</code>, it compares the current canary to the process-global <code>__stack_chk_guard</code>. Any overflow that reaches the return address <em>must</em> have overwritten the canary — triggering an immediate <code>SIGABRT</code> before the return address is ever used.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Cost and Coverage</h3>
+      <p>Compilers enable this with <code>-fstack-protector</code> (GCC) or <code>-fstack-protector-all</code> (Clang).</p>
+      <p style="margin-top:1vh"><strong>Does not prevent the overflow — detects it</strong> and prevents code execution. The program still crashes, but the attacker does not gain control.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>Canaries are now default on all modern distros.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: THE SHUFFLED ADDRESS SPACE</span>
+  <h2>ASLR Address Randomization</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Randomized Regions</h3>
+      <p><strong>Stack base:</strong> Random offset within a large range.</p>
+      <p><strong>Heap base:</strong> Random offset within a large range.</p>
+      <p><strong>Shared libraries:</strong> Random base — glibc, libcrypto, and OpenSSL all load at unpredictable addresses.</p>
+      <p><strong>Program binary (PIE):</strong> With <code>-fPIE -pie</code>, even the executable itself randomizes.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Defensive Effect</h3>
+      <p>An attacker cannot hardcode a jump target into the payload. The shellcode's location is unknown at exploit-craft time.</p>
+      <p style="margin-top:1vh">To defeat ASLR, an attacker must first <em>leak</em> an address — typically by exploiting a second vulnerability (an info leak) or by brute-forcing across repeated attempts (mitigated by rapid re-randomization).</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>ASLR does not stop the overflow — it stops the <em>reliable</em> exploit.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: THE THREE-LAYER ARMOR</span>
+  <h2>NX/DEP and the Complete Defense Stack</h2>
+  <div class="defenses">
+    <div class="defense-card def-canary">
+      <div class="icon">🪢</div>
+      <h4>Stack Canaries</h4>
+      <p>Detect overflow by placing a random guard before the return address.</p>
+      <p style="margin-top:1vh"><strong>Blocks:</strong> Direct return-address hijack.</p>
+      <div class="blocks">DETECTS OVERFLOW</div>
+    </div>
+    <div class="defense-card def-aslr">
+      <div class="icon">🎲</div>
+      <h4>ASLR</h4>
+      <p>Randomizes address locations so the attacker cannot hardcode targets.</p>
+      <p style="margin-top:1vh"><strong>Blocks:</strong> Shellcode addresses, ROP gadget addresses, library function overrides.</p>
+      <div class="blocks">BLOCKS TARGETING</div>
+    </div>
+    <div class="defense-card def-nx">
+      <div class="icon">⛔</div>
+      <h4>NX / DEP</h4>
+      <p>Marks the stack and heap non-executable at the page level.</p>
+      <p style="margin-top:1vh"><strong>Blocks:</strong> Direct shellcode execution on the stack.</p>
+      <div class="blocks">BLOCKS EXECUTION</div>
+    </div>
+  </div>
+  <div class="callout callout-crimson" style="margin-top:3vh">
+    <strong>The Residual Gap:</strong> The attacker must now find an info leak to defeat ASLR (revealing a valid address), a ROP chain to bypass NX (because shellcode cannot execute), and a way to bypass the canary (a separate memory write bug or format-string write primitive). <strong>Full modern exploits are rare without additional bugs.</strong>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON PROCESS MEMORY ARCHITECTURE</span>
+  <h2>Core System Cohesion — Relies On L05</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>The Predictable Order</h3><p>A buffer overflow exploit is possible <em>because</em> the compiler lays out the stack frame with a specific, predictable order: buffer at lower addresses, return address at higher addresses.</p></div>
+    <div class="card"><h3>The Reverse Scenario</h3><p>If the layout order were reversed, the overflow would go the <em>other</em> way — into unused stack space, not into control flow.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>The L05 stack layout is a direct consequence of historical C calling convention design — and this design choice shapes every buffer overflow exploit in the last forty years.</p></div>
+    <div class="card emerald"><h3>Feeds Into L27</h3><p>The persistent danger of buffer overflow vulnerabilities has driven the entire modern memory-safety movement: Rust's borrow checker, Go's bounds-checked slices, and the sandboxing of every untrusted process (L27).</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO MODERN ISOLATION</span>
+  <h2>Core System Cohesion — Feeds Into L27</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Structural Isolation</h3><p>If buffer overflows are inevitable in C code, then the best defense is to <em>assume every program will be exploited</em> and isolate it from everything else. This is the core premise of L27's container model.</p></div>
+    <div class="card"><h3>Memory-Safe Languages</h3><p>Rust, Go, and Swift eliminate buffer overflows by design. Apple, Google, and Microsoft have all committed to migrating critical systems from C/C++ to memory-safe languages.</p></div>
+    <div class="card violet"><h3>Sandboxing Every Process</h3><p>Chrome renders every tab in a separate sandboxed process. Even if a buffer overflow compromises one tab, the attacker cannot access other tabs or the host kernel. This is L24's most important architectural consequence.</p></div>
+    <div class="card emerald"><h3>The Verdict</h3><p>L24 is not just a bug class — it is <em>the</em> motivating force behind L27's entire isolation paradigm. The sandbox exists because the buffer overflow exists.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: MEMORY SAFETY STRATEGIES</span>
+  <h2>Exploit Defense Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Exploit Defense</h3><p>Kernel code uses hardened compiler flags — <code>-fstack-protector-strong</code>, <code>-fPIE</code>, <code>CONFIG_RANDOMIZE_BASE</code>, <code>CONFIG_STRICT_KERNEL_RWX</code>. Defense relies entirely on prevention — a kernel-mode overflow is catastrophic.</p></div>
+    <div class="card emerald"><h3>Microkernel Exploit Defense</h3><p>Most exploit-prone code runs as unprivileged user-space servers. A buffer overflow crashes a filesystem server, not the kernel. Recovery is trivial: restart the server. The structural defense: reduce the amount of code that runs with privilege.</p></div>
+    <div class="card amber"><h3>Layered Exploit Defense</h3><p>Defense in depth at every layer: compiler canaries at the C source layer, W^X (write-xor-execute) at the loader layer, ASLR at the OS layer. Each layer independently reduces exploitability.</p></div>
+    <div class="card"><h3>Modular Exploit Defense</h3><p>Kernel modules (device drivers) are compiled with hardened flags, and modules are reloaded upon crash if <code>CONFIG_MODULE_FORCE_LOAD</code> is enabled. User-space drivers via FUSE/SPDK are additionally sandboxed.</p></div>
+    <div class="card crimson"><h3>Hybrid Exploit Defense</h3><p>Critical kernel code is hardened C, but user-space applications increasingly use memory-safe languages (Rust, Go). Chrome, Android, and Windows have progressively migrated their attack surfaces to Rust with strong results — ~70% of serious vulnerabilities were in memory-unsafe C++ in 2020.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE EXPLOIT VOCABULARY</span>
+  <h2>Base Exploit Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Buffer Overflow</h3>
+      <p>A critical software security defect where data spills past an allocated memory buffer boundary to corrupt neighboring memory values; in stack-based overflows, unchecked input writes overflow local variables and can overwrite saved return addresses. The single oldest and most persistent security vulnerability class.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The overfilled shelf whose extra boxes spill onto the emergency button.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Stack Smashing</h3>
+      <p>Deliberately corrupting a process's stack frame memory by overflowing local variables to overwrite execution tracking flags — specifically the saved return address — so that when the function executes <code>ret</code>, control flow jumps to an attacker-chosen address. The attack mechanism of the classic stack buffer overflow exploit.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Rewriting the bookmark to make the CPU "resume" in the attacker's chapter.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE EXPLOIT VOCABULARY</span>
+  <h2>Advanced Defense Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Return Address</h3>
+      <p>A vital execution tracking address saved on the stack frame (immediately after a <code>call</code> instruction) that instructs the CPU where to resume execution once the current function ends; the primary target of a buffer-overflow stack-smashing attack. Its position on the stack is what makes the attack possible — it is always at a predictable offset from the buffer.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The bookmark that tells the reader where to resume.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Stack Canary</h3>
+      <p>A secret, random value placed by the compiler between local buffers and the saved return address; the function checks the canary value before executing <code>ret</code>, aborting if it has been modified. Named after the "canary in the coal mine" — a passive detector of dangerous conditions. Enabled by default on all modern Linux distributions.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The tripwire that triggers the alarm before the burglar reaches the door.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · ASLR</h3>
+      <p>Address Space Layout Randomization — a security defense mechanism that randomizes the memory address locations of the stack, heap, and shared libraries (and optionally the executable itself) on every process launch; prevents attackers from hardcoding exploit target addresses. The critical enabler of modern exploit defense.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The shuffled hotel room numbers that force the burglar to search every floor.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 CODE DISSECTION: C BUFFER OVERFLOW SIMULATOR</span>
+  <h2>Demonstrating Safe vs Vulnerable Buffers</h2>
+  <pre class="code-block"><span class="cm">// Demonstrating stack buffer overflow (vulnerable vs safe) in C</span>
+<span class="cm">// COMPILE WITH: gcc -fno-stack-protector -o demo demo.c</span>
+<span class="cm">//               (canary disabled for demonstration)</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string.h&gt;</span>
+
+<span class="cm">// ---------- VULNERABLE VERSION ----------</span>
+<span class="kw">void</span> <span class="fn">vulnerable_function</span>(<span class="kw">const char</span>* user_input) {
+    <span class="kw">char</span> buffer[<span class="num">64</span>];        <span class="cm">// Local buffer, 64 bytes</span>
+    <span class="fn">strcpy</span>(buffer, user_input);  <span class="cm">// NO bounds check!</span>
+    <span class="fn">printf</span>(<span class="str">"Vulnerable: buffer holds '%s'\n"</span>, buffer);
+    <span class="cm">// Function returns — but the return address may have been overwritten</span>
+}
+
+<span class="cm">// ---------- SAFE VERSION ----------</span>
+<span class="kw">void</span> <span class="fn">safe_function</span>(<span class="kw">const char</span>* user_input) {
+    <span class="kw">char</span> buffer[<span class="num">64</span>];
+    <span class="cm">// Bounds-checked copy: strncpy at most 63 bytes + null terminator</span>
+    <span class="fn">strncpy</span>(buffer, user_input, <span class="kw">sizeof</span>(buffer) - <span class="num">1</span>);
+    buffer[<span class="kw">sizeof</span>(buffer) - <span class="num">1</span>] = <span class="str">'\0'</span>;
+    <span class="fn">printf</span>(<span class="str">"Safe: buffer holds '%s'\n"</span>, buffer);
+    <span class="cm">// Overflow impossible — extra bytes were discarded, not written</span>
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="fn">printf</span>(<span class="str">"=== Normal input (fits in buffer) ===\n"</span>);
+    <span class="fn">vulnerable_function</span>(<span class="str">"Hello, world"</span>);
+    <span class="fn">safe_function</span>(<span class="str">"Hello, world"</span>);
+
+    <span class="fn">printf</span>(<span class="str">"\n=== Oversized input (potential overflow) ===\n"</span>);
+    <span class="cm">// Construct a 100-byte payload, well past the 64-byte buffer</span>
+    <span class="kw">char</span> payload[<span class="num">100</span>];
+    <span class="fn">memset</span>(payload, <span class="str">'A'</span>, <span class="kw">sizeof</span>(payload));
+    payload[<span class="kw">sizeof</span>(payload) - <span class="num">1</span>] = <span class="str">'\0'</span>;
+
+    <span class="cm">// The safe version silently truncates</span>
+    <span class="fn">safe_function</span>(payload);
+
+    <span class="cm">// The vulnerable version overflows (may crash or corrupt return address)</span>
+    <span class="cm">// vulnerable_function(payload);  // UNCOMMENT TO SEE THE DAMAGE</span>
+    <span class="fn">printf</span>(<span class="str">"(Skipping vulnerable call — would corrupt the stack)\n"</span>);
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 CODE DISSECTION: TRACING THE STACK CORRUPTION</span>
+  <h2>Walking the Overflow Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>char buffer[64]</h3><p><strong>The allocation.</strong> The compiler reserves exactly 64 bytes at a specific offset from the stack pointer. The stack grows down, but the buffer bytes are laid out contiguously.</p></div>
+    <div class="card crimson"><h3>strcpy(buffer, user_input)</h3><p><strong>The overflow.</strong> Copies <code>user_input</code> byte-by-byte, <strong>stopping only at the null terminator, never at 64</strong>. With a 100-byte payload, <code>strcpy</code> writes 99 bytes past the buffer — through the saved <code>rbp</code> (8 bytes), through the saved return address (8 bytes), and into the caller's stack frame.</p></div>
+    <div class="card"><h3>printf("... buffer holds '%s'...")</h3><p><strong>Invisible corruption.</strong> May succeed and print the first 99 bytes as if nothing were wrong — the corruption is invisible at this point.</p></div>
+    <div class="card amber"><h3>Function return</h3><p><strong>The moment of truth.</strong> The <code>ret</code> instruction pops the corrupted 8-byte value from the stack into RIP. If the payload was "AAAAAAAA" (repeated), RIP becomes <code>0x4141414141414141</code> — immediate segfault. If the payload contained a valid attacker-chosen address, the CPU jumps there instead.</p></div>
+    <div class="card emerald"><h3>strncpy(buffer, input, sizeof-1)</h3><p><strong>The fix.</strong> Bounds the copy to 63 bytes. <code>sizeof(buffer) - 1</code> leaves room for the null terminator. The <code>buffer[sizeof(buffer) - 1] = '\0'</code> line ensures null-termination in all cases.</p></div>
+    <div class="card"><h3>The null check</h3><p>If the payload is 100 bytes, only 63 are copied; the rest are discarded. No overflow, no corruption, no hijack. <strong>The entire difference between a critical zero-day and a benign function is one line: <code>strncpy</code> vs <code>strcpy</code>.</strong></p></div>
+  </div>
+  <p class="subtitle" style="margin-top:2vh;max-width:900px">The <code>-fno-stack-protector</code> flag on compilation is what makes the vulnerable version truly exploitable — with canaries enabled, the overflow would trigger <code>__stack_chk_fail()</code> before the return address was used.</p>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎯 INTERACTIVE WORKSHOP: THE PHYSICAL STACK CORRUPTION</span>
+  <h2>The Byte-Level Stack Diagramming Race</h2>
+  <div class="card-grid grid-4" style="margin-top:3vh">
+    <div class="card"><h3>Students 01–08 · Buffer Slots</h3><p>Stand in a row at the front, each holding a placard showing their "byte index" (0–7).</p></div>
+    <div class="card violet"><h3>Student 09 · Canary Slot</h3><p>Holds a placard labeled "CANARY = 0xDEADBEEF." Must shout "TRIPWIRE!" if the canary is overwritten.</p></div>
+    <div class="card amber"><h3>Student 10 · Saved RBP Slot</h3><p>Holds "Saved RBP." Silently takes their overwrite.</p></div>
+    <div class="card crimson"><h3>Student 11 · Return Address</h3><p>Holds "RETURN ADDR = 0x00400000." Announces the CPU's next jump address.</p></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson"><h3>Phase A · Overflow (no canary)</h3><p>Give another student a string of 20 "A" placards. They walk down the row slot by slot. First 8 fill the buffer. Next overwrites saved RBP. Then overwrites the return address — now "0x41414141." The CPU would jump to an attacker-controlled address.</p></div>
+    <div class="card emerald"><h3>Phase B · Canary Tripwire</h3><p>Same 20 placards, but now Student 09 (canary) is present. The 9th "A" placard overwrites the canary — the student shouts "TRIPWIRE!" and the whole process aborts. The return address is never reached. The attack is blocked.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 TRY IT LIVE: AUDITING REAL MEMORY PROTECTIONS</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> cat /proc/sys/kernel/randomize_va_space    <span class="out"># ASLR mode (0=off, 2=full)</span>
+<span class="cmd">$</span> gcc -fstack-protector-all -o hardened demo.c  <span class="out"># Compile with canaries</span>
+<span class="cmd">$</span> gcc -fno-stack-protector -o soft demo.c     <span class="out"># Compile without canaries</span>
+<span class="cmd">$</span> readelf -s hardened | grep stack_chk        <span class="out"># Look for canary symbols</span>
+<span class="cmd">$</span> checksec --file=hardened                    <span class="out"># Summary of protections</span>
+<span class="cmd">$</span> gdb -q hardened -ex "disas vulnerable_function" -ex quit
+<span class="cmd">$</span> cat /proc/$$/maps | head -8                <span class="out"># Live process memory layout</span>
+<span class="cmd">$</span> sudo dmesg | grep -i "segfault" | tail -5   <span class="out"># Recent crash events</span></pre>
+  <p class="hint"><code>checksec</code> reports four flags per binary: <strong>Canary</strong>, <strong>NX</strong>, <strong>PIE</strong> (ASLR), and <strong>RELRO</strong>. All four green = fully hardened. Each red flag is a missing defense layer. <code>randomize_va_space=2</code> is the correct value for full ASLR on modern Linux.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 7: Security &amp; Protection
+        └── <span class="active">L24: Program Exploits (ACTIVE NODE 🌟)</span>
+              ├── Stack Buffer Overflow &amp; Return Address Hijacking
+              └── Stack Canaries, ASLR &amp; NX Defense Stack</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>Buffer overflows are the single oldest and most persistent class of security vulnerability. An unchecked <code>strcpy</code> can spill past a local buffer into the saved return address, hijacking the CPU's next instruction pointer and executing attacker-chosen code.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p><strong>Stack Canaries</strong> detect overflow attempts by inserting a random guard before the return address. <strong>ASLR</strong> randomizes address locations so attackers cannot hardcode targets. <strong>NX/DEP</strong> marks the stack non-executable. Each defends a distinct exploitation strategy — together they form the modern defense stack.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>The defense stack makes single-bug exploits nearly extinct. A full modern exploit requires chaining multiple bugs — an info leak to defeat ASLR, a ROP gadget chain to bypass NX, and a way past the canary. This is why <strong>memory-safe languages</strong> (Rust, Go) are increasingly the correct choice for security-critical code.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 25 — Encryption Fundamentals</strong><br><br>
+    Buffer overflows teach us that defending <em>code</em> is hard. But even perfectly written code exposes data in transit — passwords, credit cards, medical records — that must be protected from eavesdroppers on the network itself. We shift from <em>memory safety</em> to <em>data privacy</em>: symmetric encryption (AES) versus asymmetric encryption (RSA), the elegant hybrid handshake that powers every HTTPS connection, and the cryptographic primitives that underpin trusted communication across the internet.
+  </div>
+  <p class="hint">File: L25.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
