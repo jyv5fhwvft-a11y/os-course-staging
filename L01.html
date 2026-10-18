@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L01 · The Architecture Matrix</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L01</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-blue">🔰 START HERE // L01 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line"></div>
+  <p class="subtitle">Contrast monolithic kernel performance with microkernel isolation, hybrid performance-isolation balances, layered structural tiers, and modular dynamic extensibility under real-world driver failure scenarios.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> The kernel must manage every hardware resource, every process, every file, and every byte of memory. But how is that responsibility <em>distributed</em> internally? Does a single monolithic code block handle everything in Ring 0? Or do we split it into isolated user-space services? Every architectural choice shapes reliability, performance, and security — and every real-world OS chose a different answer.
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L00 Foundations</h3><p>The OS as resource referee and abstraction provider, and the six kernel subsystems (process, memory, scheduler, file system, drivers, network).</p></div>
+    <div class="card amber"><h3>02 · CPU Architecture</h3><p>Registers, CPU privilege rings, and the fundamental difference between kernel space and user space.</p></div>
+    <div class="card amber"><h3>03 · Memory Spaces</h3><p>What "address space" means, and why two programs cannot simply share the same physical memory regions.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE OPEN-OFFICE FLOORPLAN</span>
+  <h2>The Monolithic Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢💬</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A monolithic company occupies one massive open office floor. Every department sits side by side with no walls. Communication is lightning-fast — a developer can whisper to an accountant instantly. But if one worker catches a highly contagious virus, everyone gets sick and the entire office shuts down immediately.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Monolithic kernels place every subsystem in a single address space at Ring 0. Any subsystem can call any other directly. Fastest possible communication — but any bug can crash everything.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Maximum performance, minimum isolation.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE SECURE BUILDING</span>
+  <h2>The Microkernel Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢🔐🔐</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A microkernel company occupies a secure building with individual, keycard-locked departments. Each service operates in its own isolated room behind thick concrete walls. If a worker in accounting gets sick, that department locks down safely without bringing down the rest of the company — but every coordination across departments requires passing paperwork through explicit, slow security checkpoints.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Microkernels keep only essential primitives in Ring 0. Everything else runs as user-space servers. Slower due to IPC overhead — but a server crash cannot take down the kernel.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The strongest isolation model.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE MULTI-STORY SKYSCRAPER</span>
+  <h2>The Layered Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏙️3️⃣</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A layered company occupies a skyscraper with strict floor hierarchy. Workers on Floor 3 are legally blocked from talking directly to Floor 1 — they can only pass physical folders down to Floor 2, which processes them and passes them to Floor 1. Orderly, but rigid: if Floor 2 freezes, the entire chain breaks.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Layered kernels split the OS into an ordered stack of isolated layers (0 to N), where each layer is built strictly on top of the lower layer. Simple to reason about — but each boundary adds overhead and rigidity.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The historical "clean design" model — elegant but rarely pure.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE EXPANDABLE OFFICE</span>
+  <h2>The Modular Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢🔌🛠️</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A modular company uses the open-floorplan office, but the outer wall is lined with standardized expansion slots. When you need a new foreign tax specialist (a new device driver), you simply wheel in a pre-built desk module and plug it in live. It retains lightning speed — but the new desk is exposed to the open room's virus risks.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Modular kernels keep the core monolithic but allow loadable modules (<code>.ko</code>) to dynamically link into Ring 0 at runtime. Fast like monolithic, but extensible without reboot.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The modern practical standard — nearly all Linux drivers are modular.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE CORPORATE CAMPUS</span>
+  <h2>The Hybrid Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢🏕️🖥️</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A hybrid company keeps its core team — memory managers, schedulers — in a fast open-floor central room. But dangerous or untrusted personnel like third-party graphic designers or printer technicians work in detached outbuildings across the courtyard. If a technician catches a virus in their isolated outbuilding, they crash alone while the executive center stays alive.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Hybrid kernels combine monolithic performance (core services) with microkernel-style isolation (risky subsystems). Windows NT and macOS XNU use this model.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The modern real-world compromise.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE ARCHITECTURE SHOWDOWN SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>⚡ Performance Corridor</h3><p>Monolithic and Modular architectures maximize raw execution speed by keeping subsystems together in Ring 0.</p></div>
+    <div class="card emerald"><h3>🛡️ Isolation Corridor</h3><p>Microkernel, Layered, and Hybrid architectures sacrifice some raw speed for stronger boundary guarantees.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">No architecture is universally best. The choice depends on the workload, the trust model, and the performance requirements.</p>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE SINGLE-ADDRESS-SPACE MODEL</span>
+  <h2>The Monolithic Kernel</h2>
+  <div class="accent-line"></div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Layout</h3>
+      <p>Process manager · memory manager · scheduler · VFS · network stack · device drivers · IPC — <strong>all in one Ring 0 address space</strong>.</p>
+      <p style="margin-top:1vh"><strong>Communication:</strong> Direct function calls. No serialization, no message parsing.</p>
+      <p style="margin-top:1vh"><strong>State:</strong> Global kernel data structures directly accessible from any code path.</p>
+      <p style="margin-top:1vh"><strong>Binary:</strong> Single image compiled at build time.</p>
+    </div>
+    <div class="card crimson">
+      <h3>The Trade-off</h3>
+      <p><strong>Performance:</strong> Direct function calls are nearly as fast as user-space calls. The fastest kernel architecture.</p>
+      <p style="margin-top:1vh"><strong>Failure:</strong> A buggy driver that dereferences a null pointer crashes the entire kernel. No isolation between subsystems.</p>
+      <p style="margin-top:1vh"><strong>Examples:</strong> Linux, FreeBSD, OpenBSD, Solaris (with modular extensions).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE MINIMAL-PRIVILEGE MODEL</span>
+  <h2>The Microkernel</h2>
+  <div class="accent-line"></div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Layout</h3>
+      <p><strong>Kernel (Ring 0):</strong> Only IPC primitive, basic thread scheduling, low-level address-space management, hardware interrupt dispatch.</p>
+      <p style="margin-top:1vh"><strong>Size:</strong> seL4 is ~10,000 lines; MINIX 3 kernel is ~6,000 lines.</p>
+      <p style="margin-top:1vh"><strong>User-space servers (Ring 3):</strong> File systems, device drivers, network stacks — all as separate processes.</p>
+      <p style="margin-top:1vh"><strong>Coordination:</strong> Explicit message passing through the IPC primitive.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Trade-off</h3>
+      <p><strong>Performance:</strong> Every cross-server operation is an IPC message. 10–100× slower per operation.</p>
+      <p style="margin-top:1vh"><strong>Isolation:</strong> A crashing filesystem server crashes only itself. Servers can be restarted independently.</p>
+      <p style="margin-top:1vh"><strong>Examples:</strong> seL4 (aviation, automotive), MINIX 3, QNX, EROS.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE STRICT-HIERARCHY MODEL</span>
+  <h2>The Layered Architecture</h2>
+  <div class="accent-line"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Layer 0</h3><p>Hardware — the raw CPU, memory, storage.</p></div>
+    <div class="card"><h3>Layer 1</h3><p>Hardware abstraction — raw device drivers, CPU primitives.</p></div>
+    <div class="card"><h3>Layer 2</h3><p>CPU scheduling, memory allocation primitives.</p></div>
+    <div class="card"><h3>Layer 3</h3><p>Virtual memory, higher-level memory management.</p></div>
+    <div class="card"><h3>Layer 4</h3><p>Process management, file system.</p></div>
+    <div class="card emerald"><h3>Layer N</h3><p>User applications.</p></div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>The constraint:</strong> Layer N can only invoke functions in layer N-1. It cannot skip layers. This is enforced by the compiler and the architecture.
+  </div>
+  <p class="subtitle" style="margin-top:2vh;max-width:900px"><strong>Verdict:</strong> Beautiful in theory, rarely pure in production. THE (Dijkstra, 1968) is the canonical example. Modern OSes adopt partial layering (e.g., the VFS layer).</p>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE HYBRID-MONOLITHIC MODEL</span>
+  <h2>The Modular Kernel</h2>
+  <div class="accent-line"></div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Structure</h3>
+      <p><strong>Monolithic core (Ring 0):</strong> Scheduler, memory manager, VFS — all compiled into the base kernel.</p>
+      <p style="margin-top:1vh"><strong>Loadable modules (Ring 0):</strong> Device drivers and optional subsystems packaged as <code>.ko</code> files. Can be inserted with <code>insmod</code>/<code>modprobe</code> or removed with <code>rmmod</code>.</p>
+      <p style="margin-top:1vh"><strong>Module API:</strong> The kernel exposes an internal symbol table that modules link against.</p>
+    </div>
+    <div class="card amber">
+      <h3>Why It Wins</h3>
+      <p><strong>No reboot to add drivers:</strong> Load a new driver live.</p>
+      <p style="margin-top:1vh"><strong>Smaller base kernel:</strong> Only compile in what is needed for boot.</p>
+      <p style="margin-top:1vh"><strong>Vendor-friendly:</strong> Hardware vendors ship drivers separately.</p>
+      <p style="margin-top:1vh"><strong>The cost:</strong> Buggy modules still crash the kernel — same privilege as core.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON THE FOUNDATIONAL FRAMING</span>
+  <h2>Core System Cohesion</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Relies On · L00</h3><p>Every architecture choice in L01 is a specific answer to L00's two questions: <strong>How does the OS arbitrate resources?</strong> and <strong>How does the OS abstract hardware?</strong></p><p style="margin-top:1vh;color:#60A5FA">L00 gave the <em>what</em>. L01 gives the <em>how</em>.</p></div>
+    <div class="card violet"><h3>Feeds Into · All Modules</h3><p>Every subsystem decision in every later module inherits from the architecture chosen here. Paging (L11), drivers (L21), containers (L27) — all shaped by L01.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO EVERY LATER DESIGN DECISION</span>
+  <h2>Cohesion Across the Course</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L02 · Dual-Mode Barrier</h3><p>Ring 0/Ring 3 is enforced for all five paradigms — but the <em>scope</em> of Ring 0 differs dramatically.</p></div>
+    <div class="card"><h3>L05 · PCB</h3><p>In monolithic kernels, PCB lives in Ring 0. In microkernels, PCB is split between kernel and user-space servers.</p></div>
+    <div class="card"><h3>L11 · Paging</h3><p>Page tables must be accessible from Ring 0 for the MMU. Microkernels often use user-space page table managers via IPC — slower but isolated.</p></div>
+    <div class="card"><h3>L20–L21 · I/O &amp; Drivers</h3><p>Monolithic: drivers in Ring 0. Microkernel: drivers in user space. Hybrid: per-driver based on criticality.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: THE FIVE-PARADIGM MATRIX</span>
+  <h2>Deep Comparison</h2>
+  <div class="card-grid grid-5" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic</h3><p><strong>Perf:</strong> Highest</p><p><strong>Isolation:</strong> Worst</p><p><strong>Extend:</strong> Poor</p><p style="margin-top:1vh;color:#60A5FA">Classic UNIX</p></div>
+    <div class="card emerald"><h3>Microkernel</h3><p><strong>Perf:</strong> Lowest</p><p><strong>Isolation:</strong> Best</p><p><strong>Extend:</strong> Excellent</p><p style="margin-top:1vh;color:#34D399">seL4, MINIX 3, QNX</p></div>
+    <div class="card amber"><h3>Layered</h3><p><strong>Perf:</strong> Moderate</p><p><strong>Isolation:</strong> Medium</p><p><strong>Extend:</strong> Rigid</p><p style="margin-top:1vh;color:#FBBF24">THE, TCP/IP</p></div>
+    <div class="card"><h3>Modular</h3><p><strong>Perf:</strong> High</p><p><strong>Isolation:</strong> Poor</p><p><strong>Extend:</strong> Excellent</p><p style="margin-top:1vh;color:#60A5FA">Linux LKMs</p></div>
+    <div class="card violet"><h3>Hybrid</h3><p><strong>Perf:</strong> High</p><p><strong>Isolation:</strong> Good</p><p><strong>Extend:</strong> Medium</p><p style="margin-top:1vh;color:#A78BFA">Windows NT, macOS</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:1000px">The choice is not "which is best" — it is "which trade-off matches this system's workload, threat model, and performance requirements."</p>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE ARCHITECTURE VOCABULARY</span>
+  <h2>Base Architecture Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Monolithic Kernel</h3>
+      <p>A design architecture where all core operating system subsystems execute together inside a single privileged address space at Ring 0, with direct function calls between subsystems and no internal isolation.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The open-office floorplan — everyone talks directly, but one virus infects the whole floor.)</p>
+    </div>
+    <div class="card emerald">
+      <h3>Term 02 · Microkernel</h3>
+      <p>A minimalist design architecture that runs only essential primitives inside Ring 0; all other subsystems run as isolated user-space processes, coordinated via IPC messaging.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The secure building with isolated departments — slower to coordinate, but one sick worker doesn't infect everyone.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE ARCHITECTURE VOCABULARY</span>
+  <h2>Advanced Architecture Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card violet">
+      <h3>Term 03 · Hybrid Kernel</h3>
+      <p>An architecture that runs core services inside a monolithic address space for performance, but isolates non-essential services (graphics, some drivers) inside user-space containers for safety.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The corporate campus — critical team in the fast open floor, risky contractors in isolated outbuildings.)</p>
+    </div>
+    <div class="card amber">
+      <h3>Term 04 · Layered Architecture</h3>
+      <p>A hierarchical design where system services are separated into distinct vertical tiers, only communicating with immediately adjacent layers. Layer N may only invoke functions from Layer N-1.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The multi-story skyscraper — each floor can only speak to the floor directly below.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Loadable Kernel Module</h3>
+      <p>An object code file that can be dynamically linked into the running kernel's Ring 0 memory space at runtime without rebuilding the core OS image. Runs at the same privilege as the monolithic kernel.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The expansion slot on the open floor — plug a new desk in live, but the new hire still catches the open-office virus.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: C ARCHITECTURE SIMULATOR PANEL</span>
+  <h2>Illustrating the Architectural Differences</h2>
+  <pre class="code-block"><span class="cm">// Illustrating the architectural differences in a single example</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string.h&gt;</span>
+
+<span class="cm">// 1. MONOLITHIC: Direct function call — fast but tightly coupled</span>
+<span class="kw">void</span> <span class="fn">read_block_monolithic</span>(<span class="kw">int</span> sector_id) {
+    <span class="fn">printf</span>(<span class="str">"[MONOLITHIC] Direct call: read sector %d\n"</span>, sector_id);
+}
+
+<span class="cm">// 2. MICROKERNEL: IPC message passing across isolation boundary</span>
+<span class="kw">void</span> <span class="fn">read_block_microkernel</span>(<span class="kw">int</span> sector_id) {
+    <span class="fn">printf</span>(<span class="str">"[MICROKERNEL] Client -&gt; file server: READ(sector=%d)\n"</span>, sector_id);
+    <span class="fn">printf</span>(<span class="str">"[MICROKERNEL] File server -&gt; disk server: READ(sector=%d)\n"</span>, sector_id);
+    <span class="fn">printf</span>(<span class="str">"[MICROKERNEL] Disk server -&gt; client: data via IPC\n"</span>);
+}
+
+<span class="cm">// 3. LAYERED: Downward tiered invocation through strict layers</span>
+<span class="kw">void</span> <span class="fn">read_block_layered</span>(<span class="kw">int</span> sector_id) {
+    <span class="fn">printf</span>(<span class="str">"[LAYERED] Layer 4 -&gt; Layer 3: read(sector=%d)\n"</span>, sector_id);
+    <span class="fn">printf</span>(<span class="str">"[LAYERED] Layer 3 -&gt; Layer 2: block_read(sector=%d)\n"</span>, sector_id);
+    <span class="fn">printf</span>(<span class="str">"[LAYERED] Layer 2 -&gt; Layer 1: driver_read(sector=%d)\n"</span>, sector_id);
+}
+
+<span class="cm">// 4. MODULAR: Dynamic dispatch through registered module</span>
+<span class="kw">typedef</span> <span class="kw">void</span> (*module_read_fn)(<span class="kw">int</span>);
+<span class="kw">static</span> module_read_fn registered_read = NULL;
+
+<span class="kw">void</span> <span class="fn">register_module_read</span>(module_read_fn fn) { registered_read = fn; }
+<span class="kw">void</span> <span class="fn">my_driver_read</span>(<span class="kw">int</span> s) {
+    <span class="fn">printf</span>(<span class="str">"[MODULAR] Module: reading sector %d\n"</span>, s);
+}
+<span class="kw">void</span> <span class="fn">read_block_modular</span>(<span class="kw">int</span> sector_id) {
+    <span class="kw">if</span> (registered_read) {
+        <span class="fn">printf</span>(<span class="str">"[MODULAR] Dispatching to module...\n"</span>);
+        <span class="fn">registered_read</span>(sector_id);
+    }
+}
+
+<span class="cm">// 5. HYBRID: Fast path for critical ops, isolated for risky</span>
+<span class="kw">void</span> <span class="fn">read_block_hybrid</span>(<span class="kw">int</span> sector_id) {
+    <span class="kw">int</span> is_critical = <span class="num">1</span>;
+    <span class="kw">if</span> (is_critical) {
+        <span class="fn">printf</span>(<span class="str">"[HYBRID] Fast path in Ring 0: read sector %d\n"</span>, sector_id);
+    } <span class="kw">else</span> {
+        <span class="fn">printf</span>(<span class="str">"[HYBRID] IPC to sandboxed driver: sector %d\n"</span>, sector_id);
+    }
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="fn">read_block_monolithic</span>(<span class="num">100</span>);
+    <span class="fn">read_block_microkernel</span>(<span class="num">100</span>);
+    <span class="fn">read_block_layered</span>(<span class="num">100</span>);
+    <span class="fn">register_module_read</span>(my_driver_read);
+    <span class="fn">read_block_modular</span>(<span class="num">100</span>);
+    <span class="fn">read_block_hybrid</span>(<span class="num">100</span>);
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: TRACING ARCHITECTURAL OVERHEAD</span>
+  <h2>Walking the Architectural Traces</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>read_block_monolithic</h3><p>Zero serialization, zero IPC. The fastest possible kernel operation — a few nanoseconds of function call overhead.</p></div>
+    <div class="card"><h3>read_block_microkernel</h3><p>Three IPC messages. Each involves kernel-mediated serialization/deserialization — ~1–5 μs per message, 1000× more than a direct call.</p></div>
+    <div class="card amber"><h3>read_block_layered</h3><p>Three function calls with interface conversions between layers. Faster than microkernel IPC but slower than monolithic direct calls.</p></div>
+    <div class="card"><h3>register_module_read + read_block_modular</h3><p>Dynamic function-pointer dispatch is barely slower than direct call. The flexibility is nearly free.</p></div>
+    <div class="card violet"><h3>read_block_hybrid</h3><p>Branch on criticality. Fast path for critical operations (monolithic-style); slow path for risky (microkernel-style).</p></div>
+    <div class="card emerald"><h3>Verdict</h3><p>The same operation has five different implementations with five different performance/isolation profiles.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎯 INTERACTIVE WORKSHOP: THE ARCHITECTURAL FAILURE SIMULATION</span>
+  <h2>The Live Kernel Architecture Crash Showdown</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Phase A · Monolithic</h3><p>4 students stand shoulder-to-shoulder as subsystems. A "buggy driver" crash card activates — the entire row collapses. All subsystems fail simultaneously.</p></div>
+    <div class="card"><h3>Phase B · Microkernel</h3><p>4 students in isolation booths. The buggy driver crashes — only that booth collapses. The other servers keep running. A "restart" student quickly stands up as a new instance.</p></div>
+    <div class="card emerald"><h3>Phase C · Discussion</h3><p>Which configuration would you want for an airplane's flight control system? For a laptop running games? The answer depends on the trade-off.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Pedagogic Takeaway:</strong> Physical intuition for the real-world cost of architectural choices. The monolithic collapse is genuinely shocking — students remember it.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 TRY IT LIVE: AUDITING THE LIVE KERNEL ARCHITECTURE</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> uname -r                                <span class="out"># Kernel version</span>
+<span class="cmd">$</span> lsmod                                   <span class="out"># List all loaded kernel modules</span>
+<span class="cmd">$</span> ls /lib/modules/$(uname -r)/kernel/     <span class="out"># Modular driver tree on disk</span>
+<span class="cmd">$</span> cat /proc/modules | head -20            <span class="out"># Loaded modules with sizes and users</span>
+<span class="cmd">$</span> dmesg | grep -i "module" | head -10     <span class="out"># Recent module load events</span>
+<span class="cmd">$</span> sudo modprobe dummy                     <span class="out"># Load a test module (network dummy)</span>
+<span class="cmd">$</span> lsmod | grep dummy                      <span class="out"># Verify it loaded</span>
+<span class="cmd">$</span> sudo rmmod dummy                        <span class="out"># Unload it</span>
+<span class="cmd">$</span> cat /proc/sys/kernel/tainted             <span class="out"># Whether non-GPL modules are loaded</span>
+<span class="cmd">$</span> cat /proc/kallsyms | head -10            <span class="out"># Kernel symbol table (modular linkage)</span></pre>
+  <p class="hint">Every lsmod line is a manifestation of the modular architecture in action.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 1: OS Structure &amp; Design
+        └── <span class="active">L01: The Architecture Matrix (ACTIVE NODE 🌟)</span>
+              ├── Monolithic · Microkernel · Layered · Modular · Hybrid
+              └── The Performance-Isolation Trade-Off Axis</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>There is no "best" kernel architecture. Monolithic kernels (and their modular extension) maximize raw performance but tolerate kernel-wide crashes. Microkernels maximize isolation but pay an IPC tax. Layered kernels maximize structural clarity but accumulate overhead.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>Hybrid kernels are the modern pragmatic standard because they recognize that <strong>not all subsystems deserve equal trust</strong>. The scheduler (critical) stays in Ring 0; the GPU driver (huge, risky) is isolated in Ring 3. Windows NT, macOS XNU, and Android's ART runtime all use hybrid designs.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>The architectural choice from L01 is not a historical curiosity — it is the <strong>framework</strong> that constrains every subsequent subsystem design choice. When we study paging (L11), drivers (L21), and containers (L27), every decision inherits from the architecture selected here.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 02 — The Dual-Mode Barrier: User Space vs. Kernel Space</strong><br><br>
+    We have <em>architected</em> the kernel — decided what code lives where in the monolithic, microkernel, layered, modular, or hybrid design. But regardless of architecture, every kernel relies on a hardware-enforced boundary that forces user code to ask for privileged operations instead of doing them directly. This is the <strong>dual-mode barrier</strong> — the Ring 0 / Ring 3 privilege hardware. We will see exactly how the CPU enforces this boundary, what happens when a user program tries to execute a privileged instruction, and why every syscall crosses this boundary.
+  </div>
+  <p class="hint">File: L02.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
