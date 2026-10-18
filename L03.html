@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L03 · The Gatekeeper Mechanism</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L03</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-blue">🔰 START HERE // L03 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line"></div>
+  <p class="subtitle">Trace a system call pathway from its user-space declaration down through hardware trap handling and kernel interrupt vector lookup.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> L02 established the wall — the hardware barrier between user code and kernel code. But if the wall is absolute, how does <em>any</em> legitimate operation ever happen? A user program needs to open files, spawn processes, allocate memory, and send network packets — all of which require kernel privilege. The wall must have a gate — but only <strong>one</strong> gate, with a strict protocol for who may pass through, what they may request, and how the kernel validates every request.
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L02 Barrier</h3><p>The Ring 0/Ring 3 hardware barrier, privileged instructions, and the <code>syscall</code> instruction as the sole legitimate transition mechanism.</p></div>
+    <div class="card amber"><h3>02 · x86-64 Registers</h3><p><code>rax</code>, <code>rdi</code>, <code>rsi</code>, <code>rdx</code>, <code>r10</code>, <code>r8</code>, <code>r9</code> — and how they pass arguments to functions.</p></div>
+    <div class="card amber"><h3>03 · Assembly Literacy</h3><p>Reading simple <code>movq</code>/<code>syscall</code>/<code>ret</code> sequences. You do not need to write assembly, but must be able to read it.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> The syscall table is not a secret — it is documented in <code>/usr/include/asm/unistd_64.h</code>. The security of the mechanism is not in obscurity — it is in the hardware-enforced discipline of the transition.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE BANK TELLER COUNTER</span>
+  <h2>The Syscall Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏦🪟💵</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>You want to withdraw money from your savings account. Because of security protocols, you cannot simply walk past the guards and open the steel vault yourself. Instead, you must approach a secure bulletproof teller window. You write your specific request on an explicit withdrawal form (the syscall number) and pass it through a slot. The teller (the kernel handler) reads your slip, verifies your ID, opens the vault safely on your behalf, and passes back your cash.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The teller window is the syscall boundary. You can only <em>request</em> operations — you cannot perform them yourself.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The controlled request-submit-receive protocol across the security boundary.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE HASH MAP ROUTER</span>
+  <h2>The Dispatch Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📋🔢🔀</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A switchboard operator at a giant index board with rows numbered 0–450, each paired with a function name — <code>read</code>, <code>write</code>, <code>open</code>, <code>fork</code>, <code>exit</code>. The index key is a positive numeric ID (e.g., syscall #1 for write, #57 for fork). The value paired with that key is a strict pointer to a verified, compiled inner kernel function array location.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The syscall number loaded into <code>rax</code> is used as an index into the <code>sys_call_table</code>. O(1) dispatch, easy to validate (out-of-range numbers rejected).</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The internal dispatch structure — the hash-map-style lookup that routes requests to handlers.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE FORM FIELDS</span>
+  <h2>The Register Marshalling Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📝⚙️📤</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Every bank form has standardized fields — the teller knows exactly where to look for the account number, the amount, the signature. The syscall interface has standardized <em>register fields</em> — <code>rax</code> always holds the syscall number, <code>rdi</code> the first argument, <code>rsi</code> the second. The kernel does not need to guess.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Argument passing is a convention enforced by libc, the syscall stub, and the kernel's ABI. Breaking the convention is rejected.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The input marshalling mechanism — arguments cross the barrier through standardized register fields.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE EMERGENCY NUMBERS BOARD</span>
+  <h2>The Vector Table Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📞📋🚨</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>When you dial an emergency number, you do not call the fire department directly — you call the emergency dispatch center, which looks up your number against the directory and routes to the correct service. This is the Interrupt Vector Table (IVT). The CPU does not call the syscall handler directly — it calls the dispatcher, which consults a table to find the right handler.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The IVT is a fixed-location array in memory, established by the kernel at boot. Each entry holds a code pointer to the corresponding handler.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The routing layer — the CPU vector table that directs control to the syscall dispatcher.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE GATEKEEPER SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>📤 User Side</h3><p>Submit a request through standardized register fields — <code>rax</code> (number), <code>rdi</code>, <code>rsi</code>, <code>rdx</code> (arguments). Then execute the <code>syscall</code> instruction.</p></div>
+    <div class="card emerald"><h3>📥 Kernel Side</h3><p>Trap, dispatch, validate arguments, execute the operation, return the result via <code>rax</code>.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">The syscall interface is a <strong>protocol</strong>, not a single function. Each stage is strictly enforced — the protocol does not tolerate improvisation.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE INDEX KEY</span>
+  <h2>The Syscall Number Convention</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Fixed per Architecture</h3>
+      <p>On x86-64, <code>read</code> is always 0, <code>write</code> is always 1, <code>open</code> is always 2, <code>close</code> is always 3. Changing them would break every compiled program ever shipped.</p>
+      <p style="margin-top:1vh"><strong>Where they live:</strong> <code>/usr/include/asm/unistd_64.h</code> — one of the most stable files in Linux.</p>
+      <p style="margin-top:1vh"><strong>Range:</strong> x86-64 has syscalls 0–~340 assigned. ARM64 has its own numbers.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Common Syscall Numbers (x86-64)</h3>
+      <p><code>read(0)</code> · <code>write(1)</code> · <code>open(2)</code> · <code>close(3)</code></p>
+      <p><code>stat(4)</code> · <code>fstat(5)</code> · <code>lseek(8)</code></p>
+      <p><code>mmap(9)</code> · <code>mprotect(10)</code> · <code>munmap(11)</code> · <code>brk(12)</code></p>
+      <p><code>ioctl(16)</code></p>
+      <p><code>fork(57)</code> · <code>execve(59)</code> · <code>exit(60)</code></p>
+      <p><code>wait4(61)</code> · <code>kill(62)</code></p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>The Verdict:</strong> Every program operation that requires kernel privilege starts with a numeric syscall number in a register. The number is not a secret — it is a <em>protocol constant</em>.
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE ABI INPUT SCHEMA</span>
+  <h2>The Register Argument Convention</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3><code>rax</code></h3><p>Syscall number (input). Also the return value (output).</p></div>
+    <div class="card"><h3><code>rdi</code></h3><p>Argument 1 — e.g., file descriptor for <code>read</code>.</p></div>
+    <div class="card"><h3><code>rsi</code></h3><p>Argument 2 — e.g., buffer pointer.</p></div>
+    <div class="card"><h3><code>rdx</code></h3><p>Argument 3 — e.g., byte count.</p></div>
+    <div class="card"><h3><code>r10</code></h3><p>Argument 4. (Not <code>rcx</code> — <code>rcx</code> is clobbered by <code>syscall</code>.)</p></div>
+    <div class="card"><h3><code>r8</code> &amp; <code>r9</code></h3><p>Arguments 5 and 6.</p></div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>Return value:</strong> Always in <code>rax</code>. Negative values indicate errors (<code>-errno</code>, e.g., <code>-ENOENT</code> = -2). Positive or zero indicates success.
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE HARDWARE TRANSITION</span>
+  <h2>The Syscall Trap Sequence</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>User → Kernel</h3>
+      <p>1. Arguments in place (<code>rax</code>, <code>rdi</code>, <code>rsi</code>, …)</p>
+      <p>2. Execute the <code>syscall</code> instruction (0F 05)</p>
+      <p>3. CPU saves RIP to <code>rcx</code>, RFLAGS to <code>r11</code></p>
+      <p>4. CPL switches from 3 to 0</p>
+      <p>5. Loads new segments from <code>MSR_STAR</code></p>
+      <p>6. Jumps to handler at <code>MSR_LSTAR</code></p>
+      <p>7. Kernel entry stub saves registers → <code>pt_regs</code></p>
+    </div>
+    <div class="card emerald">
+      <h3>Kernel → User (Return)</h3>
+      <p>1. Handler completes, return value in <code>pt_regs.ax</code></p>
+      <p>2. Kernel executes <code>sysret</code> (or <code>sysretq</code>)</p>
+      <p>3. CPU restores RIP from <code>rcx</code>, RFLAGS from <code>r11</code></p>
+      <p>4. CPL switches from 0 to 3</p>
+      <p>5. Jumps back to user code after <code>syscall</code></p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>Cost:</strong> The entire trap sequence takes ~100 ns to ~1 μs — fast enough for thousands of syscalls per second per process, but slow enough that batching matters.
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE HANDLER LOOKUP</span>
+  <h2>The Syscall Dispatch Table</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Table Structure</h3>
+      <p><strong>What it is:</strong> A C array of function pointers, defined in <code>arch/x86/entry/syscall_64.c</code>.</p>
+      <p><strong>The dispatcher:</strong> <code>do_syscall_64()</code> reads <code>regs-&gt;ax</code>, validates against <code>NR_syscalls</code>, calls <code>sys_call_table[nr]</code>.</p>
+      <p><strong>Handler's job:</strong> Extract args from <code>pt_regs</code>, validate user pointers, call actual kernel implementation, write result back to <code>rax</code>.</p>
+    </div>
+    <div class="card crimson">
+      <h3>The Security Concern</h3>
+      <p>The <code>sys_call_table</code> is in read-only kernel memory after boot (<code>CONFIG_STRICT_KERNEL_RWX=y</code>).</p>
+      <p style="margin-top:1vh">An exploit that overwrites a table entry would gain arbitrary kernel code execution — a classic attack. This is why the table is protected.</p>
+      <p style="margin-top:1vh"><strong>Verdict:</strong> O(1) lookup. Its correctness is critical — a missing or corrupted entry breaks every program that depends on that syscall.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE TRUST BOUNDARY</span>
+  <h2>The Critical Security Boundary — Pointer Validation</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson">
+      <h3>The Pointer Validation Problem</h3>
+      <p>User code passes a <em>pointer</em> (e.g., buffer to <code>read()</code>).</p>
+      <p>The kernel cannot simply dereference it — the address might be:</p>
+      <p>· <strong>Unmapped</strong> (not in the user's page tables)</p>
+      <p>· <strong>Read-only</strong> (but the syscall expects a write pointer)</p>
+      <p>· <strong>Pointing to kernel memory</strong> (maliciously-crafted)</p>
+      <p>· <strong>Maliciously aligned</strong> to break hardware assumptions</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Kernel's Approach</h3>
+      <p><strong>copy_from_user / copy_to_user:</strong> Specialized functions that check the user pointer against the process's memory map, then copy safely. On fault, return <code>-EFAULT</code>.</p>
+      <p><strong>access_ok():</strong> Cheap initial check that address is in user space — necessary but not sufficient.</p>
+      <p><strong>get_user / put_user:</strong> For single primitive types.</p>
+      <p style="margin-top:1vh;color:#FBBF24"><strong>Never</strong> <code>memcpy</code> directly from user pointers — the classic security bug that has caused the most severe kernel CVEs.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON HARDWARE PRIVILEGE</span>
+  <h2>Core System Cohesion — Relies On L02</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L02 Established</h3><p>The hardware barrier — Ring 0 vs. Ring 3 — and the <code>syscall</code>/<code>sysret</code> hardware primitive.</p></div>
+    <div class="card violet"><h3>L03 Builds</h3><p>The software protocol on top of the hardware primitive: trap handler, argument marshalling, dispatch table.</p></div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>Architectural Bond:</strong> Every syscall is a controlled Ring 3 → Ring 0 transition. The hardware makes it possible; the software makes it safe. Remove either, and the syscall interface collapses.
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO ALL FUTURE LECTURES</span>
+  <h2>Core System Cohesion — Feeds Into Every Module</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Module 2 · L05–L09</h3><p><code>fork()</code>, <code>exec()</code>, <code>wait()</code>, <code>getpid()</code>, <code>nice()</code> — every process operation is a syscall.</p></div>
+    <div class="card"><h3>Module 3 · L10–L13</h3><p><code>brk()</code>, <code>mmap()</code>, <code>mprotect()</code>, <code>munmap()</code> — every memory operation is a syscall.</p></div>
+    <div class="card"><h3>Module 5 · L16–L19</h3><p><code>open()</code>, <code>read()</code>, <code>write()</code>, <code>close()</code>, <code>stat()</code> — every file operation is a syscall.</p></div>
+    <div class="card"><h3>Module 6 · L20–L21</h3><p><code>ioctl()</code>, <code>read()</code> on device nodes, <code>poll()</code> — every device I/O is a syscall.</p></div>
+    <div class="card"><h3>Module 7 · L22–L27</h3><p><code>setuid()</code>, <code>getuid()</code>, <code>capget()</code>, <code>setns()</code>, <code>clone3()</code> — every security operation is a syscall.</p></div>
+    <div class="card emerald"><h3>The Universal Substrate</h3><p>L03 is the entry point to every subsystem. Every following lecture reaches its content through the syscall interface.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: KERNEL SYSCALL STRATEGIES</span>
+  <h2>Syscall Strategies Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Syscall Handling</h3><p>Single system call table with hundreds of entries, each pointing deep in the monolithic kernel. Direct, fast, O(1). Every syscall runs at full Ring 0 privilege. <strong>Weakness:</strong> a bug in any handler is kernel-wide compromise.</p></div>
+    <div class="card emerald"><h3>Microkernel Syscall Handling</h3><p>Much smaller system call table (&lt; 100 syscalls). Handlers often just translate requests into IPC messages and forward to user-space servers. Syscalls become IPC operations — slower, but bugs cannot crash the kernel.</p></div>
+    <div class="card amber"><h3>Layered Syscall Handling</h3><p>Strict dispatch pipeline: generic ABI layer → subsystem dispatch → specific handler. Each layer adds overhead but improves modularity. Errors caught at layer boundaries.</p></div>
+    <div class="card"><h3>Modular Syscall Handling</h3><p>The system call table is fixed, but handlers are thin wrappers that dispatch to loadable modules. <code>ioctl()</code> is the extreme case — dispatches by device-specific codes.</p></div>
+    <div class="card violet"><h3>Hybrid Syscall Handling</h3><p>Core syscall table handles critical operations in-kernel; optional syscalls (io_uring, eBPF, sched_ext) dispatch to specialized subsystems with their own validation. Modern Linux is functionally hybrid.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE SYSCALL VOCABULARY</span>
+  <h2>Base Syscall Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · System Call (Syscall)</h3>
+      <p>The programmatic interface used by user-space applications to request core kernel services; a controlled transition from Ring 3 to Ring 0 triggered by the <code>syscall</code> assembly instruction, which the kernel handles via a fixed dispatch table and then returns the result to user space. It is the <strong>only</strong> legitimate way for user code to access kernel privileges.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The bank teller window — the only authorized route to the vault.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Hardware Trap</h3>
+      <p>An exceptional condition generated by software (e.g., the <code>syscall</code> instruction) or hardware that shifts control back to the operating system's supervisor code; distinct from hardware <em>interrupts</em> (asynchronous external events) in that traps are synchronous with the instruction stream.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The electronic signal that summons the manager when the teller requests vault access.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE SYSCALL VOCABULARY</span>
+  <h2>Advanced Syscall Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Interrupt Vector Table</h3>
+      <p>A memory array holding code pointers to specialized driver and kernel function routines. On modern x86-64, it is called the Interrupt Descriptor Table (IDT). Set up by the kernel at boot; stored in protected memory.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The emergency numbers board — the CPU dials the appropriate number for each event.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Syscall Register Number</h3>
+      <p>The specific integer key loaded into <code>rax</code> to tell the OS which system service to route to. It is a fixed protocol constant — the same number identifies the same syscall across all programs on the same architecture.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The specific form number you must fill out at the teller window.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · copy_from_user / copy_to_user</h3>
+      <p>Specialized kernel functions that safely copy data between kernel and user buffers; they validate the user pointer against the process's address space and handle page faults without crashing the kernel. Direct <code>memcpy</code> from user pointers is a critical vulnerability.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The teller's careful ID verification before touching the vault.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: C RAW SYSCALL PANEL</span>
+  <h2>Bypassing libc to Invoke the Raw Syscall</h2>
+  <pre class="code-block"><span class="cm">// Bypassing the libc wrapper and invoking a raw x86_64 write syscall</span>
+<span class="cm">// COMPILE: gcc -o rawsyscall rawsyscall.c</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;unistd.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string.h&gt;</span>
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="kw">const</span> <span class="kw">char</span>* msg = <span class="str">"Hello from a raw x86_64 system call!\n"</span>;
+    <span class="kw">size_t</span> msg_len = <span class="fn">strlen</span>(msg);
+
+    <span class="fn">printf</span>(<span class="str">"[USER MODE] Invoking raw syscall 'write' (number 1)...\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"[USER MODE] Arguments via rdi/rsi/rdx, number via rax.\n\n"</span>);
+    <span class="fn">fflush</span>(stdout);
+
+    <span class="cm">// Linux x86-64 syscall number for 'write' is 1.</span>
+    <span class="cm">// Syscall ABI: rax=number, rdi=arg1, rsi=arg2, rdx=arg3</span>
+    <span class="cm">//   rax = 1     (SYS_write)</span>
+    <span class="cm">//   rdi = 1     (file descriptor 1 = stdout)</span>
+    <span class="cm">//   rsi = msg   (pointer to buffer)</span>
+    <span class="cm">//   rdx = 37    (byte count)</span>
+    <span class="cm">// The 'syscall' instruction traps from Ring 3 to Ring 0.</span>
+
+    <span class="kw">long</span> result;
+    __asm__ <span class="kw">volatile</span> (
+        <span class="str">"movq $1, %%rax\n\t"</span>       <span class="cm">// Syscall number 1 = 'write'</span>
+        <span class="str">"movq $1, %%rdi\n\t"</span>       <span class="cm">// Arg 1: FD 1 (stdout)</span>
+        <span class="str">"movq %1, %%rsi\n\t"</span>       <span class="cm">// Arg 2: pointer to message</span>
+        <span class="str">"movq %2, %%rdx\n\t"</span>       <span class="cm">// Arg 3: message length</span>
+        <span class="str">"syscall\n\t"</span>              <span class="cm">// Invoke kernel — trap to Ring 0</span>
+        <span class="str">"movq %%rax, %0\n\t"</span>       <span class="cm">// Save return value from rax</span>
+        : <span class="str">"=r"</span>(result)
+        : <span class="str">"r"</span>(msg), <span class="str">"r"</span>(msg_len)
+        : <span class="str">"%rax"</span>, <span class="str">"%rdi"</span>, <span class="str">"%rsi"</span>, <span class="str">"%rdx"</span>, <span class="str">"memory"</span>
+    );
+
+    <span class="fn">printf</span>(<span class="str">"\n[USER MODE] Returned from kernel.\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"[USER MODE] Syscall returned: %ld bytes written\n"</span>, result);
+
+    <span class="kw">if</span> (result &lt; <span class="num">0</span>) {
+        <span class="fn">printf</span>(<span class="str">"[USER MODE] Syscall failed with error %ld\n"</span>, -result);
+    } <span class="kw">else</span> {
+        <span class="fn">printf</span>(<span class="str">"[USER MODE] Success! Kernel wrote %ld bytes for us.\n"</span>, result);
+    }
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: TRACING THE SYSCALL PIPELINE</span>
+  <h2>Walking the Raw Syscall Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>movq $1, %%rax</h3><p>Set the syscall number. <code>rax = 1</code> — the fixed number for <code>write</code>. The dispatch key the kernel will read.</p></div>
+    <div class="card"><h3>movq $1, %%rdi</h3><p>Arg 1 = file descriptor. <code>rdi = 1</code> — stdout. Every process starts with fds 0, 1, 2 open.</p></div>
+    <div class="card"><h3>movq %1, %%rsi</h3><p>Arg 2 = buffer pointer. The address of our message string. This is a <em>user-space pointer</em> — validated by the kernel.</p></div>
+    <div class="card"><h3>movq %2, %%rdx</h3><p>Arg 3 = length. The kernel will copy exactly this many bytes.</p></div>
+    <div class="card crimson"><h3>syscall</h3><p>The trap. Saves RIP to <code>rcx</code>, RFLAGS to <code>r11</code>, switches CPL 3→0, jumps to handler at <code>MSR_LSTAR</code>. Kernel entry stub saves registers to <code>pt_regs</code>.</p></div>
+    <div class="card emerald"><h3>Dispatch &amp; Execute</h3><p><code>do_syscall_64()</code> reads <code>regs-&gt;ax = 1</code>, looks up <code>sys_call_table[1]</code> = <code>__x64_sys_write</code>. Handler validates <code>rsi</code>, calls <code>vfs_write</code>, copies bytes with <code>copy_from_user</code>, returns 37.</p></div>
+    <div class="card"><h3>movq %%rax, %0</h3><p>Read <code>rax</code> back into local <code>result</code>. Value from the kernel via the <code>pt_regs</code> restore path.</p></div>
+    <div class="card violet"><h3>sysret</h3><p>The return. Restores <code>rcx</code>→RIP, <code>r11</code>→RFLAGS, CPL 0→3, jumps back to user space.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎯 INTERACTIVE WORKSHOP: THE PHYSICAL SYSCALL DISPATCH</span>
+  <h2>The Human Syscall Dispatcher</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Student 01 · User Program</h3><p>Holds a card labeled "<code>read()</code> syscall with buffer pointer." Approaches the CPU.</p></div>
+    <div class="card"><h3>Student 02 · CPU Hardware</h3><p>Holds a bell — rings it to represent the <code>syscall</code> instruction trap. Control passes to the dispatcher.</p></div>
+    <div class="card"><h3>Student 03 · Dispatcher</h3><p>Holds the syscall table — a printed list of numbers to function names. Looks up the request, routes to the right handler.</p></div>
+    <div class="card"><h3>Students 04–06 · Handlers</h3><p>Each represents a handler — <code>read</code>, <code>write</code>, <code>fork</code>. Each holds a symbolic "vault key" that allows execution.</p></div>
+    <div class="card"><h3>Student 07 · Buffer Validator</h3><p>Stands between dispatcher and handler. Verifies the buffer pointer is a valid user address before allowing the request through.</p></div>
+    <div class="card emerald"><h3>The Execution</h3><p>User → CPU bell → dispatcher lookup → handler → buffer validation → execute → return result. Run through <code>read</code>, <code>write</code>, <code>fork</code>, <code>mmap</code>.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Pedagogic Takeaway:</strong> Physical intuition for the four-stage syscall pipeline. Validation (Student 07) is a critical part — every user-kernel interaction has this exact structure.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 TRY IT LIVE: AUDITING LIVE SYSCALLS</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> strace -e trace=write /bin/echo hello              <span class="out"># Trace just writes</span>
+<span class="cmd">$</span> strace -c /bin/ls                                  <span class="out"># Summary of syscall counts</span>
+<span class="cmd">$</span> strace -e trace=openat,read,write cat /etc/passwd 2&gt;&amp;1 | head -20
+<span class="cmd">$</span> strace -e trace=clone,execve bash -c 'ls' 2&gt;&amp;1 | head  <span class="out"># Fork/exec</span>
+<span class="cmd">$</span> strace -e trace=mmap,brk,mprotect ls 2&gt;&amp;1 | head -20  <span class="out"># Memory</span>
+<span class="cmd">$</span> ltrace -c /bin/ls 2&gt;&amp;1 | head -10                  <span class="out"># Library vs syscall</span>
+<span class="cmd">$</span> cat /proc/$$/syscall                               <span class="out"># Last syscall made</span>
+<span class="cmd">$</span> cat /proc/$$/status | grep -i "syscall"            <span class="out"># Syscall config</span></pre>
+  <p class="hint">Every line of strace output is an L03 pipeline execution.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 1: OS Structure &amp; Design
+        └── <span class="active">L03: The Gatekeeper Mechanism (ACTIVE NODE 🌟)</span>
+              ├── Syscall Trap Sequence &amp; Interrupt Vector Table
+              └── Syscall Table Dispatch &amp; User Pointer Validation</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>The system call interface is the <strong>only</strong> legitimate channel across the L02 hardware barrier. Every user-kernel interaction begins with a <code>syscall</code> instruction that traps from Ring 3 to Ring 0 in a single hardware cycle.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>The kernel dispatches syscalls via a fixed integer key in <code>rax</code> and a <code>sys_call_table</code> array of function pointers. Arguments cross through a strict register convention (<code>rdi</code>, <code>rsi</code>, <code>rdx</code>, <code>r10</code>, <code>r8</code>, <code>r9</code>), and the return value comes back in <code>rax</code>.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>The most security-critical part of every syscall handler is <strong>validating user-supplied pointers</strong>. Direct <code>memcpy</code> from user memory is a critical vulnerability; only <code>copy_from_user</code>/<code>copy_to_user</code> are safe. Every kernel vulnerability ever disclosed ultimately traces back to a validation failure at this gate.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 04 — The Boot Process</strong><br><br>
+    We have now studied the entire architecture of a <em>running</em> operating system: the resource model (L00), the internal structure (L01), the hardware privilege barrier (L02), and the syscall gate (L03). But how does the OS come into existence in the first place? From the moment you press the power button — through UEFI firmware, the bootloader, the kernel initialization, and finally to user-space PID 1 — the OS is <em>built</em> in a four-stage relay. We will trace each stage, understand why the CPU cannot boot an OS directly from disk, and see how the entire architecture we have studied so far is assembled from scratch at every boot.
+  </div>
+  <p class="hint">File: L04.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
