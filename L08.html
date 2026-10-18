@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L08 · CPU Scheduling II — MLFQ, Starvation & Priority Inversion</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .mlfq-stack { display: flex; flex-direction: column; gap: 1vh; max-width: 700px; width: 100%; margin: 2vh auto; }
+  .mlfq-tier { padding: 2vh 2vw; border-radius: 10px; border: 2px solid; text-align: left; }
+  .mlfq-tier h4 { font-size: 1.1rem; font-weight: 800; margin-bottom: 0.5vh; }
+  .mlfq-tier p { font-size: 0.85rem; line-height: 1.4; }
+  .tier-q0 { border-color: #FBBF24; background: rgba(251,191,36,0.06); color: #FCD34D; }
+  .tier-q1 { border-color: #60A5FA; background: rgba(96,165,250,0.06); color: #93C5FD; }
+  .tier-q2 { border-color: #A78BFA; background: rgba(167,139,250,0.06); color: #C4B5FD; }
+  .inversion-diagram { display: flex; flex-direction: column; align-items: center; gap: 1vh; max-width: 800px; width: 100%; margin: 2vh auto; }
+  .inversion-row { display: flex; align-items: center; gap: 1vw; width: 100%; font-size: clamp(0.8rem, 1vw, 0.95rem); }
+  .inversion-label { width: 100px; text-align: right; font-weight: 800; }
+  .inversion-bar { flex: 1; height: 40px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .inversion-label { width: 70px; font-size: 0.75rem; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L08</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-crimson">🔰 START HERE // L08 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#EF4444"></div>
+  <p class="subtitle">Construct a priority starvation scenario, calculate priority aging fixes, and diagnose the architectural trap of Priority Inversion.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> L07 taught us three simple algorithms — FCFS, SJF, Round Robin. But real systems cannot use any of them in isolation. An interactive keystroke needs <em>instant</em> response; a background backup job needs <em>eventual</em> progress. Neither the keystroke nor the backup should starve. And when a high-priority task crashes because a low-priority task holds its lock — the entire system can freeze for <em>weeks</em>. How do modern kernels solve all three problems simultaneously?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L07 Foundation</h3><p>FCFS, SJF, Round Robin, the time quantum, preemption, and the core metrics (wait time, turnaround time, response time).</p></div>
+    <div class="card amber"><h3>02 · L14 (Preview) Mutexes</h3><p>Priority inversion cannot be understood without understanding what a lock is and why a low-priority task might hold one.</p></div>
+    <div class="card amber"><h3>03 · L06 Context Switch</h3><p>Every priority decision ultimately triggers a save/restore cycle through the PCB.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> L08 is <em>the</em> bridge between the clean theory of L07 and the messy reality of production systems. Every sentence in this lecture has been validated by decades of operating system outages.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE HOSPITAL TRIAGE</span>
+  <h2>The Priority Scheduling Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏥🚑🩺</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>An emergency room does not use first-come-first-served. It uses <em>triage</em>: the patient with the heart attack jumps ahead of the patient with the sprained ankle, regardless of who arrived first. Severity of need determines priority. This saves lives — but it introduces a new problem: if the ER is <em>always</em> full of heart attacks, the sprained ankle patient might wait forever.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Priority scheduling assigns a numeric priority to each process. The scheduler always picks the highest-priority ready process.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The foundational algorithm of L08 — priority-based dispatch.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE BROKEN-ARM PATIENT</span>
+  <h2>The Starvation Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🩹⏰🚫</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The broken-arm patient arrives at 9 AM. Every time they're about to be called, a heart attack arrives and jumps the line. By 6 PM they are <em>still waiting</em>. Nothing is deadlocked — the system is fully alive, treating patients continuously — but <em>one specific patient is never reached</em>.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Pure priority scheduling can starve low-priority processes indefinitely if higher-priority arrivals never stop flooding the queue.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Starvation is the <em>first</em> pathology of naive priority scheduling.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE ELEVATING SENIORITY</span>
+  <h2>The Aging Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">⏫📈🩹</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The hospital adopts a rule: <em>every hour you wait, your priority goes up by one level</em>. At 9 AM, the broken-arm patient is priority 1. By 3 PM, they are priority 7 — higher than most heart-attack arrivals. Eventually, no matter how many emergencies keep arriving, the broken-arm patient <em>will</em> be treated. Starvation is prevented.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Aging gradually boosts the priority of long-waiting processes, guaranteeing that every process eventually reaches the front of the queue.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Aging is the <em>general</em> fix for starvation — applicable to any priority-based scheduler.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE COLLEGE COURSE LEVELING</span>
+  <h2>The MLFQ Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🎓🏆📚</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A university uses multiple course levels. New students start in the honors track. If they clearly grasp the material (yield early, don't consume full class time), they stay in honors. If they need repeated help (consume full class time), they are moved to a lower track with more pacing. This adaptively separates fast learners from slow learners — and each track runs at the right speed.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>MLFQ uses multiple priority queues with time quantums. Processes that yield early (interactive tasks) stay in high-priority queues. Processes that consume their full quantum (CPU-bound tasks) are demoted to lower queues.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>MLFQ adapts to observed behavior — <em>no prior knowledge</em> of burst time is required (unlike SJF).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE MISSION-CRITICAL STALL</span>
+  <h2>The Priority Inversion Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🚀⏸️🛰️</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A high-priority task (life support) needs a data lock held by a low-priority task. Before the low task can release the lock, a medium-priority task (weather telemetry, which does not need the lock) preempts it — because the medium task outranks the low one. Now the low task can never finish, the lock is never released, and the high task — which outranks <em>both</em> — is blocked forever by a process it was designed to outrank. Priority is inverted.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Priority inversion requires (1) a lock held by a low task, (2) a high task requesting that lock, and (3) a medium task preempting the low holder. All three conditions must coexist.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the exact scenario that froze the Mars Pathfinder in 1997 — a real spacecraft in flight.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE ADAPTIVE SCHEDULING SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson"><h3>🔴 Naive Priority</h3><p>Starvation + Priority Inversion. Low-priority tasks never run. High-priority tasks freeze behind medium-priority tasks.</p></div>
+    <div class="card emerald"><h3>🟢 Adaptive Scheduling</h3><p>MLFQ + Aging + Inheritance. Dynamic priority adjustment, active starvation prevention, defensive inversion protocol.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Only when all three mechanisms are combined can the scheduler serve interactive users, background batch jobs, and mission-critical real-time tasks simultaneously.</p>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE PRIORITY DISPATCH MODEL</span>
+  <h2>Priority Scheduling Fundamentals</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Priority Model</h3>
+      <p><strong>Data structure:</strong> A priority queue (heap or per-priority FIFO queues).</p>
+      <p><strong>Policy:</strong> On CPU free, dispatch the process with the <em>highest</em> numeric priority.</p>
+      <p><strong>Tie-breaking:</strong> Usually FCFS within the same priority.</p>
+      <p><strong>Preemption:</strong> Optional — preemptive interrupts lower-priority; non-preemptive lets running process finish.</p>
+      <p><strong>Linux ranges:</strong> <code>SCHED_NORMAL</code> uses nice values −20 (highest) to +19 (lowest); real-time uses priorities 1–99.</p>
+    </div>
+    <div class="card crimson">
+      <h3>The Fundamental Trade-off</h3>
+      <p>Priority scheduling is <strong>necessary</strong> for real-time and interactive systems — a keyboard interrupt handler must outrank a background compression job.</p>
+      <p style="margin-top:1vh">But without mitigations, it <strong>starves</strong> low-priority processes.</p>
+      <p style="margin-top:1vh;color:#F87171">Priority scheduling is the foundation of every modern OS scheduler — but the naive version is unusable in production.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE UNBOUNDED WAIT TRAP</span>
+  <h2>Starvation and the Starvation Condition</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Starvation Condition</h3>
+      <p>A low-priority process <code>P_low</code> is in the Ready queue.</p>
+      <p>An infinite stream of higher-priority processes continuously arrive and are dispatched.</p>
+      <p><code>P_low</code> never reaches the front of the queue.</p>
+      <p style="margin-top:1vh">The formal property: Starvation is <em>not</em> deadlock (system is alive), <em>not</em> preemption (low process is simply never started). It is a <strong>fairness failure</strong>.</p>
+    </div>
+    <div class="card amber">
+      <h3>The Concrete Example</h3>
+      <p>A background backup task with nice value 19 (lowest).</p>
+      <p>A user types continuously for hours — each keystroke creates a new high-priority event.</p>
+      <p>The backup runs <em>only</em> when the user pauses — which may be <strong>never</strong>.</p>
+      <p style="margin-top:1vh;color:#FBBF24">Pure priority scheduling cannot be used in production without mitigation.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE STARVATION PREVENTION PROTOCOL</span>
+  <h2>Aging — The Elevating Priority Fix</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Aging Algorithm</h3>
+      <p><strong>Rule:</strong> Each process's priority is incremented every time it waits in the Ready queue for interval <code>T</code>.</p>
+      <p><strong>Effect:</strong> A process with base priority 1 and aging rate +1/sec eventually reaches priority > any steady-state arrival rate — guaranteed to be scheduled.</p>
+      <p><strong>Implementation:</strong></p>
+      <p>· Periodic priority boost (old Linux 4.x boosted every epoch)</p>
+      <p>· Fairness formulas (CFS/EEVDF compute "virtual runtime" — aging is implicit)</p>
+      <p>· Explicit counters in <code>task_struct</code></p>
+    </div>
+    <div class="card emerald">
+      <h3>The Guarantee</h3>
+      <p>Broken-arm patient at priority 1. Aging rate +1/hour. After 10 hours of waiting, priority = 11.</p>
+      <p style="margin-top:1vh">If heart-attack patients arrive at priority 10, the broken-arm patient is now <strong>guaranteed</em></strong> to be dispatched.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>Aging is the universal fix for starvation.</strong> Every modern scheduler incorporates some form of it — explicitly or implicitly.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE ADAPTIVE PRIORITY LADDER</span>
+  <h2>Multi-Level Feedback Queues (MLFQ)</h2>
+  <div class="mlfq-stack">
+    <div class="mlfq-tier tier-q0"><h4>Q0 · Highest Priority (Quantum = 8ms)</h4><p>Interactive processes live here. Yielding early keeps them here. Instant response for keystrokes, mouse events.</p></div>
+    <div class="mlfq-tier tier-q1"><h4>Q1 · Middle Priority (Quantum = 16ms)</h4><p>Processes that consumed their Q0 quantum. Still interactive-ish, but less responsive.</p></div>
+    <div class="mlfq-tier tier-q2"><h4>Q2 · Lowest Priority (Quantum = 32ms)</h4><p>CPU-bound batch processes. Long quantum = fewer context switches, but longer response.</p></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The MLFQ Rules</h3>
+      <p><strong>Rule 1 (Priority):</strong> Highest-priority non-empty queue is dispatched first.</p>
+      <p><strong>Rule 2 (Quantum):</strong> Each queue has its own quantum (Q0 &lt; Q1 &lt; Q2).</p>
+      <p><strong>Rule 3 (Promotion):</strong> Yields early → stays in current queue.</p>
+      <p><strong>Rule 4 (Demotion):</strong> Consumes full quantum → demoted to next queue.</p>
+      <p><strong>Rule 5 (Periodic Boost):</strong> Every epoch (~100ms), all processes promoted to Q0. Prevents starvation entirely.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Behavior</h3>
+      <p><strong>Interactive processes</strong> yield quickly → stay in Q0 → instant response.</p>
+      <p><strong>CPU-bound batch jobs</strong> consume quantum → filter down to Q2 → long slices, minimal interference.</p>
+      <p><strong>Starvation is impossible</strong> because Rule 5 periodically promotes everyone back to the top.</p>
+      <p style="margin-top:1vh;color:#34D399">MLFQ is the archetypal modern scheduler — no prior burst-time knowledge required.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: THE PRIORITY INVERSION MECHANICS</span>
+  <h2>Priority Inversion — The Three-Task Trap</h2>
+  <div class="inversion-diagram">
+    <div class="inversion-row">
+      <span class="inversion-label" style="color:#F87171">High (H)</span>
+      <div class="inversion-bar" style="background:rgba(239,68,68,0.2);border:2px solid #EF4444;color:#FCA5A5">Requests lock X → BLOCKS</div>
+    </div>
+    <div class="inversion-row">
+      <span class="inversion-label" style="color:#FBBF24">Medium (M)</span>
+      <div class="inversion-bar" style="background:rgba(245,158,11,0.2);border:2px solid #F59E0B;color:#FCD34D">Runs freely — preempts L</div>
+    </div>
+    <div class="inversion-row">
+      <span class="inversion-label" style="color:#34D399">Low (L)</span>
+      <div class="inversion-bar" style="background:rgba(16,185,129,0.2);border:2px solid #10B981;color:#34D399">Holds lock X → cannot run</div>
+    </div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Inversion Scenario</h3>
+      <p><strong>1.</strong> Low-priority task L acquires lock X.</p>
+      <p><strong>2.</strong> High-priority task H preempts L, requests lock X → H blocks because L holds it.</p>
+      <p><strong>3.</strong> Medium-priority task M becomes ready. M does <em>not</em> need lock X. Since M has higher priority than L, M preempts L.</p>
+      <p><strong>4.</strong> Now H (highest) waits on L (lowest) who cannot run because M (medium) preempted it.</p>
+    </div>
+    <div class="card crimson">
+      <h3>The Cost &amp; Real-World Cases</h3>
+      <p>The blocking time of H is <strong>unbounded</strong> — it depends on M's runtime, which could be infinite.</p>
+      <p style="margin-top:1vh">Real incidents:</p>
+      <p>· <strong>Mars Pathfinder (1997):</strong> Repeated system resets for weeks before the fix was uplinked.</p>
+      <p>· <strong>Windows XP (2003):</strong> A similar inversion caused 100% CPU utilization under specific driver interactions.</p>
+      <p>· <strong>Ariane 5 (1996):</strong> A related timing fault caused the rocket's self-destruction.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">💻 SYSTEMS COHESION: THE PRIORITY DONATION PROTOCOL</span>
+  <h2>Priority Inheritance — The Definitive Fix</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Inheritance Protocol</h3>
+      <p><strong>1. Detection:</strong> When high task H requests lock held by low task L, kernel detects inversion.</p>
+      <p><strong>2. Boost:</strong> Kernel temporarily raises L's effective priority to match H's.</p>
+      <p><strong>3. Preemption protection:</strong> Now M cannot preempt L — L outranks M. L runs to completion of critical section and releases the lock.</p>
+      <p><strong>4. Restore:</strong> After release, L's priority reverts to its original low value.</p>
+      <p><strong>5. H proceeds:</strong> H acquires the lock and continues unimpeded.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Guarantee &amp; Variants</h3>
+      <p>With priority inheritance, H's blocking time is <strong>bounded</strong> by L's critical section length. Even if M arrives, H's guaranteed progress is preserved.</p>
+      <p style="margin-top:1vh"><strong>Priority Ceiling</strong> (alternative protocol): Each lock has a ceiling priority equal to the highest priority that can access it. Any task holding the lock runs at ceiling priority — prevents any inversion before it happens.</p>
+      <p style="margin-top:1vh;color:#34D399">This is the exact fix NASA uplinked to Mars Pathfinder in 1997. Non-negotiable for any scheduler combining priorities and locks.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON L07 AND L14</span>
+  <h2>Core System Cohesion — Relies On L07 &amp; L14</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L07 (Basic Scheduling)</h3><p>MLFQ is an extension of Round Robin with multiple queues and adaptive priority adjustment. Every MLFQ queue runs RR-style <em>within</em> itself.</p></div>
+    <div class="card"><h3>L14 (Mutual Exclusion)</h3><p>Priority inversion is a phenomenon at the <em>intersection</em> of priority scheduling (L08) and mutex locks (L14). Neither alone causes the problem — the <em>interaction</em> does.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>L08 is where scheduling ceases to be purely about fairness and responsiveness — it becomes about <em>defensive</em> mechanics, protecting against systemic traps that arise from the interaction of independent subsystems.</p></div>
+    <div class="card emerald"><h3>Feeds Into</h3><p><strong>L09 (Threads):</strong> Thread-level scheduling inherits priorities.<br><strong>L13 (Page Replacement):</strong> Aging concept reappears in LRU-with-aging — universal systems concept.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE ADVANCED SCHEDULING VOCABULARY</span>
+  <h2>Base Advanced Scheduling Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Starvation</h3>
+      <p>A scheduling defect where a process remains indefinitely delayed inside the ready state because higher-priority tasks keep seizing control. Distinguished from deadlock (nobody runs at all) and livelock (processes run but make no progress) — in starvation, the <em>system</em> is alive and progressing, but one specific process never gets CPU time.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The broken-arm patient who leaves the ER at midnight, never having been seen.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Aging</h3>
+      <p>A kernel mitigation technique that gradually elevates a process's scheduling priority the longer it sits starved inside the ready queue; guarantees that every process eventually reaches sufficient priority to be scheduled, eliminating starvation entirely.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The waiting ticket whose priority number climbs every hour.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE ADVANCED SCHEDULING VOCABULARY</span>
+  <h2>Advanced Inversion Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · MLFQ</h3>
+      <p>An adaptive CPU scheduling architecture that shifts tasks dynamically between priority tiers — each with its own quantum and priority. Processes that yield early stay high; processes that consume their full quantum are demoted. Periodic promotion prevents starvation entirely.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The college course leveling system — fast learners stay in honors, slow learners move to more patient tracks.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Priority Inversion</h3>
+      <p>An operational trap where a low-priority thread holding a resource indirectly delays a high-priority thread due to a medium-priority thread preempting the holder. Requires: (1) high task requests lock held by low, (2) low cannot run because higher-priority intermediate exists, (3) intermediate does not need the lock.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The Mars Pathfinder freeze of 1997 — high-priority life support blocked by a low-priority data logger, preempted by medium-priority weather telemetry.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Priority Inheritance</h3>
+      <p>A real-time scheduling protocol that temporarily <em>donates</em> the requesting high-priority task's priority level to the low-priority task holding the requested lock; prevents the holder from being preempted by unrelated medium-priority tasks. After lock release, the holder's priority reverts. Guarantees bounded blocking time for the high-priority task.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The high task temporarily gives the low task a "VIP badge" so nobody can interrupt before it finishes its critical section.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: C ADVANCED SCHEDULER SIMULATOR</span>
+  <h2>Simulating Starvation, Aging, and Priority Inversion</h2>
+  <pre class="code-block"><span class="cm">// Simulating starvation, aging, and priority inversion scenarios in C</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string.h&gt;</span>
+
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    <span class="kw">int</span> pid, base_priority, priority, waited_time, is_done;
+} Task;
+
+<span class="cm">// --- STARVATION DEMO: no aging ---</span>
+<span class="kw">void</span> <span class="fn">simulate_starvation</span>() {
+    <span class="fn">printf</span>(<span class="str">"=== STARVATION DEMO (no aging) ===\n"</span>);
+    Task tasks[] = {
+        { .pid = <span class="num">1</span>, .base_priority = <span class="num">1</span>, .priority = <span class="num">1</span> },
+        { .pid = <span class="num">2</span>, .base_priority = <span class="num">1</span>, .priority = <span class="num">1</span> },
+    };
+    <span class="kw">for</span> (<span class="kw">int</span> t = <span class="num">1</span>; t &lt;= <span class="num">10</span>; t++) {
+        <span class="fn">printf</span>(<span class="str">"  [t=%d] High-priority task H%d arrives (prio 10).\n"</span>, t, t);
+        tasks[<span class="num">0</span>].waited_time++;
+        tasks[<span class="num">1</span>].waited_time++;
+    }
+    <span class="fn">printf</span>(<span class="str">"  P1 waited %d units (never run)\n"</span>, tasks[<span class="num">0</span>].waited_time);
+    <span class="fn">printf</span>(<span class="str">"  P2 waited %d units (never run)\n"</span>, tasks[<span class="num">1</span>].waited_time);
+}
+
+<span class="cm">// --- AGING FIX: priority climbs while waiting ---</span>
+<span class="kw">void</span> <span class="fn">simulate_aging</span>() {
+    <span class="fn">printf</span>(<span class="str">"\n=== AGING FIX ===\n"</span>);
+    Task task = { .pid = <span class="num">1</span>, .base_priority = <span class="num">1</span>, .priority = <span class="num">1</span> };
+    <span class="kw">for</span> (<span class="kw">int</span> t = <span class="num">1</span>; t &lt;= <span class="num">10</span>; t++) {
+        task.waited_time++;
+        task.priority = task.base_priority + task.waited_time;  <span class="cm">// Aging: +1/unit</span>
+        <span class="fn">printf</span>(<span class="str">"  [t=%d] P%d priority now %d\n"</span>, t, task.pid, task.priority);
+        <span class="kw">if</span> (task.priority &gt;= <span class="num">10</span>) {
+            <span class="fn">printf</span>(<span class="str">"  [t=%d] P%d dispatched! No longer starved.\n"</span>, t, task.pid);
+            <span class="kw">return</span>;
+        }
+    }
+}
+
+<span class="cm">// --- PRIORITY INVERSION DEMO ---</span>
+<span class="kw">void</span> <span class="fn">simulate_inversion</span>() {
+    <span class="fn">printf</span>(<span class="str">"\n=== PRIORITY INVERSION DEMO ===\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  Low task L acquires lock X.\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  High task H preempts L, then requests lock X → BLOCKS.\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  Medium task M becomes ready (does not need X).\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  M preempts L (M &gt; L).\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  L cannot release X until it runs again...\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  H is blocked by L; L is blocked by M; M runs freely.\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  &gt;&gt;&gt; PRIORITY INVERSION: H waits for the least important task.\n"</span>);
+}
+
+<span class="cm">// --- PRIORITY INHERITANCE FIX ---</span>
+<span class="kw">void</span> <span class="fn">simulate_inheritance</span>() {
+    <span class="fn">printf</span>(<span class="str">"\n=== PRIORITY INHERITANCE FIX ===\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  Low task L acquires lock X.\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  High task H requests lock X → BLOCKS.\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  KERNEL DETECTS INVERSION → boosts L to H's priority.\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  L now outranks M. M cannot preempt L.\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  L finishes critical section, releases X, priority reverts.\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  H acquires X and proceeds. &gt;&gt;&gt; NO INVERSION.\n"</span>);
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="fn">simulate_starvation</span>();
+    <span class="fn">simulate_aging</span>();
+    <span class="fn">simulate_inversion</span>();
+    <span class="fn">simulate_inheritance</span>();
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: TRACING STARVATION AND INHERITANCE</span>
+  <h2>Walking the Adaptive Scheduler Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>simulate_starvation()</h3><p>Pure simulation of the starvation condition. Ten high-priority tasks arrive and are dispatched; the low-priority tasks P1 and P2 never get CPU. Their <code>waited_time</code> counters increment continuously, but their <code>priority</code> never changes.</p></div>
+    <div class="card"><h3>task.priority = base + waited</h3><p><strong>The aging fix.</strong> Every unit of wait time directly increments effective priority. After 9 units, priority = 10 — high enough to be dispatched against incoming high-priority tasks.</p></div>
+    <div class="card emerald"><h3>if (priority &gt;= 10)</h3><p><strong>The guarantee.</strong> Even if new high-priority tasks arrive every unit, this process's priority eventually exceeds their level. Starvation is <em>mathematically impossible</em> with aging.</p></div>
+    <div class="card crimson"><h3>simulate_inversion()</h3><p>Prints the three-task inversion scenario. Note it does <em>not</em> resolve itself — the trace ends with "H waits for the least important task." That is the bug.</p></div>
+    <div class="card"><h3>simulate_inheritance()</h3><p>Prints the same scenario but with the fix. Note the two critical steps: (1) kernel <em>boosts</em> L to H's priority; (2) M cannot preempt L anymore.</p></div>
+    <div class="card emerald"><h3>The Verdict</h3><p>The difference between the two inversion versions is <strong>one kernel protocol</strong> — but it is the difference between a working system and a Mars Pathfinder-style outage.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-crimson">🎯 INTERACTIVE WORKSHOP: THE PHYSICAL PRIORITY INVERSION</span>
+  <h2>The Mars Pathfinder Trap Roleplay</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card crimson"><h3>Student 01 · High H</h3><p>"Life Support" — must complete their task as fast as possible.</p></div>
+    <div class="card amber"><h3>Student 02 · Medium M</h3><p>"Weather Telemetry" — independent of the shared resource; runs whenever H is blocked.</p></div>
+    <div class="card emerald"><h3>Student 03 · Low L</h3><p>"Data Logging" — currently holding the shared marker pen (the lock). Must complete critical section to release it.</p></div>
+    <div class="card"><h3>Student 04 · Kernel Scheduler</h3><p>Arbitrates who runs based on priority — but only with the current rules.</p></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Phase A · Broken</h3>
+      <p>Scheduler: "L, take the pen."</p>
+      <p>"H, preempt L." H tries to grab the pen, blocks.</p>
+      <p>"M is ready. M &gt; L, so M preempts L."</p>
+      <p>Class observes: H blocked. L cannot run because M runs. <strong>System is stuck indefinitely.</strong></p>
+    </div>
+    <div class="card emerald">
+      <h3>Phase B · Inheritance Fix</h3>
+      <p>Same setup, L holds pen, H blocks on pen.</p>
+      <p>"Kernel detects inversion. Boosting L to H's priority."</p>
+      <p>"M is ready. But M cannot preempt L — L is now at H's priority."</p>
+      <p>L releases pen. H grabs it and proceeds. <strong>No inversion.</strong></p>
+    </div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Pedagogic Takeaway:</strong> Students <em>physically experience</em> the priority inversion trap and its fix. The roleplay doubles as preparation for the Mars Pathfinder case study.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 TRY IT LIVE: AUDITING REAL ADVANCED SCHEDULER BEHAVIOR</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> chrt -p $$                                    <span class="out"># Current scheduling class</span>
+<span class="cmd">$</span> chrt -f 50 taskset -c 0 yes &gt; /dev/null &amp;     <span class="out"># FIFO real-time task</span>
+<span class="cmd">$</span> ps -eo pid,cls,rtprio,ni,comm | head -15      <span class="out"># Class + priority view</span>
+<span class="cmd">$</span> taskset -pc $(pgrep -f "yes")                 <span class="out"># CPU affinity</span>
+<span class="cmd">$</span> nice -n 19 dd if=/dev/zero of=/tmp/big bs=1M count=100 &amp;
+<span class="cmd">$</span> nice -n -5 dd if=/dev/zero of=/tmp/big2 bs=1M count=100 &amp;
+<span class="cmd">$</span> top -b -n 1 -o %CPU | head -10                <span class="out"># Live priority + CPU view</span>
+<span class="cmd">$</span> cat /proc/sys/kernel/sched_rt_runtime_us      <span class="out"># RT CPU budget</span></pre>
+  <p class="hint"><code>sched_rt_runtime_us</code> default is 950000 (95% of a second per second) — the anti-starvation mechanism at the <em>class</em> level.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 2: Process Management
+        └── <span class="active">L08: CPU Scheduling II (ACTIVE NODE 🌟)</span>
+              ├── Multi-Level Feedback Queues (MLFQ) &amp; Aging Fix
+              └── Priority Inversion Trap &amp; Priority Inheritance Protocol</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>Pure priority scheduling causes <strong>starvation</strong> — low-priority tasks wait indefinitely as higher-priority arrivals keep preempting them. <strong>Aging</strong> is the universal fix: gradually elevate the priority of long-waiting processes, guaranteeing eventual progress without compromising the responsiveness of high-priority tasks.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p><strong>MLFQ</strong> is the industry-standard adaptive scheduler. It uses multiple priority queues with different quantums, promoting processes that yield early (interactive) and demoting processes that consume their full quantum (CPU-bound). Periodic promotion via aging prevents starvation entirely, and no prior burst-time knowledge is required.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p><strong>Priority inversion</strong> is a <em>systemic trap</em> at the intersection of priority scheduling and mutex locks. When a low-priority task holding a lock is preempted by a medium-priority task, the high-priority task waiting on the lock is blocked indefinitely. <strong>Priority inheritance</strong> — temporarily donating the high task's priority to the low task — is the definitive fix. Evidenced by the Mars Pathfinder freeze of 1997.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 09 — Threads &amp; Concurrency Models</strong><br><br>
+    Up to this point, scheduling has focused on <em>processes</em> — heavy, isolated units with their own address spaces. But modern systems use <em>threads</em> — lightweight execution units that share their parent process's memory, file descriptors, and resources. We will explore the three threading models (Many-to-One, One-to-One, Many-to-Many), trace the pthreads API, and see how the scheduling algorithms from L07–L08 apply at the thread level. This is the final lecture in Module 2 — after which we descend into Module 3's virtual memory infrastructure.
+  </div>
+  <p class="hint">File: L09.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
