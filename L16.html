@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L16 · Disk Geometry & Physical Storage Realities</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  .badge-cyan { color: #67E8F9; border-color: #06B6D4; background: rgba(6,182,212,0.08); }
+  .badge-orange { color: #FDBA74; border-color: #F97316; background: rgba(249,115,22,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-orange { border-color: #F97316; background: rgba(249,115,22,0.06); color: #FDBA74; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.orange h3 { color: #FDBA74; } .card.orange { border-color: #7C2D12; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .disk-visual { display: flex; flex-direction: column; align-items: center; margin: 2vh auto; }
+  .platter { width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, #1E293B 0%, #0F172A 70%); border: 3px solid #3B82F6; position: relative; display: flex; align-items: center; justify-content: center; }
+  .platter::before { content: ''; position: absolute; width: 20px; height: 20px; border-radius: 50%; background: #F59E0B; }
+  .track { position: absolute; border: 1px solid #3B82F6; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.5; }
+  .track-1 { width: 80px; height: 80px; }
+  .track-2 { width: 140px; height: 140px; }
+  .track-3 { width: 200px; height: 200px; }
+  .arm { position: absolute; top: 0; right: 30px; width: 8px; height: 160px; background: linear-gradient(#F59E0B, #B45309); border-radius: 4px; transform-origin: top center; transform: rotate(-25deg); }
+  .arm-head { position: absolute; bottom: -10px; left: -10px; width: 28px; height: 28px; border-radius: 50%; background: #EF4444; }
+  .disk-label { font-size: 0.75rem; color: #475569; margin-top: 1.5vh; font-family: "SF Mono", monospace; }
+  .formula-card { max-width: 850px; padding: 2.5vh 2vw; border-radius: 12px; background: rgba(59,130,246,0.06); border: 2px solid #3B82F6; text-align: left; margin: 2vh auto; }
+  .formula-card h4 { color: #60A5FA; font-size: 1.15rem; margin-bottom: 1.2vh; }
+  .formula-card p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.7; }
+  .formula-card .formula { color: #FBBF24; font-family: "SF Mono", monospace; font-weight: 800; font-size: clamp(0.95rem, 1.2vw, 1.1rem); display: block; margin: 1vh 0; padding: 1.2vh 1.2vw; background: rgba(245,158,11,0.08); border-left: 3px solid #F59E0B; border-radius: 4px; }
+  .ssd-cell { display: flex; align-items: center; gap: 0.5vw; flex-wrap: wrap; justify-content: center; margin: 2vh auto; max-width: 900px; }
+  .flash-cell { width: 40px; height: 40px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-family: "SF Mono", monospace; font-weight: 800; font-size: 0.7rem; }
+  .flash-slc { background: rgba(16,185,129,0.2); border: 2px solid #10B981; color: #34D399; }
+  .flash-mlc { background: rgba(59,130,246,0.2); border: 2px solid #3B82F6; color: #60A5FA; }
+  .flash-tlc { background: rgba(245,158,11,0.2); border: 2px solid #F59E0B; color: #FBBF24; }
+  .flash-qlc { background: rgba(239,68,68,0.2); border: 2px solid #EF4444; color: #F87171; }
+  .write-amp { display: flex; align-items: center; justify-content: center; gap: 1vw; flex-wrap: wrap; margin: 2vh auto; max-width: 900px; }
+  .wa-box { padding: 2vh 1.5vw; border-radius: 10px; text-align: center; font-weight: 800; font-size: 0.85rem; }
+  .wa-small { background: rgba(59,130,246,0.1); border: 2px solid #3B82F6; color: #60A5FA; min-width: 100px; }
+  .wa-arrow { font-size: 1.5rem; color: #F59E0B; }
+  .wa-large { background: rgba(239,68,68,0.1); border: 2px solid #EF4444; color: #F87171; min-width: 120px; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .platter { width: 200px; height: 200px; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L16</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-orange">🔰 START HERE // L16 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#F97316"></div>
+  <p class="subtitle">Calculate total disk read access times factoring in seek time, rotational latency, and transfer rates, and compare architectural wear-leveling traits between mechanical platters and flash memory grids.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> One storage device must physically swing a metal arm across a spinning magnetic plate before it can read a single byte. The other reads an electrical charge from a fixed silicon cell in microseconds. Both present the exact same "flat array of numbered sectors" to the operating system. How does the OS hide this violent architectural difference — and how do the physics of each shape every file system we build on top?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · Module 4 Complete</h3><p>Mutexes, semaphores, deadlock — because file systems wrap every write in kernel locks carrying the same topology (L14–L15).</p></div>
+    <div class="card amber"><h3>02 · Basic Physics</h3><p>Milliseconds, RPM, MB/s, and the algebra of averaging. Comfort with unit conversions is essential for L16's disk math.</p></div>
+    <div class="card amber"><h3>03 · Memory Hierarchy</h3><p>The CPU/memory hierarchy from Module 3 (L11–L13). The storage tier is the bottom of that pyramid — orders of magnitude slower than RAM.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> This is the lecture where storage stops being abstract. A DRAM access is ~100ns; an HDD seek is ~10,000,000ns. That gap is why virtual memory (L13) and caching (L12) exist. Bring a physical HDD if possible — let students hear it spin.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-orange">🎒 EVERYDAY SIMPLIFIED: THE VINYL RECORD PLAYER</span>
+  <h2>The HDD Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🎵📀🪡</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>To play a specific song on a vinyl record, you must physically lift the tonearm, move it to the correct track position (<strong>seek time</strong>), and then wait for the record to spin around until the opening note passes underneath the needle (<strong>rotational latency</strong>). Only then does sound emerge (<strong>transfer</strong>). Moving metal takes real, slow, measurable time.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Every disk read has three sequential physical costs: arm movement, platter rotation, and byte streaming. There is no way to skip any of them.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This maps directly to the HDD cylinder/track/sector physical geometry and its three-part access-time formula.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-orange">🎒 EVERYDAY SIMPLIFIED: THE GRID OF LIGHT SWITCHES</span>
+  <h2>The SSD Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">💡💡💡</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A Solid-State Drive is a wall of millions of tiny light switches. To read one, you don't <em>move</em> anything — you glance at its electrical state instantly. No arm, no platter, no waiting. But the switches have a rule: you can flip a switch on or off quickly, but to <em>replace</em> it you have to replace an entire row of ten thousand switches at once (block erasure). And every flip wears the switch out slightly.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Reads are effectively instant. Writes have asymmetry — page-level write, block-level erase. Erase cycles are finite.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the origin of the Flash Translation Layer (FTL) and wear leveling.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-orange">🎒 EVERYDAY SIMPLIFIED: THE SCATTERED LIBRARY</span>
+  <h2>The Fragmentation Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📚🏃📖</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Imagine a book whose chapters are separated and shelved across ten different library floors. To read it start to finish, you must run between floors ten times. Each trip costs the same slow walk. A defragmented book sits on one shelf — one walk, one read.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>For HDDs, sequential access is <em>dramatically</em> faster than random access. For SSDs, the penalty for scattered layout is far smaller — but block erasure still favors locality.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is exactly why file systems allocate contiguous blocks when possible, and why defragmentation matters on HDDs but is nearly irrelevant on SSDs.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-orange">🎒 EVERYDAY SIMPLIFIED: THE FINITE-USE NOTEBOOK</span>
+  <h2>The Endurance Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📓✏️🔄</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Imagine each page of a notebook can only be erased 1,000 times before the paper wears through. If you always write in the same spot, that page dies in a month. But if a manager rotates where notes go — spreading the wear across all pages — the notebook lasts for years.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>SSD flash cells have bounded program/erase (P/E) cycles. Wear leveling continuously remaps logical blocks across physical cells to equalize the wear.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the reason SSDs ship with internal controllers that hide the remapping from the OS.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE HDD-AND-SSD DUALITY</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card orange"><h3>⏱️ Mechanical Corridor</h3><p>HDDs: seek-dominated, cheap per byte, slow random access, high capacity. Patient workhorses limited by physics of metal.</p></div>
+    <div class="card emerald"><h3>⚡ Silicon Corridor</h3><p>SSDs: fast random access, endurance-limited, expensive per byte. Fast athletes bound by flash-cell lifetime.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Modern systems blend both — hot data on SSD, cold data on HDD. The choice reshapes every file system decision: allocation strategy, journaling frequency, defragmentation policy, and caching aggressiveness.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-orange">💻 SYSTEMS COHESION: MECHANICAL PLATTER TOPOLOGY</span>
+  <h2>HDD Physical Geometry</h2>
+  <div class="grid-2" style="display:grid;gap:2vw;max-width:1100px;width:100%;margin-top:2vh;align-items:center">
+    <div class="disk-visual">
+      <div class="platter">
+        <div class="track track-1"></div>
+        <div class="track track-2"></div>
+        <div class="track track-3"></div>
+        <div class="arm"><div class="arm-head"></div></div>
+      </div>
+      <div class="disk-label">Platter · Tracks · Arm · Head</div>
+    </div>
+    <div style="text-align:left">
+      <div class="card" style="margin-bottom:1vh"><h3>Platter</h3><p>A rigid magnetic disk storing bits as magnetized regions.</p></div>
+      <div class="card" style="margin-bottom:1vh"><h3>Track</h3><p>A concentric circle on a platter surface.</p></div>
+      <div class="card" style="margin-bottom:1vh"><h3>Cylinder</h3><p>The same track position across all platters in a stack.</p></div>
+      <div class="card" style="margin-bottom:1vh"><h3>Sector</h3><p>The smallest addressable unit — historically 512 bytes, now 4 KB.</p></div>
+      <div class="card"><h3>Head</h3><p>The electromagnetic sensor positioned over a track.</p></div>
+    </div>
+  </div>
+  <div class="callout callout-orange" style="margin-top:2vh">
+    <strong>The Verdict:</strong> Physical geometry dictates the access cost formula — arm movement, spin, then stream. No file-system abstraction can cheat metal.
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-orange">💻 SYSTEMS COHESION: SEEK + ROTATE + TRANSFER</span>
+  <h2>The Three-Component Access Time Formula</h2>
+  <div class="formula-card">
+    <h4>The Access Formula</h4>
+    <p class="formula">T_access = T_seek + T_rotation + T_transfer</p>
+    <p style="margin-top:1.5vh"><strong>Variable Breakdown:</strong></p>
+    <p>· <strong>T_seek:</strong> Time for the arm to reach the correct track. Averaged as ~1/3 of full-track sweep, typically 4–10 ms.</p>
+    <p>· <strong>T_rotation:</strong> Time for the sector to spin under the head. Averaged as ½ rotation: <code>30000 / RPM</code> ms.</p>
+    <p>· <strong>T_transfer:</strong> Bytes read divided by bus rate. Typically sub-1 ms for small sectors.</p>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:2vh">
+    <div class="card crimson">
+      <h3>For Random Small Reads</h3>
+      <p>Seek + rotation dominate <strong>&gt;99%</strong> of the total access cost.</p>
+      <p>Transfer is effectively negligible.</p>
+    </div>
+    <div class="card emerald">
+      <h3>For Sequential Large Reads</h3>
+      <p>Seek + rotation pay once at the start, then amortize over the entire run.</p>
+      <p>Transfer dominates — full disk bandwidth is achievable.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-orange">💻 SYSTEMS COHESION: FLOATING-GATE CELL TOPOLOGY</span>
+  <h2>SSD NAND Flash Architecture</h2>
+  <p class="subtitle">Each flash cell is a floating-gate transistor holding trapped charge. The charge level maps to bits:</p>
+  <div class="ssd-cell">
+    <div class="flash-cell flash-slc">SLC<br>1 bit</div>
+    <div class="flash-cell flash-mlc">MLC<br>2 bit</div>
+    <div class="flash-cell flash-tlc">TLC<br>3 bit</div>
+    <div class="flash-cell flash-qlc">QLC<br>4 bit</div>
+  </div>
+  <div class="card-grid grid-4" style="margin-top:2vh">
+    <div class="card emerald"><h3>SLC (1 bit)</h3><p>2 voltage levels. Fast, long-lived (~100k cycles), expensive.</p></div>
+    <div class="card"><h3>MLC (2 bits)</h3><p>4 levels. Moderate performance, ~10k cycles.</p></div>
+    <div class="card amber"><h3>TLC (3 bits)</h3><p>8 levels. Slower, ~3k cycles. Ubiquitous in consumer SSDs.</p></div>
+    <div class="card crimson"><h3>QLC (4 bits)</h3><p>16 levels. Slowest, ~1k cycles, high-density archival.</p></div>
+  </div>
+  <div class="callout callout-orange" style="margin-top:3vh">
+    <strong>The Verdict:</strong> Density trades against endurance and speed. Every SSD is a balance chosen by its manufacturer — a decision you cannot override from the OS.
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-orange">💻 SYSTEMS COHESION: THE ASYMMETRIC WRITE PENALTY</span>
+  <h2>Page-Write, Block-Erase Asymmetry</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Asymmetric Rules</h3>
+      <p><strong>Read unit:</strong> Page (typically 4 KB)</p>
+      <p><strong>Write unit:</strong> Page (but only to <em>empty</em> pages)</p>
+      <p><strong>Erase unit:</strong> Block (typically 128–512 pages, ~512 KB–2 MB)</p>
+    </div>
+    <div class="card crimson">
+      <h3>The Overwrite Problem</h3>
+      <p>To modify a page that already holds data, the FTL must:</p>
+      <p>1. Copy the entire block into RAM</p>
+      <p>2. Modify the target page</p>
+      <p>3. Erase the block entirely</p>
+      <p>4. Write the block back, page by page</p>
+    </div>
+  </div>
+  <div class="write-amp">
+    <div class="wa-box wa-small">Write 4 KB</div>
+    <div class="wa-arrow">→</div>
+    <div class="wa-box wa-large">Erase 512 KB<br>+ Write 512 KB</div>
+  </div>
+  <div class="callout callout-crimson" style="margin-top:2vh">
+    <strong>Write amplification:</strong> 1 page update can require 128× or more physical work. This asymmetry is why FTL sophistication matters enormously.
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-orange">💻 SYSTEMS COHESION: FTL AND WEAR-LEVELING ALGORITHMS</span>
+  <h2>The Flash Translation Layer</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>FTL Responsibilities</h3>
+      <p><strong>Logical-to-physical mapping:</strong> Translates OS sector numbers into physical cell coordinates.</p>
+      <p><strong>Garbage collection:</strong> Reclaims partially-used blocks by relocating live pages and erasing the rest.</p>
+      <p><strong>Wear leveling:</strong> Rotates write destinations to equalize per-cell P/E counts.</p>
+      <p><strong>Bad-block management:</strong> Detects and retires worn cells.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Hidden Controller</h3>
+      <p>The OS sees a flat array of numbered sectors.</p>
+      <p style="margin-top:1vh">The FTL is a shadow controller running an entire filesystem-of-its-own <em>inside</em> the drive.</p>
+      <p style="margin-top:1vh">Modern NVMe SSDs have multi-core ARM CPUs running sophisticated FTL firmware — some with full operating systems.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>The OS has no visibility into this.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON MEMORY HIERARCHY</span>
+  <h2>Core System Cohesion — Relies On L13 Swap Space</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>The Memory Hierarchy</h3><p>Disk is the <em>bottom</em> of the pyramid built in Module 3. Swap space (L13 demand paging) lives here. Every page fault on the swap triggers the exact physical costs this lecture quantifies.</p></div>
+    <div class="card"><h3>The Ratio</h3><p>DRAM access: ~100ns. HDD seek: ~10,000,000ns. A ratio of ~100,000×.</p><p style="margin-top:1vh">That gap is why demand paging works (rare faults amortized) — and why thrashing (too many faults) collapses systems to a crawl.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>Every file-system policy in L17–L19 is a direct response to L16 physics. L16 is not just the substrate — it is the <em>constraint</em> that shapes every layer above.</p></div>
+    <div class="card emerald"><h3>Feeds Into L17–L19</h3><p>L17 directory trees minimize seek hops. L18 inode block pointers favor contiguous allocation. L19 journaling must serialize intent writes to survive power loss — its cost is dominated by L16's physical access formula.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO FILE SYSTEMS AND JOURNALING</span>
+  <h2>Core System Cohesion — Feeds Into Module 5</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L17 · Directory Trees</h3><p>Deep paths mean more lookups mean more possible seeks. This is why classic Unix designs shallow trees and caches directory blocks aggressively.</p></div>
+    <div class="card"><h3>L18 · Inode Layouts</h3><p>Contiguous block allocation (via direct pointers, then extents) minimizes seeks. This is why the 12-direct+indirect design (L18) is a direct response to L16's seek cost.</p></div>
+    <div class="card"><h3>L19 · Journaling</h3><p>Every journal write is a physical disk write. Journal design is dominated by the trade-off: flush frequently (safe, slow) vs. buffer (fast, risky).</p></div>
+    <div class="card emerald"><h3>The Dependency Chain</h3><p>L16 physics → L17 directory structure → L18 inode pointers → L19 journal transactions. Every layer above is shaped by L16's access formula.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: DISK STRATEGIES</span>
+  <h2>Storage Management Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Storage Management</h3><p>The block layer lives entirely in Ring 0, with an elevator I/O scheduler (CFQ, Deadline, or BFQ) that reorders requests to minimize seeks. The kernel has full authority over disk geometry.</p></div>
+    <div class="card emerald"><h3>Microkernel Storage Management</h3><p>The block device driver runs as a user-space server (e.g., FUSE, or seL4's block servers). The kernel forwards I/O requests via IPC; scheduling policy is per-server. Slower, but crash-isolated.</p></div>
+    <div class="card amber"><h3>Layered Storage Management</h3><p>Strict VFS → block layer → device driver hierarchy. Each layer may only request services from the layer below; caching and journaling live in dedicated tiers.</p></div>
+    <div class="card"><h3>Modular Storage Management</h3><p>Core block layer in Ring 0, but pluggable I/O schedulers load as kernel modules (<code>elevator=noop|deadline|bfq</code>). Filesystem drivers are hot-swappable.</p></div>
+    <div class="card violet"><h3>Hybrid Storage Management</h3><p>Kernel handles block I/O and FTL translation for HDDs; for NVMe SSDs, the kernel sets up queue pairs that let userspace (via <code>io_uring</code> or SPDK) submit I/O directly to the drive's controller, bypassing the block layer entirely.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE STORAGE VOCABULARY</span>
+  <h2>Base Storage Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Seek Time</h3>
+      <p>The physical time required for an HDD's mechanical read/write head arm to sweep and lock onto a target track cylinder; typically 4–10 ms for modern drives. Averaged as roughly 1/3 of the full-track sweep distance. Dominates random-access cost.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The walk from the record player's needle resting spot to the song you want.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Rotational Latency</h3>
+      <p>The average time a drive partition waits for a specific sector block to spin under the active magnetic head sensor, computed as half a full rotation: <code>30000 / RPM</code> milliseconds. For 7200 RPM drives, this is ~4.17 ms. The second-largest component of random access time.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Waiting for the spinning record to bring the song's first note under the needle.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE STORAGE VOCABULARY</span>
+  <h2>Advanced Storage Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Wear Leveling</h3>
+      <p>An internal SSD optimization algorithm that dynamically remaps logical write address blocks to distribute flash cell erasure stress evenly across the device matrix, extending total drive lifespan. Without wear leveling, hot spots would fail in weeks; with it, SSDs last years.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The manager rotating which notebook page you write on so no page wears out early.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Flash Translation Layer</h3>
+      <p>The embedded controller software inside an SSD that translates virtual OS sector read commands into physical cell array electrical voltage updates, while also managing garbage collection, wear leveling, and bad-block retirement. The OS has no visibility into the FTL's internal state.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The interpreter who speaks "sector number" to the OS and "cell coordinate" to the flash chip.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Write Amplification</h3>
+      <p>The ratio of physical bytes written to flash cells to logical bytes the OS requested. Elevated by the page-write/block-erase asymmetry, requiring full block rewrites for single-page updates. A 4 KB update to a 512 KB block is a 128× write amplification event.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Writing 1 page costs 512 pages of work because the whole block must be erased and rewritten.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-orange">💻 CODE DISSECTION: C DISK LATENCY SIMULATOR</span>
+  <h2>Calculating HDD Access Time and SSD Comparison</h2>
+  <pre class="code-block"><span class="cm">// Calculating HDD access time and simulating SSD behavior in C</span>
+<span class="cm">// Compile: gcc -o disk disk.c &amp;&amp; ./disk</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">calculate_hdd_access</span>(<span class="kw">double</span> rpm, <span class="kw">double</span> seek_ms,
+                          <span class="kw">double</span> transfer_rate_mbps, <span class="kw">int</span> bytes) {
+    <span class="cm">// Rotational latency = half a full rotation: 30000 / RPM</span>
+    <span class="kw">double</span> rotation_ms = <span class="num">30000.0</span> / rpm / <span class="num">2.0</span>;
+
+    <span class="cm">// Transfer time = bytes / (rate * 1e6) * 1000 ms</span>
+    <span class="kw">double</span> transfer_ms = (bytes / (transfer_rate_mbps * <span class="num">1000000.0</span>)) * <span class="num">1000.0</span>;
+
+    <span class="kw">double</span> total_ms = seek_ms + rotation_ms + transfer_ms;
+
+    <span class="fn">printf</span>(<span class="str">"HDD (%.0f RPM, %.1fms seek, %d bytes):\n"</span>,
+           rpm, seek_ms, bytes);
+    <span class="fn">printf</span>(<span class="str">"  Seek: %.3fms | Rotation: %.3fms | Transfer: %.4fms\n"</span>,
+           seek_ms, rotation_ms, transfer_ms);
+    <span class="fn">printf</span>(<span class="str">"  TOTAL: %.3fms\n\n"</span>, total_ms);
+}
+
+<span class="kw">void</span> <span class="fn">simulate_ssd_access</span>(<span class="kw">int</span> bytes) {
+    <span class="cm">// Typical NVMe SSD: ~0.02ms access + ~3000 MB/s transfer</span>
+    <span class="kw">double</span> access_ms = <span class="num">0.02</span>;
+    <span class="kw">double</span> transfer_ms = (bytes / <span class="num">3000000000.0</span>) * <span class="num">1000.0</span>;
+    <span class="kw">double</span> total_ms = access_ms + transfer_ms;
+
+    <span class="fn">printf</span>(<span class="str">"SSD (NVMe, %d bytes):\n"</span>, bytes);
+    <span class="fn">printf</span>(<span class="str">"  Access: %.3fms | Transfer: %.5fms\n"</span>,
+           access_ms, transfer_ms);
+    <span class="fn">printf</span>(<span class="str">"  TOTAL: %.4fms\n\n"</span>, total_ms);
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="kw">int</span> sector_512 = <span class="num">512</span>;
+    <span class="kw">int</span> block_4k = <span class="num">4096</span>;
+
+    <span class="fn">printf</span>(<span class="str">"=== Storage Access Time Comparison ===\n\n"</span>);
+    <span class="fn">calculate_hdd_access</span>(<span class="num">7200</span>, <span class="num">4.0</span>, <span class="num">100.0</span>, sector_512);
+    <span class="fn">calculate_hdd_access</span>(<span class="num">7200</span>, <span class="num">4.0</span>, <span class="num">100.0</span>, block_4k);
+    <span class="fn">simulate_ssd_access</span>(sector_512);
+    <span class="fn">simulate_ssd_access</span>(block_4k);
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-orange">💻 CODE DISSECTION: TRACING PHYSICAL LATENCY TERMS</span>
+  <h2>Walking the Latency Arithmetic</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>rotation_ms = 30000.0 / rpm / 2.0</h3><p>At 7200 RPM, one full rotation is <code>30000/7200 = 4.166 ms</code>. Half-rotation average is <strong>2.083 ms</strong>. This is the "average" position — the sector is uniformly distributed around the platter.</p></div>
+    <div class="card"><h3>transfer_ms = (bytes / (rate * 1e6)) * 1000</h3><p>A 512-byte read at 100 MB/s finishes in <strong>0.005 ms</strong> — twenty times cheaper than rotation. A 4 KB read in <strong>0.041 ms</strong> — still negligible compared to seek+rotation.</p></div>
+    <div class="card emerald"><h3>total_ms = 4.0 + 2.083 + 0.005 ≈ 6.09 ms</h3><p>For 512 bytes. For 4 KB: <code>4.0 + 2.083 + 0.041 ≈ 6.12 ms</code>. <strong>Reading 8× more data costs only 0.5% more time.</strong></p></div>
+    <div class="card amber"><h3>SSD equivalents</h3><p>512 bytes: <strong>~0.020 ms</strong>. 4 KB: <strong>~0.021 ms</strong>. Two to three orders of magnitude faster than HDD.</p></div>
+    <div class="card crimson"><h3>The Dominant Cost</h3><p>For HDD: seek + rotation dominate. <em>Physical motion</em>, not data volume. This is why every file system batches small reads into large sequential reads.</p></div>
+    <div class="card"><h3>Why This Matters</h3><p>The SSD has <em>inverted</em> decades of file-system optimization assumptions. Random access is nearly free; only write amplification and endurance matter. Modern file systems (Btrfs, ZFS) were designed for this new reality.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-rose">🎯 INTERACTIVE WORKSHOP: THE PHYSICAL ACCESS RACE</span>
+  <h2>The Human Disk Latency Race</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Student 01 · The HDD Head</h3><p>Blindfolded, standing in a marked-off track lane. Must walk to a shouted "track number" before proceeding. Represents the seek arm.</p></div>
+    <div class="card amber"><h3>Student 02 · The Platter</h3><p>Spinning slowly in place, holding a stack of "sector cards" fanned out. Must rotate until the target card faces the head. Represents rotational latency.</p></div>
+    <div class="card emerald"><h3>Student 03 · The SSD Cell</h3><p>Standing still, no movement. When a track is shouted, instantly grabs the matching card from their pocket. Represents instant random access.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>The Race:</strong> Shout out ten target sectors one at a time. Time Student 01 + 02's combined latency (walk + rotation) for each; time Student 03's direct lookup. Watch the SSD finish ten reads before the HDD finishes two. <strong>Compute the ratio live on the board.</strong></p>
+  <p class="hint">Physical intuition for the hundred-thousand-fold gap between metal and silicon.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-orange">💻 TRY IT LIVE: AUDITING REAL DISK HARDWARE</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> lsblk -d -o NAME,ROTA,SIZE,MODEL       <span class="out"># ROTA=1 means HDD, 0 means SSD</span>
+<span class="cmd">$</span> sudo hdparm -I /dev/sda | grep -i rpm  <span class="out"># Reports physical RPM</span>
+<span class="cmd">$</span> sudo smartctl -a /dev/sda | grep -i wear  <span class="out"># SSD wear-level count</span>
+<span class="cmd">$</span> sudo hdparm -t --direct /dev/sda       <span class="out"># Buffered read throughput</span>
+<span class="cmd">$</span> sudo hdparm -T /dev/sda                <span class="out"># Cached read throughput</span>
+<span class="cmd">$</span> df -h                                   <span class="out"># Filesystem usage summary</span>
+<span class="cmd">$</span> cat /sys/block/sda/queue/rotational    <span class="out"># 0=SSD, 1=HDD</span>
+<span class="cmd">$</span> cat /sys/block/sda/queue/scheduler     <span class="out"># I/O scheduler currently active</span></pre>
+  <p class="hint"><code>lsblk -o NAME,ROTA</code> is the fastest way to see whether a device is mechanical or flash. <code>smartctl</code> reports SSD health metrics that mechanical disks simply do not have.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 5: File &amp; Storage Management
+        └── <span class="active">L16: Disk Geometry &amp; Physical Storage (ACTIVE NODE 🌟)</span>
+              ├── HDD Physics (Seek + Rotate + Transfer)
+              └── SSD Silicon (FTL, Wear Leveling, Page/Block Asymmetry)</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p><strong>HDD access time</strong> is dominated by physical motion — seek time and rotational latency cost 99% of a random read. For a 512-byte sector on a 7200 RPM drive, the total is ~6 ms, of which the actual transfer is only 0.005 ms. The mechanical platter is a fundamentally seek-bound device.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p><strong>SSDs</strong> eliminate moving parts and land access latency in microseconds (~0.02 ms), but pay an asymmetric penalty: page-write, block-erase. The <strong>Flash Translation Layer</strong> and <strong>wear leveling</strong> hide this from the OS, at the cost of write amplification — a 4 KB update can cost 512 KB of physical work.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>Every file-system design decision in <strong>L17–L19</strong> — contiguous allocation, directory trees, inode block pointers, and journaling — is a direct response to the physical constraints introduced in this lecture. Storage physics is not a curiosity — it is the <em>forcing function</em> that shapes every layer above.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 17 — File Abstraction &amp; Directory Topology</strong><br><br>
+    Now that we understand the raw physical substrate — magnetic platters and flash cells — we must build the abstraction layer that makes it usable. We will construct the <strong>hierarchical directory tree</strong>, learn how a path string like <code>/home/user/resume.pdf</code> maps to actual disk blocks, and dissect the <strong>file descriptor table</strong> that user space uses to talk to every open file. A directory is not a special device — it is a regular file containing a table of name-to-inode records. We will trace the full path resolution walk from the root inode down to the leaf, and see how hard links and soft links are distinguished at the OS level.
+  </div>
+  <p class="hint">File: L17.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
