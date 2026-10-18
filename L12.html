@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L12 · TLB Acceleration & Caching Math</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .tlb-table { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5vw; max-width: 700px; width: 100%; margin: 2vh auto; }
+  .tlb-header { background: #1E293B; color: #60A5FA; padding: 1.2vh; font-weight: 800; font-size: 0.9rem; text-align: center; border-radius: 6px; }
+  .tlb-cell { background: #111C33; color: #CBD5E1; padding: 1.2vh; font-family: "SF Mono", monospace; font-size: 0.9rem; text-align: center; border-radius: 4px; border: 1px solid #1E293B; }
+  .tlb-cell.hit { background: rgba(16,185,129,0.15); border-color: #10B981; color: #34D399; font-weight: 800; }
+  .tlb-cell.miss { background: rgba(239,68,68,0.15); border-color: #EF4444; color: #FCA5A5; font-weight: 800; }
+  .math-box { max-width: 850px; padding: 2.5vh 2vw; border-radius: 12px; background: rgba(59,130,246,0.06); border: 2px solid #3B82F6; text-align: left; margin: 2vh auto; }
+  .math-box h4 { color: #60A5FA; font-size: 1.15rem; margin-bottom: 1.2vh; }
+  .math-box p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.7; }
+  .math-box .formula { color: #FBBF24; font-family: "SF Mono", monospace; font-weight: 800; font-size: clamp(1rem, 1.3vw, 1.15rem); display: block; margin: 1vh 0; padding: 1.2vh 1.2vw; background: rgba(245,158,11,0.08); border-left: 3px solid #F59E0B; border-radius: 4px; }
+  .math-box .solution { color: #34D399; font-family: "SF Mono", monospace; font-weight: 700; }
+  .pipeline { display: flex; flex-direction: column; gap: 1.5vh; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .pipeline-step { display: flex; gap: 1.5vw; align-items: center; padding: 2vh 2vw; border-radius: 10px; border: 2px solid; text-align: left; }
+  .pipeline-step .num { font-size: 1.8rem; font-weight: 900; min-width: 60px; }
+  .pipeline-step p { font-size: clamp(0.85rem, 1.1vw, 1rem); line-height: 1.5; }
+  .step-1 { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .step-2 { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .step-3 { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .pipeline-step { flex-direction: column; text-align: center; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L12</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-cyan" style="color:#67E8F9;border-color:#06B6D4;background:rgba(6,182,212,0.08)">🔰 START HERE // L12 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#06B6D4"></div>
+  <p class="subtitle">Calculate Effective Access Time (EAT) equations using hit-rate variables, hardware cache check latencies, and physical RAM access latency boundaries.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> L11 taught us that paging is beautiful — but expensive. Every memory access now requires <em>two</em> trips to physical RAM: one to look up the page table entry, and one to read the actual data. If every load and store doubled in cost, modern CPUs would be unusable. But they are not — a 3 GHz processor executes billions of instructions per second without breaking a sweat. What invisible trick hides the paging tax so completely?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L11 Paging Model</h3><p>The page table structure, MMU translation, the bit-split of virtual addresses, and the "two-trip tax" of page table walks.</p></div>
+    <div class="card amber"><h3>02 · CPU Cache Hierarchy</h3><p>Basic awareness of L1/L2/L3 caches — small, fast memory units close to the CPU that cache recently-used data.</p></div>
+    <div class="card amber"><h3>03 · Weighted Average Math</h3><p>The formula <code>result = P(A) × cost(A) + P(B) × cost(B)</code> — expected value arithmetic. EAT is a direct application.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> L12 is the <em>optimization</em> lecture of Module 3. L10 introduced memory virtualization. L11 made it work. L12 makes it <em>fast</em>. Without the TLB, paging would be a curiosity that nobody actually used — because it would double every memory access. The TLB is why paging is practical.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan" style="color:#67E8F9;border-color:#06B6D4;background:rgba(6,182,212,0.08)">🎒 EVERYDAY SIMPLIFIED: THE STICKY NOTE ON THE MONITOR</span>
+  <h2>The TLB Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📝📞📖</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Imagine you work as a researcher who constantly needs to look up phone numbers in a massive 1,000-page directory book kept across the room. Every time you want to make a call, walking across the room to check the book slows you down heavily. To solve this, you stick a small piece of paper right next to your telephone — the <strong>sticky note</strong>. When you look up a number for the first time, you write it on the sticky note. The next time you call that exact same person, you don't walk across the room; you glance at the sticky note instantly.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The sticky note is the TLB. The phonebook is the page table. A "hit" means the number is on your note; a "miss" means you walk to the book.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>You only walk to the phonebook when the note is missing the name — the TLB's entire value comes from the locality of real workloads.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan" style="color:#67E8F9;border-color:#06B6D4;background:rgba(6,182,212,0.08)">🎒 EVERYDAY SIMPLIFIED: THE HOLOGRAPHIC LOOKUP</span>
+  <h2>The Associative Lookup Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">⚡🔀🔍</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Imagine a switchboard operator who can look at 64 different filing cards <em>simultaneously</em> — not one after another, but all at the same instant. The operator compares your incoming name against every card on the board in a single flash. This is <strong>content-addressable memory</strong> (CAM) — a hardware trick that makes the TLB far faster than an ordinary memory lookup.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The TLB is built with associative memory. It checks all entries in parallel — no linear scan, no index arithmetic. Hardware does this in a single clock cycle.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This parallel-search hardware is what makes the TLB fast enough to be on the critical path of every memory access.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan" style="color:#67E8F9;border-color:#06B6D4;background:rgba(6,182,212,0.08)">🎒 EVERYDAY SIMPLIFIED: THE DESK DRAWER</span>
+  <h2>The Locality Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📁🗄️🏃</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>You reference the same client files repeatedly during a workday. Keeping those specific folders right on top of your desk saves you from walking down the hall to the filing room archive cabinet for every single document. Because your work touches only a few files repeatedly, the desk-drawer version handles 95%+ of your requests.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Programs exhibit spatial and temporal locality — they touch the same pages repeatedly. Only a small working set of translations matters at any given moment. The TLB is sized (64–2048 entries) to hold that working set.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Without locality, no cache of any kind would work — not the TLB, not L1/L2/L3, not the page cache. Locality is the most important property in computer performance.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan" style="color:#67E8F9;border-color:#06B6D4;background:rgba(6,182,212,0.08)">🎒 EVERYDAY SIMPLIFIED: THE SHUFFLED CACHE</span>
+  <h2>The Context Switch Flush Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🔄❌🔒</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>When you switch to a different job, the sticky note on your desk is suddenly wrong — it was for the previous task's files. So on every context switch, you wipe the note clean. This is what old CPUs did with the TLB on every process switch — an expensive flush that cost microseconds.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Modern CPUs add an ASID (Address Space Identifier) tag to each TLB entry. Instead of flushing the TLB, the CPU simply tags entries with the current process's ASID and skips entries from other processes. No flush required.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>ASIDs are a small feature with enormous performance impact — they eliminate most TLB flushes on modern multitasking systems.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE TLB ACCELERATION SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card emerald"><h3>✅ Lightning-Fast Hits</h3><p>Most translations (95–99%) are cached. A single-cycle associative lookup. The page table walk is skipped entirely.</p></div>
+    <div class="card crimson"><h3>❌ Rare Slow Misses</h3><p>Occasional translations miss the cache and fall back to the page table walk. The 2× penalty now hits only ~1–5% of accesses.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">The TLB transforms a uniformly painful 2× memory tax into a rare edge case — effectively restoring single-access memory performance for 95%+ of operations. <strong>This is why paging is fast enough for production.</strong></p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan" style="color:#67E8F9;border-color:#06B6D4;background:rgba(6,182,212,0.08)">💻 SYSTEMS COHESION: THE ASSOCIATIVE HARDWARE CACHE</span>
+  <h2>TLB Architecture &amp; CAM Structure</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The TLB Structure</h3>
+      <p>The Translation Lookaside Buffer (TLB) is a specialized, ultra-fast hardware cache located directly inside the CPU Memory Management Unit (MMU).</p>
+      <p style="margin-top:1vh"><strong>Size:</strong> 64 to 2,048 entries typically (L1 TLB). L2 TLB may have 2,000–4,000 entries.</p>
+      <p style="margin-top:1vh"><strong>Technology:</strong> Content-Addressable Memory (CAM) — checks all entries in parallel.</p>
+      <p style="margin-top:1vh"><strong>Latency:</strong> 1–2 clock cycles for a hit. Compared to ~100 cycles for a page table walk.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Vector Pairing</h3>
+      <p><strong>Tag Field:</strong> Stores virtual page numbers (plus ASID on modern CPUs).</p>
+      <p><strong>Data Field:</strong> Stores corresponding physical frame numbers + protection permission bits (R/W/X) + dirty bit + valid bit.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>The full entry:</strong> {ASID, VPN} → {PFN, permissions, flags}</p>
+      <p style="margin-top:1vh">Every translation the CPU performs is a lookup against this table — either hits (fast) or misses (slow).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan" style="color:#67E8F9;border-color:#06B6D4;background:rgba(6,182,212,0.08)">💻 SYSTEMS COHESION: THE LOOKUP DECISION TREE</span>
+  <h2>The TLB Hit vs. Miss Pipeline</h2>
+  <div class="pipeline">
+    <div class="pipeline-step step-1">
+      <div class="num">1</div>
+      <p><strong>CPU issues virtual address.</strong> The MMU intercepts it before any memory access happens.</p>
+    </div>
+    <div class="pipeline-step step-2">
+      <div class="num">2</div>
+      <p><strong>TLB lookup (parallel CAM).</strong> The MMU compares the virtual page number (and ASID) against every TLB entry simultaneously.</p>
+    </div>
+    <div class="pipeline-step step-3">
+      <div class="num">3</div>
+      <p><strong>Decision: HIT or MISS.</strong> If a valid matching entry is found → TLB hit. Otherwise → TLB miss.</p>
+    </div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card emerald">
+      <h3>✅ TLB Hit Path (95–99% of accesses)</h3>
+      <p><strong>Cost:</strong> 1–2 cycles for the TLB lookup.</p>
+      <p><strong>Then:</strong> Physical address is computed directly, one memory access to fetch data.</p>
+      <p><strong>Total:</strong> ~1 memory access + small TLB overhead. <em>Almost as fast as base-and-bound.</em></p>
+    </div>
+    <div class="card crimson">
+      <h3>❌ TLB Miss Path (1–5% of accesses)</h3>
+      <p><strong>Cost:</strong> 1 TLB lookup (fails) + 1 page table walk (multiple memory accesses for multi-level tables) + 1 memory access for data.</p>
+      <p><strong>Then:</strong> The kernel's page walker or hardware walks the page table, finds the frame, installs the entry in the TLB, and retries.</p>
+      <p><strong>Total:</strong> ~2× memory access cost. <em>But it happens rarely.</em></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan" style="color:#67E8F9;border-color:#06B6D4;background:rgba(6,182,212,0.08)">💻 SYSTEMS COHESION: THE MATHEMATICAL DERIVATION</span>
+  <h2>Effective Access Time (EAT) Formula</h2>
+  <div class="math-box">
+    <h4>The EAT Equation</h4>
+    <p>EAT is the <em>weighted average</em> memory access time, factoring in TLB hit rate and RAM access latency:</p>
+    <p class="formula">EAT = h × (TLB_lookup + RAM_access) + (1 − h) × (TLB_lookup + 2 × RAM_access)</p>
+    <p style="margin-top:1.5vh"><strong>Variable Breakdown:</strong></p>
+    <p>· <strong>h</strong> = TLB hit rate (percentage expressed as decimal, e.g., 0.95)</p>
+    <p>· <strong>TLB_lookup</strong> = TLB search time (typically 1–10 ns)</p>
+    <p>· <strong>RAM_access</strong> = physical memory access time (typically 100 ns)</p>
+    <p>· <strong>1 − h</strong> = miss rate</p>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:2vh">
+    <div class="card emerald">
+      <h3>Hit Case</h3>
+      <p>On a hit, the TLB provides the physical frame number directly. One memory access fetches the data. Total cost: <code>TLB_lookup + RAM_access</code>.</p>
+    </div>
+    <div class="card crimson">
+      <h3>Miss Case</h3>
+      <p>On a miss, the CPU must walk the page table (first memory access), then fetch the data (second memory access). Total cost: <code>TLB_lookup + 2 × RAM_access</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan" style="color:#67E8F9;border-color:#06B6D4;background:rgba(6,182,212,0.08)">💻 SYSTEMS COHESION: THE FULL WORKED CALCULATION</span>
+  <h2>Quantitative EAT Calculation Example</h2>
+  <div class="math-box">
+    <h4>The Setup</h4>
+    <p>TLB search = <strong>20 ns</strong> · RAM access = <strong>100 ns</strong> · Hit rate h = <strong>80% (0.80)</strong></p>
+  </div>
+  <div class="math-box" style="border-color:#10B981;background:rgba(16,185,129,0.06)">
+    <h4 style="color:#34D399">Step-by-Step Solution</h4>
+    <p style="margin-top:1.5vh"><span style="color:#FBBF24;font-family:monospace;font-weight:800">Step 1 — Hit path contribution:</span></p>
+    <p style="font-family:monospace;color:#CBD5E1">0.80 × (20 + 100) = 0.80 × 120 = <strong style="color:#34D399">96 ns</strong></p>
+    <p style="margin-top:1.5vh"><span style="color:#FBBF24;font-family:monospace;font-weight:800">Step 2 — Miss path contribution:</span></p>
+    <p style="font-family:monospace;color:#CBD5E1">0.20 × (20 + 2×100) = 0.20 × 220 = <strong style="color:#34D399">44 ns</strong></p>
+    <p style="margin-top:1.5vh"><span style="color:#FBBF24;font-family:monospace;font-weight:800">Step 3 — Sum:</span></p>
+    <p style="font-family:monospace;color:#CBD5E1">EAT = 96 + 44 = <strong style="color:#34D399;font-size:1.15em">140 ns</strong></p>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:2vh">
+    <div class="card crimson">
+      <h3>❌ Without TLB</h3>
+      <p>Every access pays the full 2× penalty: 2 × 100 = <strong>200 ns</strong>.</p>
+    </div>
+    <div class="card emerald">
+      <h3>✅ With TLB (80% hit)</h3>
+      <p>Average access time = <strong>140 ns</strong> — a 30% reduction.</p>
+      <p style="margin-top:1vh;color:#34D399">At 99% hit rate → 0.99×120 + 0.01×220 = <strong>121 ns</strong> — nearly restoring single-access speed.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan" style="color:#67E8F9;border-color:#06B6D4;background:rgba(6,182,212,0.08)">💻 SYSTEMS COHESION: HIT RATE VS PERFORMANCE</span>
+  <h2>The Hit Rate Sensitivity Curve</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Hit Rate Table (TLB=20ns, RAM=100ns)</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:0.9rem;font-family:monospace">
+        <tr style="color:#60A5FA;border-bottom:1px solid #1E293B"><td style="padding:0.8vh 0.5vw"><strong>Hit Rate</strong></td><td style="padding:0.8vh 0.5vw"><strong>EAT</strong></td><td style="padding:0.8vh 0.5vw"><strong>Speedup</strong></td></tr>
+        <tr style="border-bottom:1px solid #1E293B"><td style="padding:0.8vh 0.5vw">0%</td><td style="padding:0.8vh 0.5vw;color:#FCA5A5">220 ns</td><td style="padding:0.8vh 0.5vw;color:#FCA5A5">0.91×</td></tr>
+        <tr style="border-bottom:1px solid #1E293B"><td style="padding:0.8vh 0.5vw">50%</td><td style="padding:0.8vh 0.5vw;color:#FCD34D">170 ns</td><td style="padding:0.8vh 0.5vw;color:#FCD34D">1.18×</td></tr>
+        <tr style="border-bottom:1px solid #1E293B"><td style="padding:0.8vh 0.5vw">80%</td><td style="padding:0.8vh 0.5vw;color:#93C5FD">140 ns</td><td style="padding:0.8vh 0.5vw;color:#93C5FD">1.43×</td></tr>
+        <tr style="border-bottom:1px solid #1E293B"><td style="padding:0.8vh 0.5vw">90%</td><td style="padding:0.8vh 0.5vw;color:#6EE7B7">130 ns</td><td style="padding:0.8vh 0.5vw;color:#6EE7B7">1.54×</td></tr>
+        <tr style="border-bottom:1px solid #1E293B"><td style="padding:0.8vh 0.5vw">95%</td><td style="padding:0.8vh 0.5vw;color:#34D399">125 ns</td><td style="padding:0.8vh 0.5vw;color:#34D399">1.60×</td></tr>
+        <tr><td style="padding:0.8vh 0.5vw">99%</td><td style="padding:0.8vh 0.5vw;color:#34D399">121 ns</td><td style="padding:0.8vh 0.5vw;color:#34D399">1.65×</td></tr>
+      </table>
+    </div>
+    <div class="card emerald">
+      <h3>Why Modern CPUs Hit 99%+</h3>
+      <p><strong>Locality:</strong> Real workloads touch small working sets — loops, hot functions, adjacent data. These fit in the TLB.</p>
+      <p><strong>Multi-level TLB:</strong> L1 TLB (64 entries, 1 cycle) → L2 TLB (2000 entries, 6 cycles) → L3 TLB (part of L3 cache).</p>
+      <p><strong>Huge pages:</strong> 2 MB or 1 GB pages drastically reduce TLB pressure — one entry covers 512× more memory than a 4 KB page.</p>
+      <p style="margin-top:1vh;color:#34D399">Modern workloads rarely fall below 95% TLB hit rate.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON PAGING MECHANICS</span>
+  <h2>Core System Cohesion — Relies On L11</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L11's Cost Problem</h3><p>Every virtual address access requires a page table lookup. Without caching, this doubles every memory operation — untenable for CPU-intensive workloads.</p></div>
+    <div class="card"><h3>L12's Solution</h3><p>The TLB caches recent page table entries. Instead of walking the table every time, the MMU checks the TLB first — and 95%+ of the time, it finds the answer there.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>The TLB exists <em>because</em> paging exists. It is not a general caching mechanism — it specifically caches the translations that paging produces. Without paging, no TLB.</p></div>
+    <div class="card emerald"><h3>Feeds Into L13</h3><p>TLB miss handling interacts with page fault handling (L13): a TLB miss may trigger a page table walk, which may discover an absent page, which triggers a page fault. The two layers must cooperate.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO VIRTUAL MEMORY</span>
+  <h2>Core System Cohesion — Feeds Into L13</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L13 (Demand Paging)</h3><p>When the TLB misses and the page table walk finds <code>valid = 0</code>, a page fault occurs. The kernel must fetch the page from disk (or swap), install the page table entry, and — crucially — <strong>invalidate the stale TLB entry</strong> if one exists.</p></div>
+    <div class="card"><h3>The TLB Shootdown</h3><p>When a page is modified or unmapped on one CPU, other CPUs may have stale TLB entries. The kernel must send IPIs (inter-processor interrupts) to flush them — a "TLB shootdown." This is a costly operation and a key optimization target in modern kernels.</p></div>
+    <div class="card"><h3>ASID Tagging</h3><p>Modern CPUs tag TLB entries with an ASID (Address Space Identifier). This lets the TLB hold entries from multiple processes simultaneously — no flush needed on every context switch (L06).</p></div>
+    <div class="card emerald"><h3>The Module 3 Arc Complete</h3><p>L10 (base-bound) → L11 (paging) → L12 (TLB) → L13 (demand paging). The TLB makes paging fast; demand paging makes paging expand to disk. Together they deliver the complete illusion of infinite memory.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: TLB STRATEGIES</span>
+  <h2>TLB Management Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic TLB Management</h3><p>TLB invalidation and hardware register flushes execute directly within privileged Ring 0 kernel supervisor space. The kernel directly executes <code>invlpg</code> instructions to flush TLB entries and manages the CR3 register on every context switch.</p></div>
+    <div class="card emerald"><h3>Microkernel TLB Management</h3><p>TLB management primitives run in Ring 0 hardware drivers, while virtual memory mapping managers operate in user space. The kernel provides only the minimal TLB manipulation syscalls; the policy (when to shoot down, which pages to map) is decided by user-space services.</p></div>
+    <div class="card amber"><h3>Layered TLB Management</h3><p>Enforces strict hierarchical cache validation checks down vertical memory abstraction tiers. Layer N's TLB entries must be consistent with Layer N-1's page tables — the hardware and kernel co-verify the layering.</p></div>
+    <div class="card"><h3>Modular TLB Management</h3><p>Maintains core MMU cache flushing loops in Ring 0 while allowing specialized architecture performance modules to load dynamically. Different TLB management strategies for different hardware (Intel vs AMD vs ARM) live in swappable modules.</p></div>
+    <div class="card violet"><h3>Hybrid TLB Management</h3><p>Critical hardware TLB shootdowns execute inside Ring 0 supervisor space while container virtualization daemons (L27) coordinate address spaces. The kernel handles low-level shootdowns; userspace orchestration controls which VMs/containers trigger them.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE TLB VOCABULARY</span>
+  <h2>Base TLB Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · TLB (Translation Lookaside Buffer)</h3>
+      <p>A specialized, ultra-fast associative hardware cache inside the CPU's MMU used to accelerate virtual-to-physical address translations. Holds recently-used (VPN → PFN) mappings in Content-Addressable Memory, allowing parallel lookup of the page number in a single cycle. Typical size: 64–2048 entries.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The speed-dial memory storing frequent phone numbers instantly.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · TLB Hit Rate</h3>
+      <p>The statistical probability percentage indicating that a requested virtual address translation was successfully found inside the TLB cache. Modern CPUs achieve 95–99% hit rates on typical workloads due to spatial/temporal locality. Hit rate is the single most important factor in overall memory performance.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The percentage of times your speed-dial button successfully connects without opening the phonebook.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE TLB VOCABULARY</span>
+  <h2>Advanced TLB Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Effective Access Time (EAT)</h3>
+      <p>The calculated average time required to access memory, factoring in TLB lookup speeds, cache hit rates, and RAM access penalties. Computed as a weighted average: <code>EAT = h × (TLB + RAM) + (1−h) × (TLB + 2×RAM)</code>. The primary metric for evaluating paging system performance.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The true average time spent looking up and retrieving a file from storage.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · ASID (Address Space Identifier)</h3>
+      <p>A hardware tag appended to TLB entries identifying which specific process owns that translation mapping. Allows the TLB to hold entries from multiple processes simultaneously, eliminating the need for a full TLB flush on every context switch. Typical ASID width: 8–16 bits (256–65536 address spaces).</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Color-coded name tags preventing workers from using another department's folder.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · TLB Shootdown</h3>
+      <p>An inter-processor interrupt signal used in multi-core systems to force other CPU cores to invalidate stale TLB cache entries. Triggered when a page is unmapped, its permissions are changed, or a process is terminated. TLB shootdowns are expensive (each CPU must handle an IPI) and are a key optimization target in kernel design.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Broadcasting an emergency radio alert telling all team stations to update their contact lists.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan" style="color:#67E8F9;border-color:#06B6D4;background:rgba(6,182,212,0.08)">💻 CODE DISSECTION: C EAT LATENCY SIMULATOR</span>
+  <h2>Simulating EAT Under Varying Hit Rates</h2>
+  <pre class="code-block"><span class="cm">// Calculating Effective Access Time (EAT) under varying TLB hit rates in C</span>
+<span class="cm">// Run: gcc -o eat eat.c &amp;&amp; ./eat</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">calculate_eat</span>(<span class="kw">double</span> hit_rate, <span class="kw">double</span> tlb_ns, <span class="kw">double</span> ram_ns) {
+    <span class="cm">// EAT Formula: h * (TLB + RAM) + (1 - h) * (TLB + 2 * RAM)</span>
+    <span class="kw">double</span> eat = (hit_rate * (tlb_ns + ram_ns))
+               + ((<span class="num">1.0</span> - hit_rate) * (tlb_ns + (<span class="num">2.0</span> * ram_ns)));
+
+    <span class="fn">printf</span>(<span class="str">"Hit Rate: %5.1f%% | TLB: %.1fns | RAM: %.1fns -&gt; EAT: %.2f ns\n"</span>,
+           hit_rate * <span class="num">100.0</span>, tlb_ns, ram_ns, eat);
+}
+
+<span class="kw">void</span> <span class="fn">calculate_speedup</span>(<span class="kw">double</span> hit_rate, <span class="kw">double</span> tlb_ns, <span class="kw">double</span> ram_ns) {
+    <span class="kw">double</span> eat = (hit_rate * (tlb_ns + ram_ns))
+               + ((<span class="num">1.0</span> - hit_rate) * (tlb_ns + (<span class="num">2.0</span> * ram_ns)));
+    <span class="kw">double</span> without_tlb = <span class="num">2.0</span> * ram_ns;  <span class="cm">// Always 2 trips</span>
+    <span class="kw">double</span> speedup = without_tlb / eat;
+
+    <span class="fn">printf</span>(<span class="str">"  Without TLB: %.2f ns | Speedup: %.2fx\n"</span>,
+           without_tlb, speedup);
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="kw">double</span> tlb_latency = <span class="num">20.0</span>;   <span class="cm">// 20 ns TLB lookup</span>
+    <span class="kw">double</span> ram_latency = <span class="num">100.0</span>;  <span class="cm">// 100 ns RAM access</span>
+
+    <span class="fn">printf</span>(<span class="str">"=== EAT Calculation Under Various Hit Rates ===\n\n"</span>);
+
+    <span class="cm">// Classic textbook example: 80% hit rate</span>
+    <span class="fn">calculate_eat</span>(<span class="num">0.80</span>, tlb_latency, ram_latency);
+    <span class="fn">calculate_speedup</span>(<span class="num">0.80</span>, tlb_latency, ram_latency);
+    <span class="fn">printf</span>(<span class="str">"\n"</span>);
+
+    <span class="cm">// Modern CPU: 99% hit rate</span>
+    <span class="fn">calculate_eat</span>(<span class="num">0.99</span>, tlb_latency, ram_latency);
+    <span class="fn">calculate_speedup</span>(<span class="num">0.99</span>, tlb_latency, ram_latency);
+    <span class="fn">printf</span>(<span class="str">"\n"</span>);
+
+    <span class="cm">// Sweep across hit rates</span>
+    <span class="fn">printf</span>(<span class="str">"=== Hit Rate Sweep ===\n"</span>);
+    <span class="kw">double</span> rates[] = { <span class="num">0.0</span>, <span class="num">0.25</span>, <span class="num">0.50</span>, <span class="num">0.75</span>,
+                       <span class="num">0.90</span>, <span class="num">0.95</span>, <span class="num">0.99</span>, <span class="num">1.00</span> };
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; <span class="num">8</span>; i++) {
+        <span class="fn">calculate_eat</span>(rates[i], tlb_latency, ram_latency);
+    }
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan" style="color:#67E8F9;border-color:#06B6D4;background:rgba(6,182,212,0.08)">💻 CODE DISSECTION: TRACING LATENCY WEIGHTS</span>
+  <h2>Walking the EAT Arithmetic Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>hit_rate * (tlb_ns + ram_ns)</h3><p><strong>The hit path weight.</strong> For 80% hit rate with TLB=20, RAM=100: <code>0.80 × (20 + 100) = 0.80 × 120 = 96 ns</code>. This is what contributes when the TLB hits — one memory access.</p></div>
+    <div class="card"><h3>(1.0 − hit_rate) * (tlb_ns + 2*ram_ns)</h3><p><strong>The miss path weight.</strong> For 20% miss rate: <code>0.20 × (20 + 200) = 0.20 × 220 = 44 ns</code>. This contributes when the TLB misses — two memory accesses (page table + data).</p></div>
+    <div class="card emerald"><h3>eat = 96 + 44 = 140 ns</h3><p><strong>The final result.</strong> Average memory access time is 140 ns, dominated by the 96 ns hit contribution. The 44 ns miss contribution is smaller because misses are rare.</p></div>
+    <div class="card amber"><h3>calculate_speedup</h3><p>Compares EAT to the no-TLB baseline: <code>2 × 100 = 200 ns</code>. At 80% hit rate, <code>200 / 140 = 1.43× speedup</code>. At 99% hit rate, <code>200 / 121 = 1.65×</code>.</p></div>
+    <div class="card violet"><h3>The Takeaway</h3><p>Even at 50% hit rate, EAT = 170 ns is better than the 200 ns no-TLB baseline. Above ~50% hit rate, the TLB always pays for itself. Modern CPUs exceed 95% — the TLB is essentially mandatory.</p></div>
+    <div class="card crimson"><h3>The Asymptote</h3><p>At 100% hit rate: EAT = TLB + RAM = 120 ns. There is <em>no way</em> to go below this — the TLB lookup itself costs time. The 20 ns TLB overhead is the permanent tax paging pays, even in the best case.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎯 INTERACTIVE WORKSHOP: THE LIVE EAT CHALLENGE</span>
+  <h2>The Real-Time Latency Math Challenge</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>The Setup</h3><p>Instructor writes the EAT equation on the board. Students are given TLB=10 ns and RAM=150 ns.</p></div>
+    <div class="card amber"><h3>The Challenge</h3><p>Instructor changes the hit rate live:</p><p>· 95% → what is EAT?</p><p>· 50% → what is EAT?</p><p>· 20% → what is EAT?</p><p>· 0% → what is EAT?</p></div>
+    <div class="card emerald"><h3>The Discovery</h3><p>At 0% hit rate: 10 + 300 = 310 ns. Notice this is <em>worse</em> than the no-TLB baseline of 300 ns — because the TLB lookup itself adds 10 ns even when it always misses.</p></div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>The Point:</strong> The TLB <em>worsens</em> performance when hit rate is 0% — but at realistic 95%+ hit rates, it delivers 1.6× speedups. This is why <em>cache-friendly code</em> (loops, sequential access, small working sets) matters enormously in real applications. Writing cache-unfriendly array loops can choke execution performance even on the fastest CPU.
+  </div>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-cyan" style="color:#67E8F9;border-color:#06B6D4;background:rgba(6,182,212,0.08)">💻 TRY IT LIVE: AUDITING REAL TLB AND CACHE INFO</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> lscpu | grep -i tlb                   <span class="out"># TLB specifications per cache level</span>
+<span class="cmd">$</span> getconf LEVEL1_ICACHE_SIZE            <span class="out"># L1 instruction cache size</span>
+<span class="cmd">$</span> getconf LEVEL1_DCACHE_SIZE            <span class="out"># L1 data cache size</span>
+<span class="cmd">$</span> getconf LEVEL2_CACHE_SIZE             <span class="out"># L2 cache size</span>
+<span class="cmd">$</span> getconf LEVEL3_CACHE_SIZE             <span class="out"># L3 cache size</span>
+<span class="cmd">$</span> lscpu | grep -i "cache"               <span class="out"># Full cache hierarchy</span>
+<span class="cmd">$</span> cat /sys/devices/system/cpu/cpu0/cache/index*/size  <span class="out"># Per-level sizes</span>
+<span class="cmd">$</span> perf stat -e dTLB-loads,dTLB-load-misses /bin/ls  <span class="out"># Real TLB stats</span>
+<span class="cmd">$</span> cat /proc/cpuinfo | grep -i tlb       <span class="out"># TLB info in cpuinfo (if present)</span></pre>
+  <p class="hint"><code>perf stat -e dTLB-loads,dTLB-load-misses</code> is the live EAT calculator — it reports the <em>actual</em> number of TLB hits and misses during a real workload.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 3: Memory Management
+        └── <span class="active">L12: TLB Acceleration &amp; Caching Math (ACTIVE NODE 🌟)</span>
+              ├── Associative CAM Hardware &amp; Hit/Miss Pipeline
+              └── Effective Access Time (EAT) Equations &amp; ASID Tagging</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>The <strong>TLB</strong> is an ultra-fast hardware cache inside the CPU's MMU that stores recent virtual-to-physical translations. It checks all entries in parallel via Content-Addressable Memory, resolving a translation in 1–2 clock cycles when a match is found. It exists specifically to hide paging's 2× memory access tax.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p><strong>EAT</strong> = <code>h × (TLB + RAM) + (1−h) × (TLB + 2×RAM)</code>. At 80% hit rate with TLB=20 ns and RAM=100 ns, EAT = 140 ns — a 30% improvement over the 200 ns no-TLB case. At 99% hit rate, EAT = 121 ns, nearly restoring single-access memory performance.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p><strong>ASIDs</strong> tag TLB entries with process identifiers, allowing multiple processes' translations to coexist in the TLB simultaneously. This eliminates costly TLB flushes on every context switch. Combined with the TLB itself, ASIDs make modern multitasking fast — without them, every process switch would cost a full TLB invalidation.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 13 — Virtual Memory, Demand Paging &amp; Page Replacement Primitives (Module 3 Finale)</strong><br><br>
+    We have made paging fast — but we have not yet made it <em>unbounded</em>. A process's virtual address space is not limited to physical RAM; it can be larger. This is the magic of <strong>demand paging</strong>: pages are loaded from disk only when accessed, and evicted to swap when memory pressure rises. We will trace a page reference string manually through FIFO and LRU page replacement pipelines, count page faults, and see the classic <em>Belady's Anomaly</em> that haunts FIFO. When the system thrashes — swapping faster than it can compute — the OS becomes unusable. This is the final and most powerful memory trick.
+  </div>
+  <p class="hint">File: L13.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
