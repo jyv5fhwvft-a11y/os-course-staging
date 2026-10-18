@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L07 · CPU Scheduling I</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .gantt { display: flex; width: 100%; max-width: 900px; height: 80px; margin: 2vh auto; border-radius: 8px; overflow: hidden; border: 2px solid #1E293B; }
+  .gantt-block { display: flex; align-items: center; justify-content: center; font-weight: 800; color: #020617; font-size: clamp(0.85rem, 1.1vw, 1rem); }
+  .gantt-scale { display: flex; justify-content: space-between; width: 100%; max-width: 900px; margin: 0.5vh auto; font-size: 0.75rem; color: #475569; font-family: "SF Mono", monospace; }
+  .metric-table { width: 100%; max-width: 900px; margin: 2vh auto; border-collapse: collapse; font-size: clamp(0.8rem, 1vw, 0.95rem); }
+  .metric-table th { background: #1E293B; color: #60A5FA; padding: 1vh 1vw; text-align: left; font-weight: 700; }
+  .metric-table td { padding: 1vh 1vw; border-bottom: 1px solid #1E293B; color: #CBD5E1; }
+  .metric-table tr:last-child td { border-bottom: none; font-weight: 700; color: #FBBF24; }
+  .metric-highlight { color: #34D399; font-weight: 800; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L07</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-blue">🔰 START HERE // L07 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line"></div>
+  <p class="subtitle">Manually compute turn-around time, response time, and average wait metrics for a given array of task vectors under FCFS, SJF, and Round Robin scheduling algorithms.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> A CPU core can execute exactly one instruction stream at a time. But a modern system has three hundred processes queued and waiting for that one core. Which process gets to run <em>right now</em>? The kernel scheduler makes this decision thousands of times per second. Pick wrong — and the whole system collapses into a sluggish mess. Pick right — and users never notice. What are the foundational algorithms that make this choice?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L05 PCB</h3><p>The scheduling fields (priority, accumulated CPU time, remaining quantum) and the five process states (Ready, Running, Blocked).</p></div>
+    <div class="card amber"><h3>02 · L06 Context Switch</h3><p>Every scheduling decision ultimately triggers a context switch, so its cost matters.</p></div>
+    <div class="card amber"><h3>03 · Basic Arithmetic</h3><p>Comfort with computing averages and plotting simple Gantt charts.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> Scheduling has a fundamental trade-off that cannot be avoided: <strong>throughput</strong> (total processes per second) vs. <strong>responsiveness</strong> (how fast users perceive interactions) vs. <strong>fairness</strong> (whether every process makes progress). No single algorithm dominates all three.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE GROCERY STORE LINE</span>
+  <h2>The FCFS Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🛒👥💳</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A grocery store has one cashier. Customers join a single line based on arrival time. The first customer has a massive cart — 200 items. The second customer has a single pack of gum. The cashier services the cart first, taking 8 minutes; the gum buyer waits 8 minutes for what could have been 15 seconds. Nobody cuts the line, and the small task is trapped behind the large one.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>FCFS runs processes in <em>arrival order</em>. Perfectly fair in a legal sense, catastrophically unfair in a <em>waiting time</em> sense.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the "convoy effect" — a small task trapped behind a large one — the classic FCFS flaw.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE EXPRESS CHECKOUT</span>
+  <h2>The SJF Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">⚡🛒💰</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The store manager, frustrated by the convoy effect, reorders the line: "Smallest cart first, please." The gum buyer is now served in 15 seconds; the medium cart in 2 minutes; the massive cart finally gets its 8 minutes — but <em>after</em> everyone else. Average waiting time plummets.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>SJF runs processes with the <em>shortest burst time</em> first. It dramatically minimizes average waiting time — the mathematically provable optimum. But it must <em>know</em> burst times in advance, which is impossible.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>SJF is the theoretical optimum for average wait time — and the practical impossibility at the same time.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE TIMED TELLER</span>
+  <h2>The Round Robin Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">⏱️🔄👥</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The store installs a rule: each customer gets exactly 30 seconds at the cashier. If their transaction is not finished, they are sent to the <em>back</em> of the line, and the next customer gets their 30 seconds. Everyone gets a turn; nobody starves; responsiveness is excellent — but the total time to finish a big cart is much longer.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Round Robin allocates a fixed <em>time quantum</em> to each process. When the quantum expires, the process is preempted and placed back in the queue.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>RR is the foundational preemptive algorithm — the first to give every process a guaranteed slice of CPU.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE REFEREE'S WHISTLE</span>
+  <h2>The Preemption Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📣⚡🛑</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Even after a process starts running, the OS can <em>interrupt</em> it — via a hardware timer signal, or an I/O event requiring immediate attention. This is preemption. The process is not asked to yield; it is <em>forced</em> to pause, its state saved into its PCB, so another process can run.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Preemption is a <em>hardware-enabled</em> capability — without the timer interrupt, the OS could not forcibly preempt a running user process.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Preemption is the boundary between traditional batch computing and modern interactive multitasking.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE METRICS SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>🟡 Small Jobs Starved</h3><p>FCFS optimizes simplicity but suffers convoy effect. Small tasks wait behind large ones.</p></div>
+    <div class="card emerald"><h3>🟢 Balanced Response</h3><p>RR minimizes response time but increases total turnaround due to overhead. Everyone gets a turn.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Different algorithms optimize different metrics — <strong>no algorithm wins all of them</strong>. The right choice depends on workload characteristics.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE MEASUREMENT TOOLKIT</span>
+  <h2>Scheduling Metrics and Gantt Charts</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Four Core Metrics</h3>
+      <p><strong>Arrival Time (AT):</strong> When the process enters the ready queue.</p>
+      <p><strong>Burst Time (BT):</strong> How much CPU time the process will need.</p>
+      <p><strong>Completion Time (CT):</strong> When the process finishes execution.</p>
+      <p><strong>Wait Time (WT):</strong> Total time in the ready queue. <code>WT = CT − AT − BT</code>.</p>
+      <p><strong>Turnaround Time (TAT):</strong> Total time from arrival to completion. <code>TAT = CT − AT = WT + BT</code>.</p>
+      <p><strong>Response Time (RT):</strong> Time from arrival to <em>first</em> CPU allocation. Critical for interactive systems.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Gantt Chart Convention</h3>
+      <p>Time runs left to right; each process occupies a horizontal slice showing when it runs.</p>
+      <p style="margin-top:1vh">A Gantt chart makes <strong>waiting, running, and preemption visible</strong> at a glance.</p>
+      <p style="margin-top:1vh;color:#FBBF24">These metrics measure <em>different</em> things. SJF minimizes average wait time; RR minimizes response time; FCFS maximizes wait-time variance.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE SIMPLE FIFO QUEUE</span>
+  <h2>First-Come-First-Served (FCFS)</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Algorithm</h3>
+      <p><strong>Data structure:</strong> A simple FIFO queue.</p>
+      <p><strong>Policy:</strong> When CPU is free, dispatch the <em>oldest</em> process.</p>
+      <p><strong>Preemption:</strong> None. Runs until complete or blocks.</p>
+      <p><strong>Complexity:</strong> O(1) enqueue, O(1) dequeue.</p>
+    </div>
+    <div class="card crimson">
+      <h3>The Convoy Effect</h3>
+      <p>Small processes trapped behind long ones.</p>
+      <p style="margin-top:1vh">Average wait time skyrockets when a giant process arrives first.</p>
+      <p style="margin-top:1vh;color:#F87171"><strong>FCFS = maximally unfair to short jobs.</strong></p>
+    </div>
+  </div>
+  <p class="subtitle" style="margin-top:2vh;max-width:900px"><strong>Worked Example</strong> — All arrive at t=0. P1(24), P2(3), P3(3).</p>
+  <div class="gantt">
+    <div class="gantt-block" style="background:#8B5CF6;flex:24">P1 (24ms)</div>
+    <div class="gantt-block" style="background:#3B82F6;flex:3">P2 (3)</div>
+    <div class="gantt-block" style="background:#10B981;flex:3">P3 (3)</div>
+  </div>
+  <div class="gantt-scale"><span>0</span><span>24</span><span>27</span><span>30</span></div>
+  <table class="metric-table">
+    <tr><th>Process</th><th>Burst</th><th>Wait Time</th><th>Turnaround</th></tr>
+    <tr><td>P1</td><td>24</td><td>0</td><td>24</td></tr>
+    <tr><td>P2</td><td>3</td><td>24</td><td>27</td></tr>
+    <tr><td>P3</td><td>3</td><td>27</td><td>30</td></tr>
+    <tr><td colspan="2">Average</td><td>17 ms</td><td>27 ms</td></tr>
+  </table>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE OPTIMAL WAIT-TIME ALGORITHM</span>
+  <h2>Shortest-Job-First (SJF)</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Algorithm</h3>
+      <p><strong>Data structure:</strong> A priority queue ordered by burst time.</p>
+      <p><strong>Policy:</strong> Dispatch the process with the <em>smallest burst time</em>.</p>
+      <p><strong>Preemption:</strong> None (basic version). Preemptive variant is SRTF.</p>
+      <p><strong>Complexity:</strong> O(log n) to maintain the priority queue.</p>
+    </div>
+    <div class="card amber">
+      <h3>The Fatal Flaw</h3>
+      <p><strong>Mathematically optimal</strong> for average wait time — proven.</p>
+      <p style="margin-top:1vh"><strong>But requires knowing burst times in advance</strong> — impossible.</p>
+      <p style="margin-top:1vh;color:#FBBF24">Real schedulers approximate SJF by predicting next burst from past bursts (exponential averaging).</p>
+    </div>
+  </div>
+  <p class="subtitle" style="margin-top:2vh;max-width:900px"><strong>Worked Example</strong> — Same three processes, reordered.</p>
+  <div class="gantt">
+    <div class="gantt-block" style="background:#3B82F6;flex:3">P2 (3)</div>
+    <div class="gantt-block" style="background:#10B981;flex:3">P3 (3)</div>
+    <div class="gantt-block" style="background:#8B5CF6;flex:24">P1 (24ms)</div>
+  </div>
+  <div class="gantt-scale"><span>0</span><span>3</span><span>6</span><span>30</span></div>
+  <table class="metric-table">
+    <tr><th>Process</th><th>Burst</th><th>Wait Time</th><th>Turnaround</th></tr>
+    <tr><td>P1</td><td>24</td><td>6</td><td>30</td></tr>
+    <tr><td>P2</td><td>3</td><td>0</td><td>3</td></tr>
+    <tr><td>P3</td><td>3</td><td>3</td><td>6</td></tr>
+    <tr><td colspan="2">Average</td><td class="metric-highlight">3 ms</td><td class="metric-highlight">13 ms</td></tr>
+  </table>
+  <p class="hint" style="margin-top:1vh">SJF average wait is 3 ms vs. FCFS's 17 ms — a 5.7× reduction. Mathematically optimal, practically impossible.</p>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE TIMED-SLICE FAIRNESS</span>
+  <h2>Round Robin (RR)</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Algorithm</h3>
+      <p><strong>Data structure:</strong> A FIFO queue of ready processes.</p>
+      <p><strong>Policy:</strong> Each process gets up to <code>Q</code> of CPU time. If not finished, preempt and requeue at the back.</p>
+      <p><strong>Preemption:</strong> Yes — via the timer interrupt. The <em>key</em> difference from FCFS.</p>
+      <p><strong>Quantum choice:</strong> Small Q = responsiveness; large Q → FCFS behavior. Typical: 10–100 ms.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Why RR Wins</h3>
+      <p>Every process gets a CPU turn within <code>Q</code> ms of arrival.</p>
+      <p style="margin-top:1vh">Users perceive interactive responses as instant if Q &lt; 100 ms.</p>
+      <p style="margin-top:1vh;color:#34D399">RR = maximum responsiveness at the cost of slightly higher average wait.</p>
+    </div>
+  </div>
+  <p class="subtitle" style="margin-top:2vh;max-width:900px"><strong>Worked Example</strong> — Q = 4 ms, same three processes.</p>
+  <div class="gantt">
+    <div class="gantt-block" style="background:#8B5CF6;flex:4">P1</div>
+    <div class="gantt-block" style="background:#3B82F6;flex:3">P2</div>
+    <div class="gantt-block" style="background:#10B981;flex:3">P3</div>
+    <div class="gantt-block" style="background:#8B5CF6;flex:20">P1 (20ms remaining)</div>
+  </div>
+  <div class="gantt-scale"><span>0</span><span>4</span><span>7</span><span>10</span><span>30</span></div>
+  <table class="metric-table">
+    <tr><th>Process</th><th>Burst</th><th>Wait Time</th><th>Turnaround</th></tr>
+    <tr><td>P1</td><td>24</td><td>6</td><td>30</td></tr>
+    <tr><td>P2</td><td>3</td><td>4</td><td>7</td></tr>
+    <tr><td>P3</td><td>3</td><td>7</td><td>10</td></tr>
+    <tr><td colspan="2">Average</td><td>5.67 ms</td><td>15.67 ms</td></tr>
+  </table>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE CONTEXT SWITCH TAX</span>
+  <h2>The Preemption Overhead Trade-off</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card amber">
+      <h3>Small Q (e.g., 1 ms)</h3>
+      <p><strong>Pros:</strong> Excellent responsiveness. Users feel instant interactions.</p>
+      <p><strong>Cons:</strong> 100 processes → ~100 context switches/second. At 5μs per switch → 0.5% CPU overhead just switching. At 1000 processes, this becomes 5%.</p>
+    </div>
+    <div class="card crimson">
+      <h3>Large Q (e.g., 100 ms)</h3>
+      <p><strong>Pros:</strong> Fewer switches, minimal overhead.</p>
+      <p><strong>Cons:</strong> Interactive response degrades. A user typing a keystroke may wait 100 ms to see it — exceeding the human perception threshold.</p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>The Rule of Thumb:</strong> The time quantum should be much larger than the context switch cost, but much smaller than the human interaction latency. Typical: <code>Q ≈ 10–100 ms</code>, context switch <code>≈ 5–10 μs</code>. This gives less than 0.1% switch overhead while keeping response time under 100 ms.
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON PROCESS AND SWITCH INFRASTRUCTURE</span>
+  <h2>Core System Cohesion — Relies On L05 &amp; L06</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L05 (PCB) — FCFS</h3><p>Reads <code>arrival_time</code> from PCB, enqueues in FIFO, dispatches oldest. Runs to completion — no preemption.</p></div>
+    <div class="card"><h3>L05 (PCB) — SJF</h3><p>Reads <code>burst_time</code> (or an estimate) from PCB, uses priority queue, dispatches smallest.</p></div>
+    <div class="card"><h3>L05 (PCB) + L06 (Context Switch) — RR</h3><p>Reads <code>arrival_time</code>, dispatches in FIFO order, uses a <em>timer interrupt</em> to preempt after Q expires, then saves/restores PCB registers.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>Without L05's PCB, no scheduling decision could be persisted. Without L06's context switch, no scheduling decision could be executed. L07 is a <em>decision layer</em> above L05/L06's <em>mechanism</em>.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO MLFQ AND THREADS</span>
+  <h2>Core System Cohesion — Feeds Into L08 &amp; L09</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L08 (MLFQ)</h3><p>Combines multiple priority queues with feedback — a task that uses its full quantum is downgraded; a task that yields early is upgraded. Inherits RR's preemption mechanism and adapts it dynamically.</p></div>
+    <div class="card"><h3>L09 (Threads)</h3><p>Applies the same scheduling algorithms at the <em>thread</em> level — a process with 8 threads gets 8 independent entries in the scheduler's ready queue.</p></div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>Architectural Bond:</strong> L07 introduces the <em>foundational</em> algorithms — FCFS, SJF, RR. But real systems need something more sophisticated. L08 will combine them into an adaptive policy; L09 will apply them at the thread level.
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: KERNEL SCHEDULER ARCHITECTURES</span>
+  <h2>Scheduling Strategies Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Scheduler</h3><p>The scheduler is a single in-kernel function (<code>schedule()</code> in Linux) called on every context switch. All scheduling logic lives in Ring 0, operating on the global run queue. Fastest, but any scheduler bug affects the entire system.</p></div>
+    <div class="card emerald"><h3>Microkernel Scheduler</h3><p>The scheduler itself is a user-space server. The kernel exposes a minimal "yield" and "wake" primitive; the scheduler decides who runs next. Much slower (IPC on every decision), but the scheduler is fully isolated and swappable.</p></div>
+    <div class="card amber"><h3>Layered Scheduler</h3><p>Strict layering — run queue management → policy selection → dispatch. Each layer is inspectable and testable in isolation. Enables policy plug-ins that swap the algorithm without touching queue management.</p></div>
+    <div class="card"><h3>Modular Scheduler</h3><p>The kernel's scheduler is a pluggable module (Linux's <code>sched_ext</code> framework, added in 6.12). Scheduling algorithms (FIFO, RR, EEVDF, custom) are loadable at runtime.</p></div>
+    <div class="card violet"><h3>Hybrid Scheduler</h3><p>The kernel has multiple scheduling <em>classes</em> — real-time (<code>SCHED_FIFO</code>, <code>SCHED_RR</code>), fair (<code>SCHED_NORMAL</code>), and idle (<code>SCHED_IDLE</code>) — each with its own algorithm. This is the actual modern Linux model.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE SCHEDULING VOCABULARY</span>
+  <h2>Base Scheduling Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Preemption</h3>
+      <p>The ability of an operating system to forcefully pause a running process and hand the CPU core to a different task. Enabled by the hardware timer interrupt which fires periodically and returns execution to the kernel's scheduling logic. Preemptive scheduling algorithms can interrupt at any time; non-preemptive let processes run to completion.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The referee's whistle — forcibly pausing a runner to rotate in another.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Time Quantum</h3>
+      <p>The maximum continuous block of time a thread is permitted to run under a preemptive scheduling policy before being context-switched. Chosen to balance responsiveness (smaller Q = better) against context-switch overhead (larger Q = fewer switches).</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The 30-second timer per customer in the grocery line.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE SCHEDULING VOCABULARY</span>
+  <h2>Advanced Scheduling Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Convoy Effect</h3>
+      <p>A system slowdown scenario where short processes wait a prolonged duration for a long, heavy process to vacate the CPU core; the short jobs "pile up behind" the long job, dramatically increasing average wait time. FCFS suffers from it; SJF eliminates it; RR mitigates it.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The small gum purchase trapped behind a giant 200-item cart.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Average Wait Time</h3>
+      <p>The arithmetic mean of the total time processes spent sitting inside the READY queue waiting for execution access. <code>WaitTime = CompletionTime − ArrivalTime − BurstTime</code>; averaged over all processes, it is the primary metric for comparing scheduling algorithms.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The average time customers spend waiting in line before being served.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Turnaround Time</h3>
+      <p>The total time from a process's arrival in the system to its completion — <code>TurnaroundTime = WaitTime + BurstTime</code>. It measures the <em>total customer experience</em> — how long the entire task takes from start to finish, including both waiting and executing.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The total time from when you enter the store to when you leave with your purchase.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: C SCHEDULER SIMULATOR</span>
+  <h2>FCFS and Round Robin in C</h2>
+  <pre class="code-block"><span class="cm">// Simulating FCFS and Round Robin CPU scheduling in C</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    <span class="kw">int</span> pid, arrival, burst, remaining;
+    <span class="kw">int</span> completion, waiting, turnaround;
+} Process;
+
+<span class="cm">// ---------- FCFS (non-preemptive) ----------</span>
+<span class="kw">void</span> <span class="fn">fcfs</span>(Process procs[], <span class="kw">int</span> n) {
+    <span class="kw">int</span> time = <span class="num">0</span>;
+    <span class="kw">double</span> total_wait = <span class="num">0</span>, total_tat = <span class="num">0</span>;
+
+    <span class="fn">printf</span>(<span class="str">"=== FCFS Scheduling ===\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"PID  Arrival  Burst  Start  Complete  Wait  TAT\n"</span>);
+
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; n; i++) {
+        <span class="kw">if</span> (time &lt; procs[i].arrival) time = procs[i].arrival;
+        <span class="kw">int</span> start = time;
+        time += procs[i].burst;
+        procs[i].completion = time;
+        procs[i].turnaround = procs[i].completion - procs[i].arrival;
+        procs[i].waiting = procs[i].turnaround - procs[i].burst;
+        total_wait += procs[i].waiting;
+        total_tat += procs[i].turnaround;
+
+        <span class="fn">printf</span>(<span class="str">"P%d   %2d      %2d     %2d      %2d      %2d    %2d\n"</span>,
+               procs[i].pid, procs[i].arrival, procs[i].burst,
+               start, procs[i].completion,
+               procs[i].waiting, procs[i].turnaround);
+    }
+    <span class="fn">printf</span>(<span class="str">"Average Wait: %.2f  Average TAT: %.2f\n\n"</span>,
+           total_wait / n, total_tat / n);
+}
+
+<span class="cm">// ---------- Round Robin (preemptive, quantum Q) ----------</span>
+<span class="kw">void</span> <span class="fn">round_robin</span>(Process procs[], <span class="kw">int</span> n, <span class="kw">int</span> Q) {
+    <span class="kw">int</span> time = <span class="num">0</span>, completed = <span class="num">0</span>;
+    <span class="kw">double</span> total_wait = <span class="num">0</span>, total_tat = <span class="num">0</span>;
+
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; n; i++) procs[i].remaining = procs[i].burst;
+
+    <span class="fn">printf</span>(<span class="str">"=== Round Robin Scheduling (Q=%d) ===\n"</span>, Q);
+
+    <span class="kw">while</span> (completed &lt; n) {
+        <span class="kw">int</span> idle = <span class="num">1</span>;
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; n; i++) {
+            <span class="kw">if</span> (procs[i].remaining &gt; <span class="num">0</span> &amp;&amp; procs[i].arrival &lt;= time) {
+                idle = <span class="num">0</span>;
+                <span class="kw">int</span> run_time = procs[i].remaining &lt; Q ? procs[i].remaining : Q;
+                procs[i].remaining -= run_time;
+                time += run_time;
+                <span class="fn">printf</span>(<span class="str">"  [t=%d] P%d runs for %d ms (remaining=%d)\n"</span>,
+                       time - run_time, procs[i].pid, run_time, procs[i].remaining);
+
+                <span class="kw">if</span> (procs[i].remaining == <span class="num">0</span>) {
+                    procs[i].completion = time;
+                    procs[i].turnaround = procs[i].completion - procs[i].arrival;
+                    procs[i].waiting = procs[i].turnaround - procs[i].burst;
+                    total_wait += procs[i].waiting;
+                    total_tat += procs[i].turnaround;
+                    completed++;
+                }
+            }
+        }
+        <span class="kw">if</span> (idle) time++;
+    }
+    <span class="fn">printf</span>(<span class="str">"Average Wait: %.2f  Average TAT: %.2f\n\n"</span>,
+           total_wait / n, total_tat / n);
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    Process fcfs_procs[] = {
+        { <span class="num">1</span>, <span class="num">0</span>, <span class="num">24</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span> },
+        { <span class="num">2</span>, <span class="num">0</span>,  <span class="num">3</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span> },
+        { <span class="num">3</span>, <span class="num">0</span>,  <span class="num">3</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span> },
+    };
+    Process rr_procs[] = {
+        { <span class="num">1</span>, <span class="num">0</span>, <span class="num">24</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span> },
+        { <span class="num">2</span>, <span class="num">0</span>,  <span class="num">3</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span> },
+        { <span class="num">3</span>, <span class="num">0</span>,  <span class="num">3</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span> },
+    };
+
+    <span class="fn">fcfs</span>(fcfs_procs, <span class="num">3</span>);
+    <span class="fn">round_robin</span>(rr_procs, <span class="num">3</span>, <span class="num">4</span>);
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: TRACING SCHEDULING ARITHMETIC</span>
+  <h2>Walking the Scheduling Traces</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>if (time &lt; procs[i].arrival)</h3><p><strong>FCFS's idle handling.</strong> If no process has arrived yet, advance time to the next arrival. Simple, but preserves the convoy behavior.</p></div>
+    <div class="card"><h3>procs[i].completion = time; time += burst</h3><p><strong>FCFS's execution.</strong> Each process runs to <em>completion</em>, no preemption. This is exactly what causes the convoy effect.</p></div>
+    <div class="card"><h3>waiting = turnaround − burst</h3><p><strong>The metric derivation.</strong> Once completion is known, wait and turnaround follow directly.</p></div>
+    <div class="card"><h3>run_time = min(remaining, Q)</h3><p><strong>RR's quantum.</strong> Each process runs for the smaller of the two — never more than Q, possibly less if it finishes early.</p></div>
+    <div class="card"><h3>remaining -= run_time</h3><p><strong>RR's progress.</strong> A 24ms process with Q=4 has 20ms remaining after one quantum, 16 after two, etc.</p></div>
+    <div class="card emerald"><h3>The Verdict</h3><p>With FCFS: Average WT = 17ms, Average TAT = 27ms. With RR: Average WT ≈ 5.67ms, Average TAT ≈ 15.67ms. RR's dramatic improvement despite using the <em>same processes</em> demonstrates the power of preemption.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎯 INTERACTIVE WORKSHOP: THE HUMAN SCHEDULER</span>
+  <h2>The Physical Checkout Lane Simulation</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Student 01 · The Cashier/CPU</h3><p>The single executor. Can only work on one student at a time.</p></div>
+    <div class="card"><h3>Students 02–05 · Customers</h3><p>Each holds a task card: "Sort 2 items," "Sort 8 items," "Sort 4 items," "Sort 1 item."</p></div>
+    <div class="card"><h3>Student 06 · Timekeeper</h3><p>Records timestamps when each student starts and finishes. Computes average wait time.</p></div>
+  </div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Round 1 · FCFS</h3><p>Line up in arrival order. Process each in sequence, no interruption. Notice the student with 1 item waits behind the 8-item student.</p></div>
+    <div class="card amber"><h3>Round 2 · SJF</h3><p>Reorder — smallest task first. Average wait time plummets. Watch students feel the difference.</p></div>
+    <div class="card emerald"><h3>Round 3 · RR (Q=2)</h3><p>Each gets 2 "minutes," then back of the line. Everyone gets a turn within the first 8 minutes.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Debrief:</strong> Which felt fairest? Which had the best average wait? Which would you want as a user in an interactive app? The answer depends on the metric.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 TRY IT LIVE: AUDITING REAL SCHEDULER BEHAVIOR</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> cat /proc/loadavg                            <span class="out"># System load</span>
+<span class="cmd">$</span> ps -eo pid,ni,pri,stat,comm --sort=-pri | head -10  <span class="out"># Priority view</span>
+<span class="cmd">$</span> ps -eo pid,ni,stat,comm --sort=-ni | head     <span class="out"># Nice values</span>
+<span class="cmd">$</span> nice -n 10 cp /dev/zero /tmp/bigtest &amp;        <span class="out"># Low-priority task</span>
+<span class="cmd">$</span> renice -n 19 $(pgrep -f "cp /dev/zero")       <span class="out"># Lower priority further</span>
+<span class="cmd">$</span> top -b -n 1 -o %CPU | head -20                <span class="out"># Top CPU consumers</span>
+<span class="cmd">$</span> taskset -pc $(pgrep -f "cp")                  <span class="out"># CPU affinity of a process</span>
+<span class="cmd">$</span> perf sched record sleep 5 &amp;&amp; perf sched latency  <span class="out"># Real scheduling</span></pre>
+  <p class="hint"><code>perf sched latency</code> shows per-process scheduling latency — the closest thing to a live Gantt chart for a real system.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 2: Process Management
+        └── <span class="active">L07: CPU Scheduling I (ACTIVE NODE 🌟)</span>
+              ├── FCFS / SJF / Round Robin Foundation Algorithms
+              └── Preemption Mechanics &amp; The Quantum Trade-off</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>FCFS is trivially simple but suffers from the <strong>convoy effect</strong> — short processes trapped behind long ones. SJF is mathematically optimal for average wait time but requires impossible prior knowledge. Round Robin adds preemption via time quantum, dramatically improving responsiveness at the cost of slightly higher average wait.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p><strong>Preemption</strong> (via the timer interrupt) is the boundary between batch and interactive computing. It requires the OS to save and restore PCB state on every switch (from L06) — a cost that the quantum size must be tuned against.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>Every scheduling algorithm trades between <strong>throughput</strong> (total work done), <strong>responsiveness</strong> (time to first CPU allocation), and <strong>fairness</strong> (whether all processes make progress). No algorithm optimizes all three. Real systems compose multiple algorithms (L08's MLFQ) to serve mixed workloads.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 08 — CPU Scheduling II: MLFQ, Starvation &amp; Priority Inversion</strong><br><br>
+    Basic RR and SJF are not enough for real systems. Interactive processes need to run <em>now</em>, background batch jobs need to run <em>eventually</em>, and neither should starve. We will study <strong>Multi-Level Feedback Queues</strong> — the adaptive scheduler that upgrades tasks that yield early and downgrades tasks that consume their full quantum. We will trace <strong>starvation</strong> and its mitigation via <strong>aging</strong>, and dissect the <strong>Mars Pathfinder priority inversion</strong> bug that froze a spacecraft. This is where the scheduler becomes <em>adaptive</em> — the foundation of every modern Linux, Windows, and macOS scheduler.
+  </div>
+  <p class="hint">File: L08.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
