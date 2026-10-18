@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L11 · The Paging Model & Fixed-Size Translation Matrix</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .bit-split { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 900px; margin: 2vh auto; }
+  .bit-row { display: flex; gap: 2px; margin-bottom: 0.5vh; }
+  .bit-cell { width: 30px; height: 36px; display: flex; align-items: center; justify-content: center; font-family: "SF Mono", monospace; font-weight: 800; font-size: 1rem; border-radius: 4px; }
+  .bit-p { background: #3B82F6; color: #fff; }
+  .bit-d { background: #10B981; color: #020617; }
+  .bit-label { font-size: 0.85rem; color: #CBD5E1; display: flex; gap: 2px; align-items: center; margin-bottom: 2vh; }
+  .bit-label .tag { display: inline-block; padding: 0.3vh 1vw; border-radius: 4px; font-weight: 700; margin-right: 2vw; }
+  .tag-p { background: rgba(59,130,246,0.15); color: #60A5FA; border: 1px solid #3B82F6; }
+  .tag-d { background: rgba(16,185,129,0.15); color: #34D399; border: 1px solid #10B981; }
+  .page-table { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5vw; max-width: 600px; width: 100%; margin: 2vh auto; }
+  .pt-header { background: #1E293B; color: #60A5FA; padding: 1vh; font-weight: 800; font-size: 0.85rem; text-align: center; border-radius: 6px; }
+  .pt-cell { background: #111C33; color: #CBD5E1; padding: 1vh; font-family: "SF Mono", monospace; font-size: 0.85rem; text-align: center; border-radius: 4px; border: 1px solid #1E293B; }
+  .pt-cell.highlight { background: rgba(59,130,246,0.15); border-color: #3B82F6; color: #60A5FA; font-weight: 800; }
+  .ram-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; max-width: 1000px; width: 100%; margin: 2vh auto; }
+  .ram-cell { height: 40px; border-radius: 4px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; font-family: "SF Mono", monospace; font-weight: 700; }
+  .ram-frame { background: #1E293B; color: #475569; }
+  .ram-frame.used-p0 { background: #3B82F6; color: #fff; }
+  .ram-frame.used-p1 { background: #10B981; color: #020617; }
+  .ram-frame.used-p2 { background: #8B5CF6; color: #fff; }
+  .math-box { max-width: 850px; padding: 2vh 2vw; border-radius: 12px; background: rgba(59,130,246,0.06); border: 2px solid #3B82F6; text-align: left; margin: 2vh auto; }
+  .math-box h4 { color: #60A5FA; font-size: 1.1rem; margin-bottom: 1vh; }
+  .math-box p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.65; }
+  .math-box .formula { color: #FBBF24; font-family: "SF Mono", monospace; font-weight: 800; font-size: clamp(0.95rem, 1.2vw, 1.1rem); }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .bit-cell { width: 22px; height: 28px; font-size: 0.8rem; } .ram-grid { grid-template-columns: repeat(8, 1fr); } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L11</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-violet">🔰 START HERE // L11 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#8B5CF6"></div>
+  <p class="subtitle">Trace a 32-bit virtual address stream into its corresponding physical address destination using a multi-level page table schematic layout.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> Base-and-bound is fast — one addition, one comparison per memory access. But it requires every process to occupy a <em>contiguous block</em> of physical RAM. After an hour of running, the memory looks like Swiss cheese — plenty of total free space, but scattered across tiny holes. A new process needs 8 MB, and no single hole is large enough. How do we give every process a perfectly "clean" 8 MB block without moving anything else?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L10 Base-and-Bound</h3><p>The base/bound mechanism, logical vs. physical addresses, the MMU translation formula, and external fragmentation.</p></div>
+    <div class="card amber"><h3>02 · Binary-to-Hex Conversion</h3><p>Comfort reading binary numbers, splitting bit fields, and converting between binary, hex, and decimal. Paging is fundamentally bit manipulation.</p></div>
+    <div class="card amber"><h3>03 · Multiplication/Powers of 2</h3><p>Paging arithmetic is all in powers of 2 — 4 KB = 2¹², 1024 = 2¹⁰. Comfort with this math is essential.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> Paging is the single most important concept in modern memory management. Every OS you will ever use — Linux, macOS, Windows, iOS, Android — relies on paging as its foundation. If students master this lecture, the rest of Module 3 (TLB, demand paging, swap) is a series of optimizations. If they do not, the entire rest of the module is opaque.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE INDEX CARD CHEAT-SHEET</span>
+  <h2>The Page Table Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📚🗂️🔍</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Imagine a giant encyclopedia that has been ripped apart — every page torn out and scattered randomly across drawers in a huge room. To read the book in order, you need an <em>index card cheat-sheet</em>. The book is written in logical order: Chapter 1 is on Page 0, Chapter 2 on Page 1. The index card says: "Page 0 is in Drawer #4" and "Page 1 is in Drawer #99." You can read smoothly because your index map fixes the scattered physical chaos transparently.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The index card is the <strong>page table</strong>. Each entry maps a virtual page number to a physical frame number. Any page can go in any frame.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The page table is the source of paging's flexibility — and the source of its cost (each entry is a memory lookup).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE STANDARDIZED BOXES</span>
+  <h2>The Page/Frame Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📦📦📦</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Imagine a shipping warehouse where every crate must be exactly the same size — 4 KB per crate. No jumbo crates, no half crates. Each process gets an unlimited number of crates, and any crate can go in any shelf slot of the same size. You never have "hole" problems because every empty slot fits any crate.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Virtual memory is split into fixed-size <strong>pages</strong>. Physical RAM is split into fixed-size <strong>frames</strong>. The two sizes are identical (typically 4 KB). Any page can go in any frame — no contiguity required.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>Uniform size eliminates external fragmentation entirely. No hole is ever "too small" — every hole is exactly the right size.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE TWO-PART ADDRESS</span>
+  <h2>The Bit-Split Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">✂️🔢🔀</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Imagine every address the CPU generates is a 32-bit number — a long string of 0s and 1s. Paging <em>splits</em> this number with a virtual pair of scissors into two parts: a big <em>page number</em> (the top 20 bits) and a smaller <em>offset</em> (the bottom 12 bits). The page number tells you which page you are on; the offset tells you where inside that page you are.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The MMU extracts the page number from the high bits, looks it up in the page table, and appends the unchanged offset to the resulting frame number.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This bit-splitting is what makes paging translation <em>fast</em> — it is pure hardware bit manipulation, no arithmetic.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE TWO-TRIP TAX</span>
+  <h2>The Performance Tax Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🚶🚶💸</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Base-and-bound was a single taxi ride: logical address → physical address. Paging is a <em>two-trip</em> taxi ride. First, the taxi takes you to the page table (in RAM) to look up the translation. Then a second taxi takes you to the actual data. Every memory access is now twice as expensive — the CPU spends half its time walking page tables.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Standard paging requires two physical RAM accesses per logical access: one to read the page table entry, one to read the actual data. This doubles memory latency.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This 2× tax is precisely why the TLB (L12) exists — to cache recent translations and bypass the page table walk.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE PAGING SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card emerald"><h3>✅ What Paging Provides</h3><p>No external fragmentation (all blocks same size). Flexible allocation (any page to any frame). Simple bit manipulation. No need to relocate processes.</p></div>
+    <div class="card crimson"><h3>❌ What It Costs</h3><p>2× memory access latency (page table walk + data access). Internal fragmentation (last page may be partially used). Larger page tables for large address spaces.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Paging trades <strong>external fragmentation</strong> for <strong>extra latency and internal fragmentation</strong>. This is a good trade — but the latency cost is so painful that L12 (TLB) is required to make paging practical.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE FIXED-SIZE CHUNKS</span>
+  <h2>Pages and Frames</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Page (Virtual)</h3>
+      <p>A fixed-size contiguous block of virtual address space allocated by the compiler and operating system kernel.</p>
+      <p style="margin-top:1vh"><strong>Typical size:</strong> 4 KB (4096 bytes).</p>
+      <p style="margin-top:1vh"><strong>Property:</strong> Virtual pages are numbered 0, 1, 2, ... starting from address 0 for each process.</p>
+      <p style="margin-top:1vh"><strong>Ownership:</strong> Each process has its own page numbering — Process A's page 5 is different from Process B's page 5.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Frame (Physical)</h3>
+      <p>A physical, hardware-wired block of real RAM storage matching the exact byte dimensions of a system page slot.</p>
+      <p style="margin-top:1vh"><strong>Typical size:</strong> 4 KB (same as page).</p>
+      <p style="margin-top:1vh"><strong>Property:</strong> Physical frames are numbered 0, 1, 2, ... across the entire RAM chip.</p>
+      <p style="margin-top:1vh"><strong>Ownership:</strong> Each frame is uniquely owned at any instant — either by one process's page, or free (or shared by the kernel).</p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>Key insight:</strong> Page size must equal frame size. This is what makes "any page can go in any frame" work — the units are interchangeable.
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE ADDRESS BIT SPLIT</span>
+  <h2>Splitting the Virtual Address</h2>
+  <p class="subtitle">Every virtual address is two parts: <strong>page number</strong> (high bits) + <strong>offset</strong> (low bits).</p>
+  <div class="bit-split">
+    <div class="bit-row">
+      <div class="bit-cell bit-p">1</div><div class="bit-cell bit-p">1</div><div class="bit-cell bit-p">0</div><div class="bit-cell bit-p">1</div>
+      <div class="bit-cell bit-p">0</div><div class="bit-cell bit-p">0</div><div class="bit-cell bit-p">1</div><div class="bit-cell bit-p">1</div>
+      <div class="bit-cell bit-p">1</div><div class="bit-cell bit-p">0</div><div class="bit-cell bit-p">0</div><div class="bit-cell bit-p">1</div>
+      <div class="bit-cell bit-p">1</div><div class="bit-cell bit-p">1</div><div class="bit-cell bit-p">0</div><div class="bit-cell bit-p">0</div>
+      <div class="bit-cell bit-p">1</div><div class="bit-cell bit-p">1</div><div class="bit-cell bit-p">0</div><div class="bit-cell bit-p">0</div>
+      <div class="bit-cell bit-d">0</div><div class="bit-cell bit-d">1</div><div class="bit-cell bit-d">0</div><div class="bit-cell bit-d">1</div>
+      <div class="bit-cell bit-d">1</div><div class="bit-cell bit-d">0</div><div class="bit-cell bit-d">0</div><div class="bit-cell bit-d">0</div>
+      <div class="bit-cell bit-d">1</div><div class="bit-cell bit-d">0</div><div class="bit-cell bit-d">1</div><div class="bit-cell bit-d">1</div>
+    </div>
+    <div class="bit-label">
+      <span class="tag tag-p">Page Number (20 bits)</span>
+      <span class="tag tag-d">Offset (12 bits)</span>
+    </div>
+  </div>
+  <div class="math-box">
+    <h4>The Formula</h4>
+    <p><span class="formula">page_number = virtual_address &gt;&gt; 12</span> (shift right by offset bits)</p>
+    <p><span class="formula">offset = virtual_address &amp; 0xFFF</span> (mask low 12 bits)</p>
+    <p style="margin-top:1.5vh;color:#94A3B8">With 4 KB pages: 12 bits for offset (2¹² = 4096). Remaining bits for page number. A 32-bit address space → 20-bit page number → up to 2²⁰ = 1,048,576 pages per process.</p>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE PAGE TABLE STRUCTURE</span>
+  <h2>The Page Table — Full Translation Map</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Page Table Definition</h3>
+      <p>The authoritative data matrix structure held in kernel space that maps a process's virtual page numbers to real hardware frame slots.</p>
+      <p style="margin-top:1vh"><strong>Where it lives:</strong> In physical RAM, at an address the OS stores in the CPU's <code>CR3</code> register.</p>
+      <p style="margin-top:1vh"><strong>What it contains:</strong> One entry per virtual page. Each entry holds: physical frame number + valid bit + protection bits (read/write/execute) + dirty bit + accessed bit.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Example Mapping</h3>
+      <p><strong>Process A's page table:</strong></p>
+      <div class="page-table">
+        <div class="pt-header">VPN</div><div class="pt-header">Frame</div>
+        <div class="pt-cell">0</div><div class="pt-cell highlight">5</div>
+        <div class="pt-cell">1</div><div class="pt-cell">12</div>
+        <div class="pt-cell">2</div><div class="pt-cell">47</div>
+        <div class="pt-cell">3</div><div class="pt-cell">8</div>
+        <div class="pt-cell">4</div><div class="pt-cell highlight">3</div>
+        <div class="pt-cell">...</div><div class="pt-cell">...</div>
+      </div>
+      <p style="margin-top:1vh">Virtual page 0 → physical frame 5. Virtual page 4 → physical frame 3. The mapping is arbitrary — that is the freedom paging provides.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE THREE-STEP TRANSLATION</span>
+  <h2>The MMU Translation Mechanism</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Step 1 · Extract</h3>
+      <p>The MMU receives a logical address from the CPU. It splits it into:</p>
+      <p>· <strong>Page number <code>p</code></strong> (top bits)</p>
+      <p>· <strong>Offset <code>d</code></strong> (bottom 12 bits)</p>
+      <p style="margin-top:1vh;color:#60A5FA">This is pure bit extraction — no arithmetic, just a shift and mask.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Step 2 · Lookup</h3>
+      <p>The MMU uses page number <code>p</code> as an index into the process's page table.</p>
+      <p style="margin-top:1vh">· If <code>valid = 0</code> → page fault (page not in RAM — L13 will handle this)</p>
+      <p>· If <code>valid = 1</code> → retrieve frame number <code>f</code></p>
+      <p style="margin-top:1vh;color:#34D399">This requires one extra RAM access.</p>
+    </div>
+    <div class="card violet">
+      <h3>Step 3 · Assemble</h3>
+      <p>Concatenate the retrieved frame number <code>f</code> with the unchanged offset <code>d</code>:</p>
+      <p style="margin-top:1vh"><code>physical = (f &lt;&lt; 12) | d</code></p>
+      <p style="margin-top:1vh;color:#A78BFA">The offset is <em>never modified</em> — it indexes within the page, which is identical in both virtual and physical space.</p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>Total cost:</strong> One extra RAM access per memory operation (the page table lookup). This is the "two-trip taxi ride" — the tax paging pays for its flexibility.
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE WORKED MAPPING EXAMPLE</span>
+  <h2>Walking a Full Translation</h2>
+  <div class="math-box">
+    <h4>The Setup</h4>
+    <p>16-byte virtual address space with 4-byte pages (simplified for teaching — real systems use 32-bit addresses and 4 KB pages).</p>
+    <p>4-bit address = 2-bit page number + 2-bit offset. Page table: <code>{0→5, 1→7, 2→1, 3→3}</code></p>
+  </div>
+  <div class="card-grid grid-3" style="margin-top:2vh">
+    <div class="card">
+      <h3>Example 1: VA = 0b 1101</h3>
+      <p><strong>Split:</strong> page = 11₂ = 3, offset = 01₂ = 1</p>
+      <p><strong>Lookup:</strong> page 3 → frame 5 (101₂)</p>
+      <p><strong>Assemble:</strong> 101₂ || 01₂ = 10101₂ = <strong>0x15</strong> (21 decimal)</p>
+    </div>
+    <div class="card emerald">
+      <h3>Example 2: VA = 0b 0110</h3>
+      <p><strong>Split:</strong> page = 01₂ = 1, offset = 10₂ = 2</p>
+      <p><strong>Lookup:</strong> page 1 → frame 7 (111₂)</p>
+      <p><strong>Assemble:</strong> 111₂ || 10₂ = 11110₂ = <strong>0x1E</strong> (30 decimal)</p>
+    </div>
+    <div class="card violet">
+      <h3>Example 3: VA = 0b 0011</h3>
+      <p><strong>Split:</strong> page = 00₂ = 0, offset = 11₂ = 3</p>
+      <p><strong>Lookup:</strong> page 0 → frame 5 (101₂)</p>
+      <p><strong>Assemble:</strong> 101₂ || 11₂ = 10111₂ = <strong>0x17</strong> (23 decimal)</p>
+    </div>
+  </div>
+  <p class="hint" style="margin-top:2vh">Note: the offset <code>d</code> is <em>identical</em> in both virtual and physical addresses. Only the page number changes.</p>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: PAGES IN PHYSICAL FRAMES</span>
+  <h2>Visualizing Scattered Frames</h2>
+  <p class="subtitle">Process A's virtual pages are scattered across non-contiguous physical frames.</p>
+  <div class="ram-grid">
+    <div class="ram-cell ram-frame">0</div>
+    <div class="ram-cell ram-frame">1</div>
+    <div class="ram-cell ram-frame used-p1">2·B</div>
+    <div class="ram-cell ram-frame used-p0">3·A₄</div>
+    <div class="ram-cell ram-frame">4</div>
+    <div class="ram-cell ram-frame used-p0">5·A₀</div>
+    <div class="ram-cell ram-frame">6</div>
+    <div class="ram-cell ram-frame used-p2">7·C₀</div>
+    <div class="ram-cell ram-frame used-p0">8·A₃</div>
+    <div class="ram-cell ram-frame">9</div>
+    <div class="ram-cell ram-frame">10</div>
+    <div class="ram-cell ram-frame">11</div>
+    <div class="ram-cell ram-frame used-p0">12·A₁</div>
+    <div class="ram-cell ram-frame">13</div>
+    <div class="ram-cell ram-frame used-p2">14·C₁</div>
+    <div class="ram-cell ram-frame">15</div>
+    <div class="ram-cell ram-frame">16</div>
+    <div class="ram-cell ram-frame used-p2">17·C₂</div>
+    <div class="ram-cell ram-frame">18</div>
+    <div class="ram-cell ram-frame used-p0">47·A₂</div>
+    <div class="ram-cell ram-frame">48</div>
+    <div class="ram-cell ram-frame">49</div>
+    <div class="ram-cell ram-frame">50</div>
+    <div class="ram-cell ram-frame">51</div>
+  </div>
+  <div class="ram-label">Physical Frame Number (0–51 shown, only selected used)</div>
+  <div class="card-grid grid-2" style="margin-top:2vh">
+    <div class="card">
+      <h3>Process A's Page Table</h3>
+      <p>VPN 0 → Frame 5 (A₀)</p>
+      <p>VPN 1 → Frame 12 (A₁)</p>
+      <p>VPN 2 → Frame 47 (A₂)</p>
+      <p>VPN 3 → Frame 8 (A₃)</p>
+      <p>VPN 4 → Frame 3 (A₄)</p>
+      <p style="margin-top:1vh;color:#FBBF24">Scattered across RAM — no contiguity required!</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Isolation Property</h3>
+      <p>Process A's pages are entirely disjoint from Process B's and C's frames.</p>
+      <p style="margin-top:1vh">Each process's page table is separate. The MMU consults only the current process's page table (selected by <code>CR3</code>).</p>
+      <p style="margin-top:1vh;color:#34D399">No overlap possible — the page table provides perfect isolation by construction.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FIXES BASE-AND-BOUND</span>
+  <h2>Core System Cohesion — Solves L10's Fragmentation</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card crimson"><h3>L10's Fatal Flaw</h3><p>Base-and-bound required <strong>contiguous physical blocks</strong>. External fragmentation meant total free memory could be sufficient but unusable — no single hole large enough.</p></div>
+    <div class="card emerald"><h3>L11's Solution</h3><p>Paging splits memory into <strong>uniform 4 KB units</strong>. Any page fits any frame. External fragmentation is <em>eliminated</em> — a hole is never "too small" because all holes are exactly the right size.</p></div>
+    <div class="card"><h3>The Trade-off</h3><p>Paging introduces <strong>two costs</strong>:</p><p>1. <strong>2× memory access latency</strong> (page table walk + data access)</p><p>2. <strong>Internal fragmentation</strong> (last page may be partially used)</p></div>
+    <div class="card amber"><h3>When It's Worth It</h3><p>Almost always. The 2× latency is hidden by TLB caching (L12). The internal fragmentation cost is minor (average 2 KB per process on 4 KB pages). The flexibility gain is enormous.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO TLB AND DEMAND PAGING</span>
+  <h2>Core System Cohesion — Feeds Into L12 &amp; L13</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L12 (TLB Acceleration)</h3><p>Paging's 2× latency is unacceptably slow. The TLB caches recent page table translations in fast CPU registers — a TLB hit reduces the cost to a single memory access. <strong>Without the TLB, paging would be too slow for production systems.</strong></p></div>
+    <div class="card"><h3>L13 (Demand Paging)</h3><p>Once we have a page table with valid bits, we can mark pages as <em>not yet loaded</em>. When a process touches such a page, the kernel loads it from disk on demand. This is the foundation of virtual memory — programs larger than physical RAM.</p></div>
+    <div class="card"><h3>The Page Fault Exception</h3><p>The <code>valid = 0</code> case is what L13 calls a <em>page fault</em>. The kernel's page fault handler loads the page from disk (or swap), installs the page table entry, and retries the instruction.</p></div>
+    <div class="card emerald"><h3>The Module 3 Arc</h3><p>L10 (base-and-bound) → L11 (paging) → L12 (TLB) → L13 (demand paging). Each fixes the previous layer's fundamental problem. Together they form the complete memory virtualization stack.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: PAGING STRATEGIES</span>
+  <h2>Paging Strategies Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Paging</h3><p>Page tables managed in Ring 0, page faults handled by in-kernel page fault handler. Fastest — but the kernel's memory subsystem is a large, complex, vulnerability-prone area. Bugs in the page fault handler are security-critical.</p></div>
+    <div class="card emerald"><h3>Microkernel Paging</h3><p>Page fault handling can be delegated to a user-space pager service. The kernel handles only the minimum (TLB flush, page table installation), while a user-space server decides which page to load and from where. Slower — but the pager is isolated.</p></div>
+    <div class="card amber"><h3>Layered Paging</h3><p>Hardware MMU translates virtual → physical. Kernel maintains page tables. User-space memory allocators manage the heap. Each layer has clear responsibility and testable interfaces.</p></div>
+    <div class="card"><h3>Modular Paging</h3><p>Different page table formats supported via modules — 32-bit vs 64-bit, 4-level vs 5-level, huge pages vs standard pages. Linux supports all of these via modular configuration.</p></div>
+    <div class="card violet"><h3>Hybrid Paging</h3><p>Standard 4 KB paging for most memory, with huge pages (2 MB or 1 GB) available for high-throughput workloads (databases, HPC). The TLB footprint for huge pages is dramatically smaller — one entry covers 2 MB instead of 4 KB.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE PAGING VOCABULARY</span>
+  <h2>Base Paging Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · Page</h3>
+      <p>A fixed-size contiguous block of virtual address space allocated by the compiler and operating system kernel. Typically 4 KB. The virtual address space of each process is divided into pages numbered from 0, providing a clean, uniform abstraction over the messy physical layout of RAM.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The standardized shipping crate — every crate is exactly the same size.)</p>
+    </div>
+    <div class="card emerald">
+      <h3>Term 02 · Frame</h3>
+      <p>A physical, hardware-wired block of real RAM storage matching the exact byte dimensions of a system page slot. Frames are numbered sequentially across the entire physical memory chip, and at any instant each frame is either allocated to a specific page or free.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The shelf slot — every slot is exactly the same size, ready to hold any crate.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE PAGING VOCABULARY</span>
+  <h2>Advanced Paging Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Page Table</h3>
+      <p>The authoritative data matrix structure held in kernel space that maps a process's virtual page numbers to real hardware frame slots. Each entry contains the physical frame number plus control bits (valid, protection, dirty, accessed). The base address of the active page table is stored in the CPU's <code>CR3</code> register.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The index card cheat-sheet that maps "virtual Page 0" to "physical Drawer #4".)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Internal Fragmentation</h3>
+      <p>Wasted memory space that occurs when a process requests a buffer that does not completely fill out the final allocated fixed-size page block boundaries. A 5 KB allocation occupies two 4 KB pages (8 KB total), wasting 3 KB in the second page. Average waste is roughly half a page per process — but it is bounded and predictable, unlike external fragmentation.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The last shipping crate is only half-full, but you still pay for the whole crate.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Page Fault</h3>
+      <p>A hardware trap raised when the MMU encounters a page table entry with <code>valid = 0</code>. The kernel's page fault handler takes over, determines whether the fault is legitimate (page not yet loaded) or invalid (access to unmapped memory), and either loads the page from disk or terminates the process with SIGSEGV. Detailed coverage in L13.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The empty shelf slot — the crate has not been delivered yet.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: C PAGE TABLE SIMULATOR</span>
+  <h2>Simulating Bit-Level Paging Translation</h2>
+  <pre class="code-block"><span class="cm">// Simulating bit-level paging address translation in C</span>
+<span class="cm">// 32-bit virtual address, 4 KB pages (12-bit offset, 20-bit VPN)</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;stdint.h&gt;</span>
+
+<span class="kw">#define</span> PAGE_SIZE       <span class="num">4096</span>       <span class="cm">// 4 KB pages</span>
+<span class="kw">#define</span> OFFSET_BITS     <span class="num">12</span>         <span class="cm">// log2(4096) = 12</span>
+<span class="kw">#define</span> OFFSET_MASK     ((<span class="num">1</span> &lt;&lt; OFFSET_BITS) - <span class="num">1</span>)  <span class="cm">// 0xFFF</span>
+<span class="kw">#define</span> PAGE_TABLE_SIZE <span class="num">1024</span>       <span class="cm">// Simplified: 1024 entries</span>
+
+<span class="cm">// A simplified page table — one entry per virtual page</span>
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    <span class="kw">uint32_t</span> frame_number;
+    <span class="kw">int</span>      valid;
+    <span class="kw">int</span>      writable;
+    <span class="kw">int</span>      accessed;
+} PageTableEntry;
+
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    PageTableEntry entries[PAGE_TABLE_SIZE];
+} PageTable;
+
+<span class="cm">// The MMU translation — splits address, looks up page table, assembles</span>
+<span class="kw">int</span> <span class="fn">translate</span>(PageTable* pt, <span class="kw">uint32_t</span> virtual_addr,
+              <span class="kw">uint32_t</span>* physical_out) {
+    <span class="cm">// Step 1: Extract the bit fields</span>
+    <span class="kw">uint32_t</span> vpn    = virtual_addr &gt;&gt; OFFSET_BITS;
+    <span class="kw">uint32_t</span> offset = virtual_addr &amp; OFFSET_MASK;
+
+    <span class="cm">// Step 2: Lookup in page table</span>
+    <span class="kw">if</span> (vpn &gt;= PAGE_TABLE_SIZE) {
+        <span class="fn">printf</span>(<span class="str">"  VA 0x%08X: VPN %u out of range\n"</span>, virtual_addr, vpn);
+        <span class="kw">return</span> -<span class="num">1</span>;
+    }
+
+    PageTableEntry* e = &amp;pt-&gt;entries[vpn];
+    <span class="kw">if</span> (!e-&gt;valid) {
+        <span class="fn">printf</span>(<span class="str">"  VA 0x%08X: VPN %u NOT PRESENT → PAGE FAULT\n"</span>,
+               virtual_addr, vpn);
+        <span class="kw">return</span> -<span class="num">2</span>;
+    }
+
+    e-&gt;accessed = <span class="num">1</span>;
+
+    <span class="cm">// Step 3: Assemble the physical address</span>
+    *physical_out = (e-&gt;frame_number &lt;&lt; OFFSET_BITS) | offset;
+
+    <span class="fn">printf</span>(<span class="str">"  VA 0x%08X (VPN=%u, off=0x%X) → Frame %u → PA 0x%08X\n"</span>,
+           virtual_addr, vpn, offset, e-&gt;frame_number, *physical_out);
+    <span class="kw">return</span> <span class="num">0</span>;
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    PageTable pt = { <span class="num">0</span> };
+
+    <span class="cm">// Set up some mappings (VPN → physical frame)</span>
+    pt.entries[<span class="num">0</span>]  = (PageTableEntry){ .frame_number = <span class="num">5</span>,  .valid = <span class="num">1</span>, .writable = <span class="num">1</span> };
+    pt.entries[<span class="num">1</span>]  = (PageTableEntry){ .frame_number = <span class="num">12</span>, .valid = <span class="num">1</span>, .writable = <span class="num">1</span> };
+    pt.entries[<span class="num">2</span>]  = (PageTableEntry){ .frame_number = <span class="num">47</span>, .valid = <span class="num">1</span>, .writable = <span class="num">0</span> };
+    pt.entries[<span class="num">3</span>]  = (PageTableEntry){ .frame_number = <span class="num">8</span>,  .valid = <span class="num">1</span>, .writable = <span class="num">1</span> };
+    pt.entries[<span class="num">4</span>]  = (PageTableEntry){ .frame_number = <span class="num">3</span>,  .valid = <span class="num">1</span>, .writable = <span class="num">0</span> };
+    <span class="cm">// VPN 5 is not present — will trigger a page fault</span>
+    pt.entries[<span class="num">5</span>]  = (PageTableEntry){ .frame_number = <span class="num">0</span>,  .valid = <span class="num">0</span>, .writable = <span class="num">0</span> };
+
+    <span class="fn">printf</span>(<span class="str">"=== Bit-Level Paging Translation ===\n\n"</span>);
+
+    <span class="cm">// Test various virtual addresses</span>
+    <span class="kw">uint32_t</span> test_addresses[] = {
+        <span class="num">0x00000123</span>,  <span class="cm">// VPN=0, offset=0x123 → frame 5</span>
+        <span class="num">0x000017FF</span>,  <span class="cm">// VPN=1, offset=0x7FF → frame 12</span>
+        <span class="num">0x00002000</span>,  <span class="cm">// VPN=2, offset=0 → frame 47</span>
+        <span class="num">0x00003456</span>,  <span class="cm">// VPN=3, offset=0x456 → frame 8</span>
+        <span class="num">0x00004ABC</span>,  <span class="cm">// VPN=4, offset=0xABC → frame 3</span>
+        <span class="num">0x00005000</span>,  <span class="cm">// VPN=5 → PAGE FAULT (not present)</span>
+    };
+
+    <span class="kw">uint32_t</span> pa;
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num">0</span>; i &lt; <span class="num">6</span>; i++) {
+        <span class="kw">int</span> result = <span class="fn">translate</span>(&amp;pt, test_addresses[i], &amp;pa);
+        <span class="kw">if</span> (result == -<span class="num">2</span>) {
+            <span class="fn">printf</span>(<span class="str">"  → Kernel would handle the fault (L13)\n"</span>);
+        }
+    }
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: TRACING PAGING BIT ARITHMETIC</span>
+  <h2>Walking the Paging Translation Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>vpn = virtual_addr &gt;&gt; OFFSET_BITS</h3><p><strong>Step 1a.</strong> Right-shift by 12 extracts the top 20 bits. For VA <code>0x000017FF</code>, this gives <code>0x1</code> (VPN = 1). Pure bit extraction — no arithmetic.</p></div>
+    <div class="card"><h3>offset = virtual_addr &amp; OFFSET_MASK</h3><p><strong>Step 1b.</strong> AND with <code>0xFFF</code> extracts the low 12 bits. For VA <code>0x000017FF</code>, this gives <code>0x7FF</code> (offset = 2047). Bit mask — no division.</p></div>
+    <div class="card crimson"><h3>if (!e-&gt;valid)</h3><p><strong>The page fault check.</strong> VPN 5 has <code>valid = 0</code> — the page is not present. In a real system, this would trigger the kernel's page fault handler (L13). The process would either continue (after loading the page) or be killed (if the access was illegal).</p></div>
+    <div class="card"><h3>e-&gt;accessed = 1</h3><p><strong>The accessed bit.</strong> Every translation sets this bit. The kernel uses the accessed bit (and dirty bit) to implement LRU page replacement (L13's content).</p></div>
+    <div class="card emerald"><h3>(frame &lt;&lt; 12) | offset</h3><p><strong>Step 3.</strong> Shift frame number into high bits, OR in the offset. For VA <code>0x000017FF</code>: frame 12 (<code>0xC</code>) shifted left 12 = <code>0xC000</code>. OR with offset <code>0x7FF</code> = <code>0xC7FF</code>. Physical address!</p></div>
+    <div class="card violet"><h3>The Magic of the Offset</h3><p>Notice: the offset is <em>never transformed</em>. <code>0x7FF</code> stays <code>0x7FF</code>. This is why page and frame sizes must be identical — the offset means the same thing in both spaces.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 TRY IT LIVE: AUDITING REAL PAGING BEHAVIOR</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> getconf PAGESIZE                          <span class="out"># System page size (usually 4096)</span>
+<span class="cmd">$</span> getconf PAGESIZE 2&gt;/dev/null || getconf PAGE_SIZE
+<span class="cmd">$</span> cat /proc/meminfo | grep -i "page"         <span class="out"># Page-level memory stats</span>
+<span class="cmd">$</span> cat /proc/vmstat | grep -i "pgfault\|pgmaj"  <span class="out"># Page fault counters</span>
+<span class="cmd">$</span> cat /proc/self/maps | head -5              <span class="out"># Virtual page mappings</span>
+<span class="cmd">$</span> cat /proc/self/statm                      <span class="out"># Memory usage in pages</span>
+<span class="cmd">$</span> ls /sys/kernel/mm/                         <span class="out"># Memory management controls</span>
+<span class="cmd">$</span> cat /sys/kernel/mm/transparent_hugepage/enabled  <span class="out"># Huge page setting</span></pre>
+  <p class="hint"><code>getconf PAGESIZE</code> returns 4096 on most systems — the exact page size L11 describes. <code>/proc/vmstat</code> tracks cumulative page faults since boot.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 3: Memory Management
+        └── <span class="active">L11: The Paging Model (ACTIVE NODE 🌟)</span>
+              ├── Pages &amp; Frames Allocation &amp; Internal Fragmentation
+              └── MMU Bitwise Address Translation &amp; Page Tables</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p><strong>Paging</strong> splits virtual memory into fixed-size pages and physical memory into identical frames. Any page can go in any frame — no contiguity requirement. This <strong>eliminates external fragmentation</strong>, the fatal flaw of L10's base-and-bound scheme.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>Translation is a <strong>three-step hardware operation</strong>: extract the page number from the top bits, look it up in the page table, and concatenate the resulting frame number with the unchanged offset. The page table is the authoritative source of these mappings, with one entry per virtual page.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>Paging pays a <strong>2× latency tax</strong> (one page table access + one data access) and introduces <strong>internal fragmentation</strong> (the last page may be partially used). Both costs are consequences of paging's flexibility. The latency tax is so painful that L12 (TLB) exists specifically to hide it.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 12 — TLB Acceleration &amp; Caching Math</strong><br><br>
+    Paging solves fragmentation but doubles memory latency — every access now walks the page table first. For a 3 GHz CPU running normal workloads, this would be catastrophic. The solution is the <strong>Translation Lookaside Buffer</strong> — an ultra-fast associative cache inside the CPU that remembers recent virtual-to-physical translations. A TLB hit bypasses the page table entirely, reducing access back to a single memory trip. We will dissect the TLB's CAM architecture, calculate <strong>Effective Access Time (EAT)</strong> from hit rate percentages, and see why even a 90% hit rate dramatically improves overall system performance.
+  </div>
+  <p class="hint">File: L12.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
