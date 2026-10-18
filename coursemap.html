@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · Operating Systems — Master Course Map</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: #0F172A;
+    color: #E2E8F0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ====== HERO HEADER ====== */
+  .hero {
+    padding: 8vh 5vw 6vh;
+    text-align: center;
+    background: radial-gradient(ellipse at top, rgba(59,130,246,0.15), transparent 70%);
+    border-bottom: 1px solid #1E293B;
+  }
+  .hero-badge {
+    display: inline-block;
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 8px 20px;
+    border-radius: 999px;
+    margin-bottom: 3vh;
+    border: 2px solid #3B82F6;
+    color: #60A5FA;
+    background: rgba(59,130,246,0.08);
+  }
+  .hero h1 {
+    font-size: clamp(2rem, 5.5vw, 4rem);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    margin-bottom: 2vh;
+    background: linear-gradient(135deg, #60A5FA, #A78BFA, #F0ABFC, #FDE047);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero p {
+    font-size: clamp(1rem, 1.6vw, 1.25rem);
+    color: #94A3B8;
+    max-width: 780px;
+    margin: 0 auto 3vh;
+  }
+  .hero-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1vw;
+    justify-content: center;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .stat {
+    padding: 1.5vh 2vw;
+    border-radius: 10px;
+    border: 2px solid #1E293B;
+    background: #111C33;
+    min-width: 130px;
+  }
+  .stat-num {
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+    font-weight: 900;
+    color: #60A5FA;
+    line-height: 1;
+  }
+  .stat-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #64748B;
+    margin-top: 0.5vh;
+    font-family: "SF Mono", monospace;
+  }
+
+  /* ====== MAIN CONTAINER ====== */
+  .container {
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 6vh 5vw;
+  }
+
+  /* ====== SECTION TITLES ====== */
+  .section-title {
+    font-size: clamp(1.4rem, 2.5vw, 2rem);
+    font-weight: 800;
+    color: #F1F5F9;
+    margin-bottom: 1vh;
+    letter-spacing: -0.02em;
+  }
+  .section-subtitle {
+    font-size: 0.95rem;
+    color: #64748B;
+    margin-bottom: 4vh;
+  }
+
+  /* ====== MODULE CARDS ====== */
+  .modules-grid {
+    display: grid;
+    gap: 2vh;
+    margin-bottom: 8vh;
+  }
+  .module {
+    border-radius: 14px;
+    border: 2px solid;
+    background: #0B1327;
+    overflow: hidden;
+    transition: all 0.2s ease;
+  }
+  .module:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .module-header {
+    padding: 2.5vh 2.5vw;
+    display: flex;
+    align-items: center;
+    gap: 2vw;
+    flex-wrap: wrap;
+    cursor: pointer;
+  }
+  .module-badge {
+    font-family: "SF Mono", monospace;
+    font-size: 1.8rem;
+    font-weight: 900;
+    min-width: 70px;
+    text-align: center;
+    line-height: 1;
+  }
+  .module-info { flex: 1; min-width: 240px; }
+  .module-info h3 {
+    font-size: clamp(1.1rem, 1.8vw, 1.4rem);
+    font-weight: 800;
+    margin-bottom: 0.3vh;
+  }
+  .module-info p {
+    font-size: 0.85rem;
+    opacity: 0.85;
+    line-height: 1.5;
+  }
+  .module-week {
+    font-family: "SF Mono", monospace;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.6vh 1vw;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+  .module-body {
+    padding: 0 2.5vw 2.5vh;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 2vh;
+  }
+  .lecture-list {
+    display: grid;
+    gap: 0.6vh;
+  }
+  .lecture-link {
+    display: flex;
+    align-items: center;
+    gap: 1.5vw;
+    padding: 1.2vh 1.2vw;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.03);
+    text-decoration: none;
+    color: #CBD5E1;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+  }
+  .lecture-link:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(96,165,250,0.3);
+    color: #fff;
+  }
+  .lecture-id {
+    font-family: "SF Mono", monospace;
+    font-weight: 800;
+    font-size: 0.85rem;
+    min-width: 45px;
+    opacity: 0.8;
+  }
+  .lecture-title {
+    flex: 1;
+    font-size: clamp(0.85rem, 1vw, 0.95rem);
+  }
+  .lecture-arrow {
+    opacity: 0.4;
+    font-size: 0.9rem;
+  }
+  .lecture-link:hover .lecture-arrow { opacity: 1; }
+  .lab-tag {
+    display: inline-block;
+    padding: 0.5vh 0.8vw;
+    border-radius: 4px;
+    font-family: "SF Mono", monospace;
+    font-size: 0.7rem;
+    font-weight: 800;
+    margin-top: 1.5vh;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Module color themes */
+  .m1 { border-color: #3B82F6; }
+  .m1 .module-badge, .m1 .module-info h3 { color: #60A5FA; }
+  .m1 .module-week { background: rgba(59,130,246,0.15); color: #60A5FA; }
+  .m1 .lab-tag { background: rgba(59,130,246,0.15); color: #60A5FA; }
+
+  .m2 { border-color: #10B981; }
+  .m2 .module-badge, .m2 .module-info h3 { color: #34D399; }
+  .m2 .module-week { background: rgba(16,185,129,0.15); color: #34D399; }
+  .m2 .lab-tag { background: rgba(16,185,129,0.15); color: #34D399; }
+
+  .m3 { border-color: #8B5CF6; }
+  .m3 .module-badge, .m3 .module-info h3 { color: #A78BFA; }
+  .m3 .module-week { background: rgba(139,92,246,0.15); color: #A78BFA; }
+  .m3 .lab-tag { background: rgba(139,92,246,0.15); color: #A78BFA; }
+
+  .m4 { border-color: #EF4444; }
+  .m4 .module-badge, .m4 .module-info h3 { color: #F87171; }
+  .m4 .module-week { background: rgba(239,68,68,0.15); color: #F87171; }
+  .m4 .lab-tag { background: rgba(239,68,68,0.15); color: #F87171; }
+
+  .m5 { border-color: #F59E0B; }
+  .m5 .module-badge, .m5 .module-info h3 { color: #FBBF24; }
+  .m5 .module-week { background: rgba(245,158,11,0.15); color: #FBBF24; }
+  .m5 .lab-tag { background: rgba(245,158,11,0.15); color: #FBBF24; }
+
+  .m6 { border-color: #14B8A6; }
+  .m6 .module-badge, .m6 .module-info h3 { color: #5EEAD4; }
+  .m6 .module-week { background: rgba(20,184,166,0.15); color: #5EEAD4; }
+  .m6 .lab-tag { background: rgba(20,184,166,0.15); color: #5EEAD4; }
+
+  .m7 { border-color: #84CC16; }
+  .m7 .module-badge, .m7 .module-info h3 { color: #BEF264; }
+  .m7 .module-week { background: rgba(132,204,22,0.15); color: #BEF264; }
+  .m7 .lab-tag { background: rgba(132,204,22,0.15); color: #BEF264; }
+
+  /* ====== FIVE PARADIGM LENS ====== */
+  .paradigm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.2vw;
+    margin-bottom: 8vh;
+  }
+  .paradigm-card {
+    padding: 2.5vh 1.8vw;
+    border-radius: 12px;
+    border: 2px solid;
+    text-align: left;
+  }
+  .paradigm-card h4 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    margin-bottom: 1vh;
+  }
+  .paradigm-card p {
+    font-size: 0.85rem;
+    line-height: 1.55;
+    margin-bottom: 1vh;
+  }
+  .paradigm-card .example {
+    font-family: "SF Mono", monospace;
+    font-size: 0.75rem;
+    opacity: 0.8;
+  }
+  .p-mono { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .p-mono h4 { color: #60A5FA; }
+  .p-micro { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .p-micro h4 { color: #34D399; }
+  .p-layer { border-color: #F59E0B; background: rgba(245,158,11,0.06); color: #FCD34D; }
+  .p-layer h4 { color: #FBBF24; }
+  .p-mod { border-color: #8B5CF6; background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  .p-mod h4 { color: #A78BFA; }
+  .p-hybrid { border-color: #EC4899; background: rgba(236,72,153,0.06); color: #F9A8D4; }
+  .p-hybrid h4 { color: #F9A8D4; }
+
+  /* ====== THREE TENSIONS ====== */
+  .tensions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5vw;
+    margin-bottom: 8vh;
+  }
+  .tension {
+    padding: 3vh 2vw;
+    border-radius: 12px;
+    border: 2px solid #1E293B;
+    background: #111C33;
+  }
+  .tension h4 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #F1F5F9;
+    margin-bottom: 1.5vh;
+    font-family: "SF Mono", monospace;
+  }
+  .tension ul {
+    list-style: none;
+    padding: 0;
+  }
+  .tension li {
+    font-size: 0.85rem;
+    color: #94A3B8;
+    padding: 0.5vh 0;
+    padding-left: 1.2vw;
+    position: relative;
+  }
+  .tension li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: #60A5FA;
+    font-weight: 800;
+  }
+
+  /* ====== COHESION SPINE ====== */
+  .spine {
+    background: #020617;
+    border: 1px solid #1E293B;
+    border-radius: 14px;
+    padding: 4vh 3vw;
+    margin-bottom: 8vh;
+    font-family: "SF Mono", monospace;
+    font-size: clamp(0.75rem, 0.95vw, 0.9rem);
+    line-height: 2;
+    color: #94A3B8;
+    overflow-x: auto;
+    text-align: center;
+  }
+  .spine .module-ref {
+    display: inline-block;
+    padding: 0.2vh 0.6vw;
+    border-radius: 4px;
+    font-weight: 800;
+    margin: 0 0.2vw;
+  }
+  .spine .arrow {
+    color: #F59E0B;
+    font-weight: 800;
+    margin: 0 0.5vw;
+  }
+
+  /* ====== LABS TABLE ====== */
+  .labs-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8vh;
+    font-size: clamp(0.8rem, 1vw, 0.95rem);
+  }
+  .labs-table th {
+    background: #1E293B;
+    color: #60A5FA;
+    padding: 2vh 1.2vw;
+    text-align: left;
+    font-weight: 800;
+    font-family: "SF Mono", monospace;
+  }
+  .labs-table td {
+    padding: 1.8vh 1.2vw;
+    border-bottom: 1px solid #1E293B;
+    color: #CBD5E1;
+    vertical-align: top;
+  }
+  .labs-table tr:hover td {
+    background: rgba(59,130,246,0.04);
+  }
+  .labs-table .lab-id {
+    color: #FBBF24;
+    font-family: "SF Mono", monospace;
+    font-weight: 800;
+  }
+
+  /* ====== FOOTER ====== */
+  .footer {
+    text-align: center;
+    padding: 8vh 5vw 6vh;
+    border-top: 1px solid #1E293B;
+    background: radial-gradient(ellipse at bottom, rgba(139,92,246,0.1), transparent 70%);
+  }
+  .footer-tagline {
+    font-size: clamp(1.4rem, 3vw, 2.2rem);
+    font-weight: 900;
+    background: linear-gradient(135deg, #60A5FA, #A78BFA, #F0ABFC, #FDE047);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 2vh;
+    line-height: 1.2;
+  }
+  .footer p {
+    color: #64748B;
+    font-size: 0.9rem;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .footer-sig {
+    font-family: "SF Mono", monospace;
+    font-size: 0.75rem;
+    color: #475569;
+    margin-top: 4vh;
+    letter-spacing: 0.15em;
+  }
+
+  /* ====== RESPONSIVE ====== */
+  @media (max-width: 768px) {
+    .hero-stats { gap: 2vw; }
+    .stat { min-width: 100px; padding: 1vh 3vw; }
+    .module-header { gap: 3vw; }
+    .lecture-link { gap: 3vw; }
+    .paradigm-grid, .tensions-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ====== HERO ====== -->
+<div class="hero">
+  <div class="hero-badge">🎓 CS 301 · MASTER COURSE MAP</div>
+  <h1>Operating Systems</h1>
+  <p>The Grand Synthesis — 29 lectures across 7 modules tracing a single user action through every layer of the kernel.</p>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-num">29</div><div class="stat-label">Lectures</div></div>
+    <div class="stat"><div class="stat-num">7</div><div class="stat-label">Modules</div></div>
+    <div class="stat"><div class="stat-num">7</div><div class="stat-label">Labs</div></div>
+    <div class="stat"><div class="stat-num">15</div><div class="stat-label">Weeks</div></div>
+    <div class="stat"><div class="stat-num">24</div><div class="stat-label">Slides/Lecture</div></div>
+  </div>
+</div>
+
+<!-- ====== MAIN CONTENT ====== -->
+<div class="container">
+
+  <!-- MODULE 1 -->
+  <section id="module1">
+    <div class="section-title">The Seven Modules</div>
+    <div class="section-subtitle">Every module arbitrates a specific resource and resolves a specific problem. Every lecture builds on the ones before it.</div>
+
+    <div class="modules-grid">
+      <div class="module m1">
+        <div class="module-header">
+          <div class="module-badge">M1</div>
+          <div class="module-info">
+            <h3>OS Structure &amp; Design</h3>
+            <p>Asset: the boundary layer between hardware and software · Problem: how to give programs safe hardware access</p>
+          </div>
+          <div class="module-week">Weeks 1–2</div>
+        </div>
+        <div class="module-body">
+          <div class="lecture-list">
+            <a href="L00.html" class="lecture-link"><span class="lecture-id">L00</span><span class="lecture-title">Course Introduction — The OS as Resource Referee</span><span class="lecture-arrow">→</span></a>
+            <a href="L01.html" class="lecture-link"><span class="lecture-id">L01</span><span class="lecture-title">The Architecture Matrix — Full Five-Paradigm Edition</span><span class="lecture-arrow">→</span></a>
+            <a href="L02.html" class="lecture-link"><span class="lecture-id">L02</span><span class="lecture-title">The Dual-Mode Barrier — User vs. Kernel Space</span><span class="lecture-arrow">→</span></a>
+            <a href="L03.html" class="lecture-link"><span class="lecture-id">L03</span><span class="lecture-title">The Gatekeeper Mechanism — Syscall Interface</span><span class="lecture-arrow">→</span></a>
+            <a href="L04.html" class="lecture-link"><span class="lecture-id">L04</span><span class="lecture-title">The Boot Process — UEFI → Bootloader → Kernel → PID 1</span><span class="lecture-arrow">→</span></a>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODULE 2 -->
+      <div class="module m2">
+        <div class="module-header">
+          <div class="module-badge">M2</div>
+          <div class="module-info">
+            <h3>Process Management</h3>
+            <p>Asset: CPU cores and thread execution time · Problem: fair, safe, rapid sharing of processor time</p>
+          </div>
+          <div class="module-week">Weeks 3–5</div>
+        </div>
+        <div class="module-body">
+          <div class="lecture-list">
+            <a href="L05.html" class="lecture-link"><span class="lecture-id">L05</span><span class="lecture-title">Process Anatomy &amp; The PCB Ledger</span><span class="lecture-arrow">→</span></a>
+            <a href="L06.html" class="lecture-link"><span class="lecture-id">L06</span><span class="lecture-title">Process Execution Mechanics (fork, exec, Context Switch)</span><span class="lecture-arrow">→</span></a>
+            <a href="L07.html" class="lecture-link"><span class="lecture-id">L07</span><span class="lecture-title">CPU Scheduling I (FCFS, SJF, Round Robin)</span><span class="lecture-arrow">→</span></a>
+            <a href="L08.html" class="lecture-link"><span class="lecture-id">L08</span><span class="lecture-title">CPU Scheduling II (MLFQ, Starvation, Priority Inversion)</span><span class="lecture-arrow">→</span></a>
+            <a href="L09.html" class="lecture-link"><span class="lecture-id">L09</span><span class="lecture-title">Threads &amp; Concurrency Models</span><span class="lecture-arrow">→</span></a>
+          </div>
+          <div class="lab-tag">🧪 Lab 2 · CPU Scheduling &amp; Benchmarking Simulators</div>
+        </div>
+      </div>
+
+      <!-- MODULE 3 -->
+      <div class="module m3">
+        <div class="module-header">
+          <div class="module-badge">M3</div>
+          <div class="module-info">
+            <h3>Memory Management</h3>
+            <p>Asset: physical RAM chips and translation registers · Problem: sharing one RAM chip between competing apps</p>
+          </div>
+          <div class="module-week">Weeks 8–10</div>
+        </div>
+        <div class="module-body">
+          <div class="lecture-list">
+            <a href="L10.html" class="lecture-link"><span class="lecture-id">L10</span><span class="lecture-title">Relocation Models &amp; Base-and-Bound Isolation</span><span class="lecture-arrow">→</span></a>
+            <a href="L11.html" class="lecture-link"><span class="lecture-id">L11</span><span class="lecture-title">The Paging Model &amp; Fixed-Size Translation Matrix</span><span class="lecture-arrow">→</span></a>
+            <a href="L12.html" class="lecture-link"><span class="lecture-id">L12</span><span class="lecture-title">TLB Acceleration &amp; Caching Math</span><span class="lecture-arrow">→</span></a>
+            <a href="L13.html" class="lecture-link"><span class="lecture-id">L13</span><span class="lecture-title">Virtual Memory, Demand Paging &amp; Page Replacement</span><span class="lecture-arrow">→</span></a>
+          </div>
+          <div class="lab-tag">🧪 Lab 3 · Toy Page-Table Bitwise Software Simulator</div>
+        </div>
+      </div>
+
+      <!-- MODULE 4 -->
+      <div class="module m4">
+        <div class="module-header">
+          <div class="module-badge">M4</div>
+          <div class="module-info">
+            <h3>Process Synchronization</h3>
+            <p>Asset: shared global states and heap variables · Problem: mutual exclusion without performance gridlock</p>
+          </div>
+          <div class="module-week">Weeks 6–7</div>
+        </div>
+        <div class="module-body">
+          <div class="lecture-list">
+            <a href="L14.html" class="lecture-link"><span class="lecture-id">L14</span><span class="lecture-title">Race Conditions &amp; Mutual Exclusion</span><span class="lecture-arrow">→</span></a>
+            <a href="L15.html" class="lecture-link"><span class="lecture-id">L15</span><span class="lecture-title">Classic Synchronization Problems &amp; Deadlock Topologies</span><span class="lecture-arrow">→</span></a>
+          </div>
+          <div class="lab-tag">🧪 Lab 4 · Broken Producer-Consumer Thread Correction Arena</div>
+        </div>
+      </div>
+
+      <!-- MODULE 5 -->
+      <div class="module m5">
+        <div class="module-header">
+          <div class="module-badge">M5</div>
+          <div class="module-info">
+            <h3>File &amp; Storage Management</h3>
+            <p>Asset: HDDs, SSDs, persistent blocks, and file metadata · Problem: mapping strings to disk blocks with crash safety</p>
+          </div>
+          <div class="module-week">Weeks 11–12</div>
+        </div>
+        <div class="module-body">
+          <div class="lecture-list">
+            <a href="L16.html" class="lecture-link"><span class="lecture-id">L16</span><span class="lecture-title">Disk Geometry &amp; Physical Storage Realities (HDD vs. SSD)</span><span class="lecture-arrow">→</span></a>
+            <a href="L17.html" class="lecture-link"><span class="lecture-id">L17</span><span class="lecture-title">File Abstraction &amp; Directory Topology</span><span class="lecture-arrow">→</span></a>
+            <a href="L18.html" class="lecture-link"><span class="lecture-id">L18</span><span class="lecture-title">Inode Architecture &amp; File System Layouts</span><span class="lecture-arrow">→</span></a>
+            <a href="L19.html" class="lecture-link"><span class="lecture-id">L19</span><span class="lecture-title">Crash Consistency &amp; The Journaling Engine</span><span class="lecture-arrow">→</span></a>
+          </div>
+          <div class="lab-tag">🧪 Lab 5 · Minimal Inode-Based RAM Disk File System Layout</div>
+        </div>
+      </div>
+
+      <!-- MODULE 6 -->
+      <div class="module m6">
+        <div class="module-header">
+          <div class="module-badge">M6</div>
+          <div class="module-info">
+            <h3>I/O Device Management</h3>
+            <p>Asset: device drivers, IRQ handlers, DMA controllers · Problem: unify 10,000 device models behind one abstraction</p>
+          </div>
+          <div class="module-week">Week 13</div>
+        </div>
+        <div class="module-body">
+          <div class="lecture-list">
+            <a href="L20.html" class="lecture-link"><span class="lecture-id">L20</span><span class="lecture-title">The I/O Communication Matrix (Polling, Interrupts, DMA)</span><span class="lecture-arrow">→</span></a>
+            <a href="L21.html" class="lecture-link"><span class="lecture-id">L21</span><span class="lecture-title">Uniform Device Drivers &amp; The Linux /dev Abstraction</span><span class="lecture-arrow">→</span></a>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODULE 7 -->
+      <div class="module m7">
+        <div class="module-header">
+          <div class="module-badge">M7</div>
+          <div class="module-info">
+            <h3>Security &amp; Protection</h3>
+            <p>Asset: credentials, privilege boundaries, isolation domains · Problem: prevent privilege escalation and protect data</p>
+          </div>
+          <div class="module-week">Weeks 14–15</div>
+        </div>
+        <div class="module-body">
+          <div class="lecture-list">
+            <a href="L22.html" class="lecture-link"><span class="lecture-id">L22</span><span class="lecture-title">Access Control — Matrix, ACLs, Capabilities</span><span class="lecture-arrow">→</span></a>
+            <a href="L23.html" class="lecture-link"><span class="lecture-id">L23</span><span class="lecture-title">Authentication — Knowledge, Possession, Inherence</span><span class="lecture-arrow">→</span></a>
+            <a href="L24.html" class="lecture-link"><span class="lecture-id">L24</span><span class="lecture-title">Program Exploits — Buffer Overflows &amp; Defenses</span><span class="lecture-arrow">→</span></a>
+            <a href="L25.html" class="lecture-link"><span class="lecture-id">L25</span><span class="lecture-title">Encryption Fundamentals — Symmetric, Asymmetric, Hybrid</span><span class="lecture-arrow">→</span></a>
+            <a href="L26.html" class="lecture-link"><span class="lecture-id">L26</span><span class="lecture-title">Firewalls &amp; Intrusion Detection Systems</span><span class="lecture-arrow">→</span></a>
+            <a href="L27.html" class="lecture-link"><span class="lecture-id">L27</span><span class="lecture-title">Modern Isolation Paradigms — Sandbox, Namespace, Container</span><span class="lecture-arrow">→</span></a>
+            <a href="L28.html" class="lecture-link"><span class="lecture-id">L28</span><span class="lecture-title">Grand Course Retrospective — The Unified Engine</span><span class="lecture-arrow">→</span></a>
+          </div>
+          <div class="lab-tag">🧪 Lab 7 · Exploiting &amp; Patching a Vulnerable Buffer Overflow</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FIVE PARADIGMS -->
+  <section>
+    <div class="section-title">The Five Paradigm Lens</div>
+    <div class="section-subtitle">Every lecture compares how different kernel architectures handle the topic. The five paradigms are the analytical framework of the entire course.</div>
+    <div class="paradigm-grid">
+      <div class="paradigm-card p-mono">
+        <h4>Monolithic</h4>
+        <p>All subsystems in Ring 0, direct function calls. Fastest, most fragile.</p>
+        <div class="example">Linux · FreeBSD · OpenBSD</div>
+      </div>
+      <div class="paradigm-card p-micro">
+        <h4>Microkernel</h4>
+        <p>Minimal Ring 0 core, user-space servers via IPC. Strongest isolation, slower.</p>
+        <div class="example">seL4 · MINIX 3 · QNX · EROS</div>
+      </div>
+      <div class="paradigm-card p-layer">
+        <h4>Layered</h4>
+        <p>Strict vertical hierarchy — layer N may only call layer N-1. Elegant but rigid.</p>
+        <div class="example">THE Multiprogramming System</div>
+      </div>
+      <div class="paradigm-card p-mod">
+        <h4>Modular</h4>
+        <p>Monolithic core + hot-swappable loadable modules. Fast and extensible.</p>
+        <div class="example">Linux LKMs · FreeBSD · NetBSD</div>
+      </div>
+      <div class="paradigm-card p-hybrid">
+        <h4>Hybrid</h4>
+        <p>Critical code in Ring 0, risky subsystems in Ring 3. The modern pragmatic standard.</p>
+        <div class="example">Windows NT · macOS XNU · Android</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- THREE TENSIONS -->
+  <section>
+    <div class="section-title">Three Recurring Tensions</div>
+    <div class="section-subtitle">Every subsystem resolves these three tensions differently. Understanding them is the deepest insight of the course.</div>
+    <div class="tensions-grid">
+      <div class="tension">
+        <h4>⚖️ Isolation vs. Sharing</h4>
+        <ul>
+          <li>Ring 0 / Ring 3 barrier (L02)</li>
+          <li>Paging — shared frames (L11)</li>
+          <li>ACLs — protected resources (L22)</li>
+          <li>Containers — isolated workloads (L27)</li>
+        </ul>
+      </div>
+      <div class="tension">
+        <h4>⚡ Speed vs. Safety</h4>
+        <ul>
+          <li>TLB caching (L12)</li>
+          <li>Journaling — ordered vs. journal (L19)</li>
+          <li>C vs. Rust memory safety (L24)</li>
+          <li>Containers vs. VMs (L27)</li>
+        </ul>
+      </div>
+      <div class="tension">
+        <h4>🔧 Simplicity vs. Flexibility</h4>
+        <ul>
+          <li>Monolithic vs. microkernel (L01)</li>
+          <li>Flat vs. hierarchical FS (L17)</li>
+          <li>Char vs. block devices (L21)</li>
+          <li>ACLs vs. capabilities (L22)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- COHESION SPINE -->
+  <section>
+    <div class="section-title">The Cohesion Spine</div>
+    <div class="section-subtitle">Every lecture explicitly states what it relies on (upstream) and what it feeds into (downstream). The complete dependency chain:</div>
+    <div class="spine">
+      <span class="module-ref" style="background:rgba(59,130,246,0.15);color:#60A5FA">L00</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(59,130,246,0.15);color:#60A5FA">L01</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(59,130,246,0.15);color:#60A5FA">L02</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(59,130,246,0.15);color:#60A5FA">L03</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(59,130,246,0.15);color:#60A5FA">L04</span>
+      <br>
+      <span class="arrow">↓</span>
+      <br>
+      <span class="module-ref" style="background:rgba(16,185,129,0.15);color:#34D399">L05</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(16,185,129,0.15);color:#34D399">L06</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(16,185,129,0.15);color:#34D399">L07</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(16,185,129,0.15);color:#34D399">L08</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(16,185,129,0.15);color:#34D399">L09</span>
+      <br>
+      <span class="arrow">↓</span>
+      <br>
+      <span class="module-ref" style="background:rgba(139,92,246,0.15);color:#A78BFA">L10</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(139,92,246,0.15);color:#A78BFA">L11</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(139,92,246,0.15);color:#A78BFA">L12</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(139,92,246,0.15);color:#A78BFA">L13</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(239,68,68,0.15);color:#F87171">L14</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(239,68,68,0.15);color:#F87171">L15</span>
+      <br>
+      <span class="arrow">↓</span>
+      <br>
+      <span class="module-ref" style="background:rgba(245,158,11,0.15);color:#FBBF24">L16</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(245,158,11,0.15);color:#FBBF24">L17</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(245,158,11,0.15);color:#FBBF24">L18</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(245,158,11,0.15);color:#FBBF24">L19</span>
+      <br>
+      <span class="arrow">↓</span>
+      <br>
+      <span class="module-ref" style="background:rgba(20,184,166,0.15);color:#5EEAD4">L20</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(20,184,166,0.15);color:#5EEAD4">L21</span>
+      <br>
+      <span class="arrow">↓</span>
+      <br>
+      <span class="module-ref" style="background:rgba(132,204,22,0.15);color:#BEF264">L22</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(132,204,22,0.15);color:#BEF264">L23</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(132,204,22,0.15);color:#BEF264">L24</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(132,204,22,0.15);color:#BEF264">L25</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(132,204,22,0.15);color:#BEF264">L26</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(132,204,22,0.15);color:#BEF264">L27</span>
+      <span class="arrow">→</span>
+      <span class="module-ref" style="background:rgba(234,179,8,0.15);color:#FDE047">L28</span>
+    </div>
+  </section>
+
+  <!-- LABS -->
+  <section>
+    <div class="section-title">Laboratory Assignments</div>
+    <div class="section-subtitle">7 labs contributing to the 45% lab-grade block. Each lab validates a specific module through hands-on implementation.</div>
+    <table class="labs-table">
+      <thead>
+        <tr>
+          <th style="width:80px">Lab</th>
+          <th>Title</th>
+          <th style="width:80px">Module</th>
+          <th>Key Skills Tested</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="lab-id">Lab 2</td>
+          <td>CPU Scheduling &amp; Benchmarking Simulators</td>
+          <td>M2</td>
+          <td>FCFS, Round Robin, Gantt chart, wait/turnaround averages</td>
+        </tr>
+        <tr>
+          <td class="lab-id">Lab 3</td>
+          <td>Toy Page-Table Bitwise Simulator</td>
+          <td>M3</td>
+          <td>Bit masking, hex parsing, TLB simulation, page fault flags</td>
+        </tr>
+        <tr>
+          <td class="lab-id">Lab 4</td>
+          <td>Broken Producer-Consumer Thread Correction Arena</td>
+          <td>M4</td>
+          <td>Mutexes, semaphores, deadlock detection and repair</td>
+        </tr>
+        <tr>
+          <td class="lab-id">Lab 5</td>
+          <td>Minimal Inode-Based RAM Disk File System Layout</td>
+          <td>M5</td>
+          <td>Inode map, block bitmap, custom FS operations</td>
+        </tr>
+        <tr>
+          <td class="lab-id">Lab 7</td>
+          <td>Exploiting &amp; Patching a Vulnerable Buffer Overflow</td>
+          <td>M7</td>
+          <td>gdb register analysis, payload crafting, patching</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+</div>
+
+<!-- ====== FOOTER ====== -->
+<div class="footer">
+  <div class="footer-tagline">The Circle Closes. The Journey Begins.</div>
+  <p>From the first mouse click at L00 to the final end-to-end trace at L28, the operating system has become a single unified mechanism. Every one of the 29 lectures, 7 modules, and 7 labs has contributed to a single insight: <strong>the OS is a coordinated engine, not a collection of parts.</strong></p>
+  <div class="footer-sig">CS 301 · Operating Systems · Master Syllabus Matrix</div>
+</div>
+
+</body>
+</html>
