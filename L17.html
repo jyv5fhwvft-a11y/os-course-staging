@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L17 · File Abstraction & Directory Topology</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  .badge-rose { color: #FB7185; border-color: #F43F5E; background: rgba(244,63,94,0.08); }
+  .badge-cyan { color: #67E8F9; border-color: #06B6D4; background: rgba(6,182,212,0.08); }
+  .badge-orange { color: #FDBA74; border-color: #F97316; background: rgba(249,115,22,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .callout-violet { border-color: #8B5CF6; background: rgba(139,92,246,0.06); color: #C4B5FD; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .card.cyan h3 { color: #67E8F9; } .card.cyan { border-color: #164E63; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .tree-visual { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.8rem, 1.1vw, 0.95rem); color: #94A3B8; text-align: left; background: #020617; border: 2px solid #3B82F6; border-radius: 12px; padding: 3vh 3vw; max-width: 900px; width: 100%; line-height: 1.85; white-space: pre; overflow-x: auto; }
+  .tree-visual .dir { color: #60A5FA; font-weight: 700; }
+  .tree-visual .file { color: #34D399; }
+  .tree-visual .arrow { color: #F59E0B; font-weight: 800; }
+  .tree-visual .highlight { color: #FBBF24; font-weight: 800; text-decoration: underline; }
+  .path-steps { display: flex; flex-direction: column; gap: 1vh; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .path-step { display: flex; gap: 1.5vw; align-items: center; padding: 1.5vh 1.5vw; border-radius: 8px; border: 2px solid #3B82F6; background: rgba(59,130,246,0.06); text-align: left; font-family: "SF Mono", monospace; font-size: clamp(0.75rem, 1vw, 0.9rem); }
+  .path-step .step-num { font-size: 1.3rem; font-weight: 900; color: #60A5FA; min-width: 40px; }
+  .path-step .step-content { color: #93C5FD; flex: 1; }
+  .dir-file-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2vw; max-width: 1150px; width: 100%; margin: 2vh auto; }
+  .dir-entry { background: #111C33; border: 1px solid #1E293B; border-radius: 6px; padding: 1.2vh 1vw; font-family: "SF Mono", monospace; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5vh; }
+  .dir-entry .name { color: #34D399; }
+  .dir-entry .inode { color: #FBBF24; font-weight: 800; }
+  .fd-table { max-width: 700px; width: 100%; margin: 2vh auto; border-collapse: collapse; font-family: "SF Mono", monospace; font-size: clamp(0.8rem, 1.05vw, 0.95rem); }
+  .fd-table th { background: #1E293B; color: #60A5FA; padding: 1.2vh 1vw; text-align: left; font-weight: 800; }
+  .fd-table td { padding: 1vh 1vw; border-bottom: 1px solid #1E293B; color: #CBD5E1; }
+  .fd-table tr:last-child td { border-bottom: none; }
+  .fd-highlight { color: #34D399; font-weight: 800; }
+  .link-diagram { display: flex; flex-direction: column; align-items: center; gap: 1vh; max-width: 900px; width: 100%; margin: 2vh auto; }
+  .link-row { display: flex; align-items: center; gap: 1.5vw; justify-content: center; flex-wrap: wrap; }
+  .link-node { padding: 2vh 2vw; border-radius: 10px; border: 2px solid; text-align: center; font-weight: 800; font-size: 0.9rem; font-family: "SF Mono", monospace; min-width: 160px; }
+  .link-node.dir { border-color: #3B82F6; background: rgba(59,130,246,0.08); color: #60A5FA; }
+  .link-node.inode { border-color: #FBBF24; background: rgba(245,158,11,0.08); color: #FBBF24; }
+  .link-node.arrow { border: none; background: none; color: #94A3B8; font-size: 1.5rem; min-width: 40px; padding: 0; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .tree-visual { font-size: 0.75rem; } .path-step { flex-direction: column; text-align: center; } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L17</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-emerald">🔰 START HERE // L17 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#10B981"></div>
+  <p class="subtitle">Trace a full absolute path resolution string block-by-block through a hierarchical directory tree structure, and identify path parsing boundaries.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> The physical disk from L16 knows nothing about "files." It knows only numbered sectors — sector 4096, sector 8192, sector 12288. Yet you can type <code>/home/user/resume.pdf</code> into a terminal and the OS instantly retrieves your resume. How does a human-readable string become a physical disk block?
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L16 Disk Geometry</h3><p>Sector/block/cylinder structure, and the physical cost model that file systems must respect. Deep paths on HDDs mean multiple seek operations.</p></div>
+    <div class="card amber"><h3>02 · C String Operations</h3><p><code>strtok</code>, null-terminated string scanning, and path parsing semantics. The kernel's path walker uses these primitives directly.</p></div>
+    <div class="card amber"><h3>03 · L03 Syscall Boundary</h3><p><code>open()</code>, <code>read()</code>, <code>close()</code> — the syscall interface is how paths are resolved from user space.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> The kernel <em>never</em> trusts user strings. Every path component must be validated, every traversal must check permission bits, and every lookup must be bounds-checked. This lecture is where L03 (syscalls) and L22 (access control, future) begin to interlock.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE NESTED TREASURE BOXES</span>
+  <h2>The Directory Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">📦📦📦</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A path like <code>/home/user/resume.pdf</code> is not a single location — it is a set of instructions. You open the master chest <code>/</code> sitting on the floor. Inside, you find an index sheet pointing to a smaller box labeled <code>home</code>. You open <code>home</code>, scan its index list, and find a pointer to a box labeled <code>user</code>. Inside <code>user</code>, you find a receipt with the real coordinate map to the file <code>resume.pdf</code>.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Each box (directory) is just a file containing a table of {name → ID} entries. Path resolution walks the table, one hop at a time.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>A directory is not a special physical object — it is a regular file with a specific internal format.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE COAT CHECK TICKET</span>
+  <h2>The File Descriptor Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🎫🧥🔑</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>When you open a file, the kernel does not hand you the file itself — it hands you a small integer ticket. You present that ticket to <code>read()</code>, <code>write()</code>, and <code>close()</code>. Behind the counter, the kernel has a table mapping ticket #37 → the actual file's internal state. You never touch the file directly.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>A file descriptor is an index into a per-process table. It is cheap, portable, and revocable. When you <code>close()</code>, the kernel discards the table entry.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This is the user-space handle through which every file operation flows. The kernel owns the real state; you own only the ticket.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE BUILDING DIRECTORY</span>
+  <h2>The Root &amp; Absolute Paths Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏢📋🔍</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A building has one front door — the entrance. From the front door, a directory board lists every department. From each department, another board lists sub-offices. The root directory <code>/</code> is that front door — every absolute path begins there and walks inward. Relative paths, by contrast, are like stepping out of your office and looking at the hallway map from where you stand.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Absolute paths start at the root inode (typically inode #2 on Unix). Relative paths start at the current working directory.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>This distinction shapes path resolution — the kernel walks a fixed spine for <code>/path</code>, but must know the working directory context for <code>relative/path</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: TWO DOORS TO THE SAME ROOM</span>
+  <h2>The Hard Link Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🚪🚪🏠</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>Imagine a room with two doors, both of which enter the same physical space. If you walk in through Door A, you are in the room. If you walk in through Door B, you are in the <em>same</em> room. Neither door is the "real" one — the room itself is what matters.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>A hard link is a second name in a directory pointing to the same inode. Both names resolve to the same physical blocks. Deleting one name does not delete the file — only the last reference triggers reclamation.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The inode is the room; directory entries are doors. Multiple doors can lead to the same room.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE PATH RESOLUTION SUITE</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>🔗 Names → Inodes</h3><p>Names are abstractions over inodes. A directory is a name table mapping strings to inode numbers.</p></div>
+    <div class="card emerald"><h3>📦 Inodes → Blocks</h3><p>Inodes are abstractions over blocks. The inode pointer table maps logical file offsets to physical disk blocks.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">Each layer hides the one beneath it — and when any layer fails (missing directory, broken soft link, mismatched inode), the whole path fails. <strong>Every future lecture — inode layout (L18), journaling (L19) — rests on this foundation.</strong></p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">💻 SYSTEMS COHESION: THE FILE ABSTRACTION LAYER</span>
+  <h2>File Abstractions &amp; File Descriptor Tables</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Two-Level Table Structure</h3>
+      <p><strong>Per-process FD table:</strong> <code>int fd → struct file*</code>. Each process owns its own array of 1024 (default) file descriptors.</p>
+      <p><strong>Global system file table:</strong> <code>struct file* → inode*, offset, flags</code>. Shared across all processes that <code>dup()</code> or <code>fork()</code> the descriptor.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Verdict</h3>
+      <p>Two processes can hold the <em>same underlying open file</em> while sharing the offset — and a third process opening the same path gets a <em>different</em> <code>struct file</code> pointing at the same inode.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>All three coexist cleanly.</strong></p>
+    </div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>The key insight:</strong> The kernel owns the file state; user space holds only integer tickets into the kernel's per-process table. This separation is the entire security model of file operations.
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">💻 SYSTEMS COHESION: DIRECTORY FILE FORMAT</span>
+  <h2>Directory as a File — Internal Layout</h2>
+  <div class="dir-file-layout">
+    <div>
+      <h3 style="color:#60A5FA;margin-bottom:1.5vh">Process A's Directory</h3>
+      <div class="dir-entry"><span class="name">.</span><span class="inode">→ inode 2</span></div>
+      <div class="dir-entry"><span class="name">..</span><span class="inode">→ inode 2</span></div>
+      <div class="dir-entry"><span class="name">home</span><span class="inode">→ inode 45</span></div>
+      <div class="dir-entry"><span class="name">etc</span><span class="inode">→ inode 2</span></div>
+      <div class="dir-entry"><span class="name">var</span><span class="inode">→ inode 5</span></div>
+    </div>
+    <div>
+      <h3 style="color:#A78BFA;margin-bottom:1.5vh">The struct (ext4 example)</h3>
+      <pre class="code-block" style="max-height:30vh;font-size:0.75rem"><span class="kw">struct</span> ext4_dir_entry_2 {
+    __le32 inode;     <span class="cm">// inode number</span>
+    __le16 rec_len;   <span class="cm">// record length</span>
+    __u8   name_len;  <span class="cm">// name string len</span>
+    __u8   file_type; <span class="cm">// regular/dir/link</span>
+    <span class="kw">char</span>   name[];    <span class="cm">// null-terminated</span>
+};</pre>
+    </div>
+  </div>
+  <div class="callout callout-emerald" style="margin-top:2vh">
+    <strong>The Special Entries:</strong> Every directory contains <code>.</code> (self) and <code>..</code> (parent). These are crucial for relative path resolution and cycle detection. Directory lookup is a linear scan of records (or hash-indexed on modern filesystems).
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">💻 SYSTEMS COHESION: THE VFS PATH WALKER</span>
+  <h2>Path Resolution Walkthrough</h2>
+  <div class="path-steps">
+    <div class="path-step">
+      <div class="step-num">1</div>
+      <div class="step-content"><strong>Start at root.</strong> Kernel loads root inode (typically #2 on ext4).</div>
+    </div>
+    <div class="path-step">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>Lookup "home."</strong> Open root directory file, scan records for <code>home</code>, retrieve inode number (e.g., #45).</div>
+    </div>
+    <div class="path-step">
+      <div class="step-num">3</div>
+      <div class="step-content"><strong>Lookup "user."</strong> Open inode #45's directory file, scan for <code>user</code>, retrieve inode number (e.g., #812).</div>
+    </div>
+    <div class="path-step">
+      <div class="step-num">4</div>
+      <div class="step-content"><strong>Lookup "resume.pdf."</strong> Open inode #812's directory file, scan for <code>resume.pdf</code>, retrieve inode number (e.g., #9042).</div>
+    </div>
+    <div class="path-step" style="border-color:#10B981;background:rgba(16,185,129,0.06)">
+      <div class="step-num" style="color:#34D399">5</div>
+      <div class="step-content" style="color:#6EE7B7"><strong>Return file handle.</strong> Load inode #9042 into memory, verify permissions, allocate FD, return ticket.</div>
+    </div>
+  </div>
+  <p class="subtitle" style="margin-top:2vh;max-width:900px"><strong>Every absolute path requires N directory lookups</strong> — one per component. Each lookup may require a disk read if the directory block is not cached in memory.</p>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">💻 SYSTEMS COHESION: LINK SEMANTICS AND REFERENCE COUNTS</span>
+  <h2>Hard Links, Soft Links, and the Link Count</h2>
+  <div class="link-diagram">
+    <div class="link-row">
+      <div class="link-node dir">/etc/passwd</div>
+      <div class="link-node arrow">→</div>
+      <div class="link-node inode">inode #9042<br><span style="font-size:0.7rem;color:#94A3B8">link_count = 2</span></div>
+    </div>
+    <div class="link-row">
+      <div class="link-node dir">/tmp/passwd_link</div>
+      <div class="link-node arrow">→</div>
+      <div class="link-node inode" style="opacity:0.7">(same inode #9042)</div>
+    </div>
+    <div style="color:#94A3B8;font-size:0.85rem;margin:1vh 0">▲ Two names, one inode, one set of data blocks. This is a <strong>hard link</strong>.</div>
+  </div>
+  <div class="link-diagram">
+    <div class="link-row">
+      <div class="link-node dir">/tmp/passwd_sym</div>
+      <div class="link-node arrow">→</div>
+      <div class="link-node inode" style="border-color:#A78BFA;background:rgba(139,92,246,0.08);color:#A78BFA">inode #9043<br><span style="font-size:0.7rem;color:#94A3B8">data: "/etc/passwd"</span></div>
+      <div class="link-node arrow">→</div>
+      <div class="link-node inode">inode #9042<br><span style="font-size:0.7rem;color:#94A3B8">(target)</span></div>
+    </div>
+    <div style="color:#94A3B8;font-size:0.85rem;margin:1vh 0">▲ Separate inode whose data is a path string. This is a <strong>soft link</strong>.</div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:2vh">
+    <div class="card">
+      <h3>Hard Link</h3>
+      <p>Cannot span filesystems (inode numbers are per-filesystem).<br>Deletion only releases data when link_count reaches 0.</p>
+    </div>
+    <div class="card violet">
+      <h3>Soft Link</h3>
+      <p>Can span filesystems. Can dangle (target deleted).<br>Resolution requires re-walking the path.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">💻 SYSTEMS COHESION: THE UNIVERSAL FILE MODEL</span>
+  <h2>File Types &amp; Mode Bits</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The File Type Prefix Letters</h3>
+      <p><strong><code>-</code> Regular:</strong> Ordinary byte-array files (source code, text, binaries).</p>
+      <p><strong><code>d</code> Directory:</strong> Files whose content is a name→inode table.</p>
+      <p><strong><code>l</code> Symbolic Link:</strong> Files whose content is a path string.</p>
+      <p><strong><code>b</code> Block Device:</strong> Disk devices via <code>/dev</code> (from L21).</p>
+      <p><strong><code>c</code> Character Device:</strong> Byte-stream devices (keyboard, serial).</p>
+      <p><strong><code>s</code> Socket:</strong> Unix domain socket endpoints.</p>
+      <p><strong><code>p</code> Named Pipe (FIFO):</strong> Interprocess byte streams.</p>
+    </div>
+    <div class="card emerald">
+      <h3>Why This Matters</h3>
+      <p>This universal file model is the philosophical center of Unix. Device drivers, directories, and pipes are all just files with specialized semantics.</p>
+      <p style="margin-top:1vh">The <code>open()</code> syscall handles them all uniformly. The kernel's VFS layer dispatches based on file type — but the user-space API is identical.</p>
+      <p style="margin-top:1vh;color:#34D399"><strong>This uniformity is why Unix's "everything is a file" claim is genuinely true.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON DISK PHYSICS</span>
+  <h2>Core System Cohesion — Relies On L16</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Directory Lookup = Disk Read</h3><p>Every directory lookup is a potential physical disk read. On HDDs, the seek cost dominates — which is why modern file systems cache directory blocks aggressively.</p></div>
+    <div class="card"><h3>Why Shallow Trees Win</h3><p>Deep paths mean more lookups mean more possible seeks. This is why classic Unix designs shallow directory trees and why <code>locate</code> (a precomputed index) exists as a fast alternative to walking.</p></div>
+    <div class="card violet"><h3>The Architectural Bond</h3><p>L16 physics shapes L17 abstraction. Every design decision in Unix file systems — from shallow roots to directory caches — is a response to the seek cost of deep path traversal.</p></div>
+    <div class="card emerald"><h3>Feeds Into L18–L19</h3><p>L17's path resolution produces an inode number as its final output — the direct input to L18's inode block-pointer walk. And every directory modification (create, rename, delete) requires journaling (L19) to survive power loss.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO INODES AND JOURNALING</span>
+  <h2>Core System Cohesion — Feeds Into L18–L19</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>L18 (Inodes)</h3><p>Path resolution ends with an inode number. That inode number is the input to L18's block-pointer walk. The file data itself is stored in blocks pointed at by the inode — never in the directory entry.</p></div>
+    <div class="card"><h3>L19 (Journaling)</h3><p>Every directory modification (creating a file, renaming, deleting) requires journaling to survive power loss. The journal must be written <em>before</em> the directory update, ensuring consistency.</p></div>
+    <div class="card violet"><h3>The Full Pipeline</h3><p>User path → L17 resolution → inode number → L18 block walk → physical data. Every step is a cache miss candidate.</p></div>
+    <div class="card emerald"><h3>The VFS Unity</h3><p>All these layers are hidden behind the Virtual File System (VFS) interface. <code>open("/path")</code> returns an FD; every subsequent operation routes through the same interface, regardless of filesystem.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: FILE SYSTEM ABSTRACTION</span>
+  <h2>Directory Management Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic File Systems</h3><p>The Virtual File System (VFS) layer sits in Ring 0 alongside ext4/XFS/Btrfs. Path resolution, inode caching, and directory reads all happen with full kernel privilege. Fastest, but every filesystem must be vetted for kernel correctness.</p></div>
+    <div class="card emerald"><h3>Microkernel File Systems</h3><p>File servers run as user-space processes. VFS becomes an IPC broker between user apps and file servers. FUSE on Linux is a partial realization — file operations call up into user space. Slower, but isolated.</p></div>
+    <div class="card amber"><h3>Layered File Systems</h3><p>Strict VFS → concrete filesystem → device driver stacking. Every operation passes through the same three layers. This is the classic Unix model: <code>open()</code> → VFS → ext4 → block layer.</p></div>
+    <div class="card"><h3>Modular File Systems</h3><p>VFS in Ring 0, but concrete filesystems (ext4, XFS, Btrfs, ZFS) load as kernel modules. Filesystems can be added or removed dynamically. FUSE extends this further into user space.</p></div>
+    <div class="card violet"><h3>Hybrid File Systems</h3><p>VFS and hot-path filesystems (ext4, XFS) live in Ring 0; archival, network, or research filesystems run as FUSE daemons. ZFS runs as a kernel module, but remote filesystems (NFS, CIFS) often use user-space drivers.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE FILE SYSTEM VOCABULARY</span>
+  <h2>Base File System Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · File Descriptor</h3>
+      <p>A small non-negative integer returned by the <code>open()</code> system call; acts as a secure session key to access a process's open file lookup array and is passed to <code>read()</code>, <code>write()</code>, and <code>close()</code> to identify the open file. The kernel maintains the actual file state behind the ticket.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The coat check ticket — you never touch the actual file, only the ticket.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Directory</h3>
+      <p>A specialized file containing an ordered array ledger of <code>{name, inode_number}</code> record entries, used to map human-readable strings to inode references; includes the special <code>.</code> and <code>..</code> entries for self and parent resolution. A directory is not a special device — it is a regular file with a specific internal format.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The nested treasure box whose only content is an index pointing to the next box.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE FILE SYSTEM VOCABULARY</span>
+  <h2>Advanced Link and Path Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · Inode Number</h3>
+      <p>A filesystem-unique integer identifier that points to a specific inode structure; the actual "address" of a file within a filesystem, distinct from any of its human-readable names. Every directory entry maps a name string to an inode number, and every file operation begins by resolving a path to an inode number.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The room number behind any door that leads to it.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · Hard Link</h3>
+      <p>A directory entry that points to an existing inode; multiple hard links can reference the same physical file. The inode's <code>i_link_count</code> tracks reference count, and physical blocks are reclaimed only when the count reaches zero and no open file descriptors reference the inode. Cannot span filesystems.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(Two doors that lead to the same room.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · Symbolic Link</h3>
+      <p>A standalone file whose content is a text string representing a path to another file; the symlink has its own inode and metadata, and resolution requires re-walking the path from the beginning. Symlinks may dangle if the target is deleted, and may span filesystems.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(A note on the door saying "I have moved to room 412" — you have to walk to the new room.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">💻 CODE DISSECTION: C PATH RESOLUTION SIMULATOR</span>
+  <h2>Manual Path Resolution Walk</h2>
+  <pre class="code-block"><span class="cm">// Demonstrating path component parsing and manual lookup logic</span>
+<span class="cm">// Compile: gcc -o path path.c &amp;&amp; ./path</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;unistd.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;sys/stat.h&gt;</span>
+
+<span class="kw">void</span> <span class="fn">trace_path_resolution</span>(<span class="kw">const char</span>* full_path) {
+    <span class="kw">char</span> path_copy[<span class="num">1024</span>];
+    <span class="fn">strncpy</span>(path_copy, full_path, <span class="kw">sizeof</span>(path_copy) - <span class="num">1</span>);
+    path_copy[<span class="kw">sizeof</span>(path_copy) - <span class="num">1</span>] = <span class="str">'\0'</span>;
+
+    <span class="fn">printf</span>(<span class="str">"Resolving path: %s\n"</span>, full_path);
+    <span class="fn">printf</span>(<span class="str">"Resolution chain:\n"</span>);
+
+    <span class="cm">// Walk from root, parsing one component at a time</span>
+    <span class="kw">char</span> current_path[<span class="num">1024</span>] = <span class="str">""</span>;
+    <span class="kw">char</span>* component = <span class="fn">strtok</span>(path_copy, <span class="str">"/"</span>);
+    <span class="kw">int</span> depth = <span class="num">1</span>;
+
+    <span class="kw">while</span> (component != NULL) {
+        <span class="fn">strcat</span>(current_path, <span class="str">"/"</span>);
+        <span class="fn">strcat</span>(current_path, component);
+
+        <span class="kw">struct</span> stat sb;
+        <span class="kw">if</span> (<span class="fn">stat</span>(current_path, &amp;sb) == <span class="num">0</span>) {
+            <span class="fn">printf</span>(<span class="str">"  [%d] '%s' -&gt; inode %lu (%s)\n"</span>,
+                   depth, current_path, (<span class="kw">unsigned long</span>)sb.st_ino,
+                   S_ISDIR(sb.st_mode) ? <span class="str">"directory"</span> : <span class="str">"file"</span>);
+        } <span class="kw">else</span> {
+            <span class="fn">printf</span>(<span class="str">"  [%d] '%s' -&gt; NOT FOUND (error)\n"</span>, depth, current_path);
+            <span class="kw">return</span>;
+        }
+        component = <span class="fn">strtok</span>(NULL, <span class="str">"/"</span>);
+        depth++;
+    }
+    <span class="fn">printf</span>(<span class="str">"Final target: %s (resolved via %d directory lookups)\n"</span>,
+           full_path, depth - <span class="num">1</span>);
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="fn">trace_path_resolution</span>(<span class="str">"/home/user/resume.pdf"</span>);
+    <span class="fn">printf</span>(<span class="str">"\n"</span>);
+    <span class="fn">trace_path_resolution</span>(<span class="str">"/etc/passwd"</span>);
+    <span class="fn">printf</span>(<span class="str">"\n"</span>);
+    <span class="fn">trace_path_resolution</span>(<span class="str">"/var/log/syslog"</span>);
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">💻 CODE DISSECTION: TRACING PATH COMPONENT WEIGHTS</span>
+  <h2>Walking the Resolution Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>strtok(path_copy, "/")</h3><p><strong>Component split.</strong> Splits the path string on <code>/</code> characters. Each call returns the next component. This mirrors the kernel's <code>link_path_walk()</code> in <code>fs/namei.c</code>.</p></div>
+    <div class="card"><h3>strcat(current_path, component)</h3><p><strong>The walk prefix.</strong> Accumulates the path so far. The kernel maintains the same structure: a <code>struct path</code> holding <code>{vfsmount, dentry}</code> at each step.</p></div>
+    <div class="card emerald"><h3>stat(current_path, &amp;sb)</h3><p><strong>The actual lookup.</strong> Performs the directory lookup for this component. Kernel equivalents are <code>lookup_fast()</code> and <code>lookup_slow()</code>, both of which consult the dentry cache before touching disk.</p></div>
+    <div class="card"><h3>sb.st_ino</h3><p><strong>The inode number.</strong> For intermediate components, this is a directory inode; for the final component, it is the target file's inode.</p></div>
+    <div class="card amber"><h3>The Chain Cost</h3><p><code>/home/user/resume.pdf</code> requires <strong>3 directory lookups</strong>. <code>/etc/passwd</code> requires only <strong>2</strong>. <strong>Path depth is path cost.</strong></p></div>
+    <div class="card violet"><h3>The Kernel's Real Walker</h3><p>The real <code>link_path_walk()</code> handles symlinks (<code>trailing_symlink()</code>), permissions (<code>may_lookup()</code>), and mount points (<code>follow_down()</code>). Same fundamental algorithm.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎯 INTERACTIVE WORKSHOP: THE PHYSICAL PATH WALK</span>
+  <h2>The Human Path Traversal Relay</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Student 01 · Root Directory</h3><p>Holds index card listing: <code>{home → 45, etc → 2, var → 5}</code>.</p></div>
+    <div class="card"><h3>Student 02 · home Directory</h3><p>Holds index card listing: <code>{user → 812, otheruser → 813}</code>.</p></div>
+    <div class="card"><h3>Student 03 · user Directory</h3><p>Holds index card listing: <code>{resume.pdf → 9042, notes.txt → 9043}</code>.</p></div>
+    <div class="card"><h3>Student 04 · The Path Walker</h3><p>Given the string <code>/home/user/resume.pdf</code> and must physically walk the chain.</p></div>
+    <div class="card emerald"><h3>The Execution</h3><p>The walker reads the first component "home", asks Student 01 for its inode, then proceeds to Student 02, asks for "user", then to Student 03, asks for "resume.pdf", then announces the final inode. Time it with a stopwatch.</p></div>
+    <div class="card crimson"><h3>The Failure Case</h3><p>Now try a fake path like <code>/home/user/secret.pdf</code>. Watch the walker fail at Student 03 — the exact moment a real kernel returns <code>ENOENT</code>.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Pedagogic Takeaway:</strong> Physical intuition for path resolution as a chain of directory lookups, and for how a single missing component aborts the entire walk.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">💻 TRY IT LIVE: AUDITING PATH RESOLUTION AND FILE HANDLES</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> ls -li /etc/passwd                    <span class="out"># Show inode number alongside file</span>
+<span class="cmd">$</span> stat /home/user/resume.pdf            <span class="out"># Full inode metadata dump</span>
+<span class="cmd">$</span> ln /etc/passwd /tmp/passwd_link       <span class="out"># Create a hard link</span>
+<span class="cmd">$</span> ls -li /etc/passwd /tmp/passwd_link   <span class="out"># Same inode, two names</span>
+<span class="cmd">$</span> ln -s /etc/passwd /tmp/passwd_sym     <span class="out"># Create a soft link</span>
+<span class="cmd">$</span> ls -li /etc/passwd /tmp/passwd_sym    <span class="out"># Different inodes, one points to other</span>
+<span class="cmd">$</span> strace -e trace=openat,stat cat /etc/passwd  <span class="out"># Watch actual lookups</span>
+<span class="cmd">$</span> lsof -p $$                            <span class="out"># List FDs of the current shell</span></pre>
+  <p class="hint">Inode numbers: hard link and target share the same <code>st_ino</code>; soft link has its own. <code>strace</code> reveals the actual <code>openat</code> sequence.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 5: File &amp; Storage Management
+        └── <span class="active">L17: File Abstraction &amp; Directory Topology (ACTIVE NODE 🌟)</span>
+              ├── Directory-as-File Tables &amp; Path Resolution Walks
+              └── File Descriptor Tables, Hard Links &amp; Symbolic Links</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>A <strong>directory</strong> is not a special device — it is a regular file containing a table of <code>{name, inode}</code> records. Every path lookup walks that table component by component from the root inode. Path depth directly determines lookup cost, which is why shallow trees and directory caching matter on HDDs.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>The kernel hands user space <strong>file descriptors</strong> — small integer tickets — while it maintains the real file state in a two-level FD → <code>struct file</code> → inode table behind the scenes. User space never touches the actual file; it only presents tickets.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p><strong>Hard links</strong> are additional directory entries pointing to the same inode (shared content). <strong>Soft links</strong> are separate files whose content is a target path string (indirect redirection). The inode's reference count controls when actual blocks are reclaimed — only when the last hard link is removed and no open FDs remain.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Next Unit Gateway</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 18 — Inode Architecture &amp; File System Layouts</strong><br><br>
+    Path resolution ends with an inode number — but what does an inode actually <em>contain</em>? We now dive into the internal structure of the inode: metadata fields, direct/indirect block pointers, and the mathematics of maximum file sizes. We will calculate exactly how large a file can grow with a 4 KB block size and a 4-byte pointer address, and see how the classic 12+1+1+1 asymmetric pointer tree reaches 4 TB with a 128-byte struct. We will also see how modern file systems (ext4, XFS, Btrfs) replaced indirect blocks with <em>extents</em> — range descriptors that cover contiguous block runs in a single entry.
+  </div>
+  <p class="hint">File: L18.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
