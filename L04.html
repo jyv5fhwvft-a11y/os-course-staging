@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 301 · L04 · The Boot Process</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5vh 7vw; opacity: 0; pointer-events: none; transition: opacity 0.35s ease; text-align: center; overflow-y: auto; }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .badge { display: inline-block; font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 700; padding: 10px 22px; border-radius: 999px; margin-bottom: 2.5vh; border: 2px solid; }
+  .badge-blue { color: #60A5FA; border-color: #3B82F6; background: rgba(59,130,246,0.08); }
+  .badge-amber { color: #FBBF24; border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+  .badge-emerald { color: #34D399; border-color: #10B981; background: rgba(16,185,129,0.08); }
+  .badge-violet { color: #A78BFA; border-color: #8B5CF6; background: rgba(139,92,246,0.08); }
+  .badge-crimson { color: #F87171; border-color: #EF4444; background: rgba(239,68,68,0.08); }
+  h1 { font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 1.8vh; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; line-height: 1.25; margin-bottom: 2vh; color: #F1F5F9; }
+  .subtitle { font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: #94A3B8; max-width: 900px; line-height: 1.55; margin-bottom: 2vh; }
+  .accent-line { width: 80px; height: 4px; background: #3B82F6; border-radius: 2px; margin: 1.5vh auto; }
+  .callout { max-width: 850px; padding: 18px 24px; border-left: 4px solid #F59E0B; background: rgba(245,158,11,0.06); border-radius: 6px; color: #FCD34D; font-size: clamp(0.9rem, 1.2vw, 1.05rem); line-height: 1.55; margin-top: 2.5vh; text-align: left; }
+  .callout-blue { border-color: #3B82F6; background: rgba(59,130,246,0.06); color: #93C5FD; }
+  .callout-emerald { border-color: #10B981; background: rgba(16,185,129,0.06); color: #6EE7B7; }
+  .callout-crimson { border-color: #EF4444; background: rgba(239,68,68,0.06); color: #FCA5A5; }
+  .card-grid { display: grid; gap: 1.3vw; width: 100%; max-width: 1150px; margin-top: 2vh; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .card { padding: 2.5vh 1.8vw; border: 2px solid #1E293B; border-radius: 12px; background: #111C33; text-align: left; }
+  .card h3 { font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; color: #60A5FA; margin-bottom: 1.2vh; }
+  .card p { font-size: clamp(0.8rem, 1vw, 0.95rem); color: #94A3B8; line-height: 1.5; margin-bottom: 0.8vh; }
+  .card p strong { color: #CBD5E1; }
+  .card.amber h3 { color: #FBBF24; } .card.amber { border-color: #78350F; }
+  .card.emerald h3 { color: #34D399; } .card.emerald { border-color: #064E3B; }
+  .card.violet h3 { color: #A78BFA; } .card.violet { border-color: #4C1D95; }
+  .card.crimson h3 { color: #F87171; } .card.crimson { border-color: #7F1D1D; }
+  .metaphor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5vw; max-width: 1200px; text-align: left; margin-top: 2vh; }
+  .metaphor-visual { display: flex; align-items: center; justify-content: center; padding: 4vh 2vw; border: 2px dashed #1E293B; border-radius: 12px; background: #0B1327; min-height: 240px; font-size: 3.5rem; }
+  .metaphor-text h3 { font-size: clamp(1rem, 1.3vw, 1.15rem); font-weight: 700; color: #FBBF24; margin-bottom: 1.2vh; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metaphor-text p { font-size: clamp(0.85rem, 1.15vw, 1rem); color: #CBD5E1; line-height: 1.55; margin-bottom: 1.8vh; }
+  .metaphor-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: #F59E0B; margin-bottom: 0.4vh; font-weight: 700; }
+  .code-block { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #94A3B8; text-align: left; max-width: 1100px; width: 100%; overflow: auto; max-height: 55vh; line-height: 1.5; }
+  .code-block .kw { color: #C084FC; } .code-block .str { color: #86EFAC; } .code-block .cm { color: #475569; font-style: italic; } .code-block .fn { color: #60A5FA; } .code-block .num { color: #FBBF24; }
+  .terminal { background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2vh 1.8vw; font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.85rem); color: #86EFAC; text-align: left; max-width: 1000px; width: 100%; line-height: 1.65; }
+  .terminal .cmd { color: #60A5FA; } .terminal .out { color: #94A3B8; }
+  .mindmap { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: clamp(0.7rem, 0.95vw, 0.9rem); color: #94A3B8; text-align: left; background: #020617; border: 1px solid #1E293B; border-radius: 12px; padding: 2.5vh 2vw; max-width: 900px; width: 100%; line-height: 1.65; white-space: pre-wrap; }
+  .mindmap .active { color: #60A5FA; font-weight: 700; }
+  .takeaway-list { display: flex; flex-direction: column; gap: 1.8vh; max-width: 900px; width: 100%; text-align: left; }
+  .takeaway-item { display: flex; gap: 1.3vw; padding: 2vh 1.8vw; border-left: 4px solid #3B82F6; background: rgba(59,130,246,0.05); border-radius: 6px; }
+  .takeaway-num { font-size: 1.4rem; font-weight: 800; color: #60A5FA; min-width: 40px; }
+  .takeaway-item p { font-size: clamp(0.85rem, 1.1vw, 1rem); color: #CBD5E1; line-height: 1.5; }
+  .gateway-arrow { font-size: 4.5rem; color: #10B981; margin: 1.5vh 0; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(0); } 50% { opacity: 0.7; transform: translateX(10px); } }
+  .stage-flow { display: flex; align-items: center; justify-content: center; gap: 1vw; flex-wrap: wrap; margin: 3vh 0; }
+  .stage-box { padding: 2vh 1.5vw; border: 2px solid #3B82F6; border-radius: 10px; background: rgba(59,130,246,0.06); text-align: center; min-width: 150px; }
+  .stage-box h4 { font-size: 1.1rem; font-weight: 800; color: #60A5FA; margin-bottom: 0.8vh; }
+  .stage-box p { font-size: 0.8rem; color: #94A3B8; }
+  .stage-arrow { font-size: 2rem; color: #F59E0B; }
+  .nav { position: fixed; bottom: 20px; right: 30px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: #475569; z-index: 100; font-family: "SF Mono", "Menlo", monospace; }
+  .nav-btn { background: #1E293B; color: #CBD5E1; border: 1px solid #334155; border-radius: 8px; padding: 8px 14px; font-size: 1rem; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: #334155; color: #fff; }
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .progress { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: #1E293B; z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #3B82F6, #8B5CF6); transition: width 0.35s ease; }
+  .slide-title-tag { position: fixed; top: 20px; left: 30px; font-size: 0.8rem; color: #475569; font-family: "SF Mono", "Menlo", monospace; letter-spacing: 0.1em; z-index: 100; }
+  .hint { font-size: 0.85rem; color: #475569; margin-top: 2vh; font-style: italic; }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .metaphor-layout { grid-template-columns: 1fr; } .slide { padding: 4vh 5vw; } .stage-flow { flex-direction: column; } .stage-arrow { transform: rotate(90deg); } }
+</style>
+</head>
+<body>
+
+<div class="slide-title-tag">CS 301 · L04</div>
+
+<div class="deck" id="deck">
+
+<!-- ===== SLIDE 01 ===== -->
+<section class="slide active">
+  <span class="badge badge-amber">🔰 START HERE // L04 LEARNING OBJECTIVES</span>
+  <h1>The Core Objective</h1>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <p class="subtitle">Chronologically sequence the four structural stages that occur between a user pressing a computer's physical power-on switch and the arrival of a user-space login prompt.</p>
+  <div class="callout callout-crimson">
+    <strong>The Problem Hook:</strong> The CPU has no concept of "files." It can only execute machine instructions at a memory address. When you press the power button, RAM is empty and the disk is opaque — the CPU would have no idea where to begin even if it wanted to run Linux. So how does a running operating system come into existence from literally nothing? The answer is a <strong>four-stage relay</strong>: each stage has just enough capability to load the next, larger stage.
+  </div>
+  <p class="hint">Press → to begin</p>
+</section>
+
+<!-- ===== SLIDE 02 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🛑 ENTRY BARRIERS: REQUIREMENT DIRECTIVES</span>
+  <h2>Structural Prerequisites</h2>
+  <div class="accent-line" style="background:#F59E0B"></div>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card amber"><h3>01 · L01–L03 Foundation</h3><p>The kernel architecture, the hardware privilege barrier, and the syscall interface. The boot process culminates in bringing all three online.</p></div>
+    <div class="card amber"><h3>02 · Volatile vs Non-Volatile</h3><p>The difference between storage that survives power-off (ROM, disks) and RAM that clears on power loss.</p></div>
+    <div class="card amber"><h3>03 · Kernel as a File</h3><p>A kernel binary is just a file on disk — an ELF executable containing machine code and data. It is not magical; it just needs to be <em>loaded into memory</em> before the CPU can execute it.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Teacher's Note:</strong> Every time you reboot, this entire four-stage relay runs. The OS is not persistent; it must be <em>rebuilt</em> from scratch at every boot. The boot process is the OS's own birth.</p>
+</section>
+
+<!-- ===== SLIDE 03 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE MULTI-STAGE RELAY RACE</span>
+  <h2>The Relay Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏃🏃‍♂️🏃‍♀️🏃</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>A massive track-and-field relay race where each runner has a completely different athletic build. Runner 1 (UEFI) is incredibly small and fast — their only job is to quickly check the track and pass the baton. Runner 2 (Bootloader) sprints to find the heavyweight champion sleeping in the locker room and wakes them. Runner 3 (Kernel) takes the baton, sets up the entire stadium infrastructure, and hands off to Runner 4 (Init System) to open the stadium doors for spectators.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>Each runner drops out completely once their handoff finishes. The baton — control of the machine — is passed from one specialized stage to the next.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The boot process is a chain of trust and capability — each stage loads the next.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 04 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE SECURITY GUARD</span>
+  <h2>The UEFI Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🛡️🔍🚪</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The security guard's job is only to verify the venue is physically ready and then open the main gate. They do not run the game, they do not manage the stadium, they do not admit the spectators. They just do a basic readiness check, then invite the next stage in.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>UEFI/BIOS runs a Power-On Self-Test (POST) — checking CPU, RAM, and essential hardware. Once verified, it locates a bootable device and jumps to the bootloader on it.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The smallest, simplest stage — its only job is to verify and hand off.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 05 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE LOCKER ROOM MANAGER</span>
+  <h2>The Bootloader Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🔑🏋️🏃</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The locker room manager has just enough authority to find the champion's locker, open it, and wake the champion up. But the champion is heavy — the manager cannot lift them. The manager can only wake the champion and point them to the track. The champion must then take over entirely.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The bootloader (GRUB, systemd-boot) has just enough code to locate the kernel binary on disk, load it into RAM, and jump to its entry point. It cannot do anything else.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The middle stage — find, load, and hand off to the kernel binary.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 06 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">🎒 EVERYDAY SIMPLIFIED: THE STADIUM INFRASTRUCTURE SETUP</span>
+  <h2>The Kernel Init Metaphor</h2>
+  <div class="metaphor-layout">
+    <div class="metaphor-visual">🏟️🔧💡</div>
+    <div class="metaphor-text">
+      <span class="metaphor-label">The Narrative</span>
+      <p>The heavyweight champion arrives at the stadium and immediately begins massive infrastructure setup — installing lights, wiring sound, opening food stalls, unlocking turnstiles. They do not just play the game — they build the entire environment in which the game will happen. Then, once the environment is fully operational, they open the doors and hand off to the gatekeeper.</p>
+      <span class="metaphor-label">Execution Path</span>
+      <p>The kernel initializes everything: drivers, memory allocators, schedulers, filesystems, network stacks. Then it launches the very first user-space process.</p>
+      <span class="metaphor-label">Micro-Accessibility Context</span>
+      <p>The largest, most complex stage — builds the entire runtime environment.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 07 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🎒 EVERYDAY SIMPLIFIED: THE BOOTSTRAP CHAIN</span>
+  <h2>The Summary Metaphor</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>🔗 Tiny, Incapable Stages</h3><p>UEFI can only verify hardware and hand off. The bootloader can only find and load the kernel. Each stage is limited.</p></div>
+    <div class="card emerald"><h3>🔗 Fully Capable Stages</h3><p>The kernel builds everything. The init system launches user services. Each stage is more powerful than the last.</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px">The chain is the answer to "how do you build something complex from nothing?" — you build it in stages, each slightly more capable than the last.</p>
+</section>
+
+<!-- ===== SLIDE 08 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE HARDWARE VERIFICATION</span>
+  <h2>Stage 1 — UEFI / BIOS</h2>
+  <div class="stage-flow">
+    <div class="stage-box"><h4>1. Power On</h4><p>CPU resets to reset vector</p></div>
+    <div class="stage-arrow">→</div>
+    <div class="stage-box"><h4>2. Firmware</h4><p>UEFI ROM code begins</p></div>
+    <div class="stage-arrow">→</div>
+    <div class="stage-box"><h4>3. POST</h4><p>CPU, RAM, hardware checks</p></div>
+    <div class="stage-arrow">→</div>
+    <div class="stage-box"><h4>4. Handoff</h4><p>Jump to bootloader</p></div>
+  </div>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Pipeline</h3>
+      <p><strong>1. Power applied:</strong> CPU resets. RIP = reset vector (0xFFFFFFF0 on x86-64).</p>
+      <p><strong>2. Firmware executes:</strong> ROM code (UEFI on modern, BIOS on legacy) begins.</p>
+      <p><strong>3. POST:</strong> Verifies CPU caches, RAM size, essential devices.</p>
+      <p><strong>4. Hardware enumeration:</strong> UEFI builds ACPI tables describing all devices.</p>
+      <p><strong>5. Boot device selection:</strong> Reads EFI System Partition, finds bootloader.</p>
+      <p><strong>6. Jump to bootloader:</strong> Loads \EFI\BOOT\BOOTX64.EFI into memory.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Verdict</h3>
+      <p>The smallest stage, but performs critical functions: hardware verification, ACPI table generation, and boot device selection.</p>
+      <p style="margin-top:1vh"><strong>Runs at:</strong> highest CPU privilege level (Ring -2 on Intel) before the OS takes control.</p>
+      <p style="margin-top:1vh"><strong>Time:</strong> 1–5 seconds on modern systems.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 09 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE KERNEL LOADER</span>
+  <h2>Stage 2 — The Bootloader</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Bootloader Pipeline (GRUB)</h3>
+      <p><strong>1. Init:</strong> UEFI-loaded bootloader initializes its environment.</p>
+      <p><strong>2. Config:</strong> Reads /boot/grub/grub.cfg — lists boot entries.</p>
+      <p><strong>3. Menu:</strong> Shows boot menu (user can select or edit).</p>
+      <p><strong>4. Kernel load:</strong> Reads vmlinuz, decompresses, places at load address.</p>
+      <p><strong>5. Initrd load:</strong> Loads initial RAM disk for early boot.</p>
+      <p><strong>6. State setup:</strong> RDI → boot_params, RSI → initrd, CPU in protected mode.</p>
+      <p><strong>7. Jump to kernel:</strong> Jumps to startup_64 entry point.</p>
+    </div>
+    <div class="card amber">
+      <h3>The Verdict</h3>
+      <p>The middleman between firmware and kernel.</p>
+      <p style="margin-top:1vh">It knows how to read filesystems, load executable images, and pass command-line arguments — but it does not know how to run an OS.</p>
+      <p style="margin-top:1vh"><strong>Time:</strong> 0.1–1 second (dominated by disk I/O speed).</p>
+      <p style="margin-top:1vh"><strong>Examples:</strong> GRUB, systemd-boot, LILO, rEFInd.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE ENVIRONMENT CONSTRUCTION</span>
+  <h2>Stage 3 — Kernel Initialization</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Initialization Pipeline</h3>
+      <p><strong>1. Entry:</strong> Kernel starts at startup_64.</p>
+      <p><strong>2. Early setup:</strong> Decompression, initial page tables, GDT/IDT setup.</p>
+      <p><strong>3. Hardware discovery:</strong> Parse ACPI tables (from UEFI).</p>
+      <p><strong>4. Arch init:</strong> Bring up secondary CPUs, initialize MMU and TLB.</p>
+      <p><strong>5. Subsystem init:</strong> Scheduler, memory manager, drivers, filesystems, security.</p>
+      <p><strong>6. Initramfs unpack:</strong> Unpack initial RAM disk into memory.</p>
+      <p><strong>7. Root mount:</strong> Mount real root filesystem, pivot_root.</p>
+      <p><strong>8. Launch init:</strong> Start /sbin/init or systemd as PID 1.</p>
+    </div>
+    <div class="card emerald">
+      <h3>The Verdict</h3>
+      <p>The <em>largest</em> stage — it builds the entire operating environment from scratch.</p>
+      <p style="margin-top:1vh">Every subsystem from Modules 2–7 is initialized here: scheduler, memory manager, filesystems, drivers, security.</p>
+      <p style="margin-top:1vh"><strong>Time:</strong> 1–3 seconds (driver initialization dominates).</p>
+      <p style="margin-top:1vh"><strong>Where the OS actually begins to exist.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE USER-SPACE ORCHESTRATOR</span>
+  <h2>Stage 4 — The Init System (PID 1)</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>The Init Pipeline (systemd)</h3>
+      <p><strong>1. Launch:</strong> Kernel launches /usr/lib/systemd/systemd as PID 1.</p>
+      <p><strong>2. Mount:</strong> Mount rest of filesystems (/home, /var, swap).</p>
+      <p><strong>3. Target processing:</strong> basic.target → multi-user.target → graphical.target.</p>
+      <p><strong>4. Service startup:</strong> journald, udevd, NetworkManager, dbus, sshd, cron, and more.</p>
+      <p><strong>5. Login handoff:</strong> Launch display manager (gdm, lightdm) or getty.</p>
+      <p><strong>6. Session start:</strong> User authenticates, shell or desktop launches.</p>
+    </div>
+    <div class="card violet">
+      <h3>The Verdict</h3>
+      <p>The first user-space process — the <em>ancestor of every other process</em>.</p>
+      <p style="margin-top:1vh">Transitions the system from "kernel running with no user software" to "fully operational multi-user environment."</p>
+      <p style="margin-top:1vh"><strong>Time:</strong> 2–10 seconds (parallel service startup).</p>
+      <p style="margin-top:1vh"><strong>Examples:</strong> systemd, OpenRC, runit, SysVinit.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 SYSTEMS COHESION: THE FOUR-STAGE SYNTHESIS</span>
+  <h2>The Complete Boot Timeline</h2>
+  <div class="card-grid grid-4" style="margin-top:3vh">
+    <div class="card"><h3>Stage 1 · UEFI</h3><p><strong>Time:</strong> 1–5s</p><p>Hardware verification, ACPI tables, boot device selection.</p></div>
+    <div class="card"><h3>Stage 2 · Bootloader</h3><p><strong>Time:</strong> 0.1–1s</p><p>Kernel load, initramfs load, state setup, jump to kernel.</p></div>
+    <div class="card"><h3>Stage 3 · Kernel</h3><p><strong>Time:</strong> 1–3s</p><p>Subsystem init, driver setup, root mount, init launch.</p></div>
+    <div class="card emerald"><h3>Stage 4 · Init</h3><p><strong>Time:</strong> 2–10s</p><p>Service startup, target activation, login prompt, session start.</p></div>
+  </div>
+  <div class="callout callout-blue" style="margin-top:3vh">
+    <strong>Total:</strong> A modern laptop boots in ~5–15 seconds from power-on to login. A high-end NVMe desktop can reach login in 4 seconds. A traditional spinning-disk workstation might take 30–60 seconds.
+  </div>
+</section>
+
+<!-- ===== SLIDE 13 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: RELIES ON MODULE 1 FOUNDATION</span>
+  <h2>Core System Cohesion — Relies On L01–L03</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Stage 1 (UEFI)</h3><p>Runs at highest privilege level. Enables the Ring 0/Ring 3 distinction that L02 will formalize.</p></div>
+    <div class="card"><h3>Stage 3 (Kernel Init)</h3><p>Initializes the syscall interface (L03) — installs the syscall dispatch table, IDT, and handler stubs.</p></div>
+    <div class="card"><h3>Stage 3 (Kernel Init)</h3><p>Installs the privilege barriers (L02) — enabling Ring 0/Ring 3 separation. After this point, the CPU enforces the dual-mode barrier.</p></div>
+    <div class="card emerald"><h3>The Architectural Bond</h3><p>The boot process is <em>literally</em> the construction of the architecture from L01–L03 — every barrier, every dispatch table, every data structure set up during Stage 3.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 14 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔗 SYSTEM PIPELINE: FEEDS INTO ALL SEVEN MODULES</span>
+  <h2>Core System Cohesion — Feeds Into Everything</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Module 2 (Process)</h3><p>Kernel initializes scheduler, run queue, process table. PID 1 (systemd) is the ancestor of every process.</p></div>
+    <div class="card"><h3>Module 3 (Memory)</h3><p>Kernel initializes page allocator, virtual memory manager, page tables — the <em>entire memory infrastructure</em>.</p></div>
+    <div class="card"><h3>Module 5 (Filesystem)</h3><p>Kernel initializes VFS and registers filesystem drivers. Then mounts root from initramfs, systemd mounts everything else.</p></div>
+    <div class="card"><h3>Module 6 (I/O)</h3><p>Kernel initializes device drivers during Stage 3. UEFI enabled basic hardware; kernel drivers extend and take over.</p></div>
+    <div class="card"><h3>Module 7 (Security)</h3><p>Kernel initializes LSM hooks, capabilities, namespaces. UEFI Secure Boot validates bootloader signature.</p></div>
+    <div class="card emerald"><h3>The Verdict</h3><p>L04 is the <em>assembly</em> of everything we studied — the <em>proof</em> that the OS is a buildable system from scratch.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 15 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🔍 COMPREHENSIVE CRITIQUE: KERNEL BOOT STRATEGIES</span>
+  <h2>Boot Strategies Across the Five Paradigms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>Monolithic Boot</h3><p>Kernel initializes every subsystem at boot. Driver init runs serially. Boot time dominated by drivers. Some drivers can be deferred as modules, but core subsystems must be ready before user-space.</p></div>
+    <div class="card emerald"><h3>Microkernel Boot</h3><p>Kernel is tiny (~10k lines in seL4), so boot is very fast — under 1s. But user-space servers must all start before the system is usable. Boot is a cooperative process — each server must start in the correct order with IPC channels established.</p></div>
+    <div class="card amber"><h3>Layered Boot</h3><p>Each layer initialized in strict order: layer 0 (hardware), then layer 1 (drivers), then layer 2 (scheduling), and so on. Easier to verify (each layer tested independently) but slower (no parallelism).</p></div>
+    <div class="card"><h3>Modular Boot</h3><p>Base kernel inits core subsystems in parallel using multiple cores, then driver modules load on demand. Some modules preloaded, most load when their hardware is detected. How Linux achieves fast boot despite supporting millions of devices.</p></div>
+    <div class="card violet"><h3>Hybrid Boot</h3><p>Kernel inits core subsystems in parallel, pre-launches a user-space initramfs containing essential tools, mounts real root, discards initramfs, continues from real root. Modern Linux boot is functionally hybrid.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 16 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE BOOT VOCABULARY</span>
+  <h2>Base Boot Terms</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 01 · UEFI (Unified Extensible Firmware Interface)</h3>
+      <p>Modern motherboard firmware that initializes hardware, runs the Power-On Self-Test, enumerates attached devices, and bootstraps the OS bootloader by locating an EFI System Partition and executing the configured .efi boot loader file. Replaces legacy BIOS. Runs at the highest CPU privilege level before the OS takes control.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The security guard who checks the venue is ready and opens the main gate.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 02 · Bootloader</h3>
+      <p>A lightweight intermediate utility (e.g., GRUB, LILO, systemd-boot) responsible for locating, loading, and executing the operating system kernel binary from storage; also loads an initial RAM disk (initramfs) if needed. It is the bridge between firmware and the kernel — the second stage in the boot chain.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The locker room manager who finds the champion and points them to the track.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 17 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🏷️ SYSTEM LEXICON: MASTERING THE BOOT VOCABULARY</span>
+  <h2>Advanced Boot Terms</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card">
+      <h3>Term 03 · systemd / init</h3>
+      <p>The primordial user-space process (PID 1) responsible for spawning and managing all system daemons and shell interfaces; it is the ancestor of every process on the system, initialized by the kernel as the very first Ring 3 execution. On modern Linux, systemd performs parallel service startup, dependency resolution, and target activation.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The stadium gatekeeper who opens all doors and starts all services.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 04 · POST (Power-On Self-Test)</h3>
+      <p>The initial hardware diagnostic routine run by motherboard firmware (UEFI/BIOS) immediately after power is applied, to verify system readiness — CPU function, RAM integrity, keyboard/display presence, and basic device enumeration. Failure at this stage typically means the system will not boot at all.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The security guard's initial walkthrough to verify the venue is structurally sound.)</p>
+    </div>
+    <div class="card">
+      <h3>Term 05 · initramfs</h3>
+      <p>A small filesystem image loaded into memory (by the bootloader) that provides a minimal user-space environment during kernel initialization; contains just enough drivers and tools to find, mount, and pivot to the real root filesystem. Once the real root is mounted, the initramfs is discarded from memory.</p>
+      <p style="margin-top:1.5vh;color:#FBBF24;font-style:italic">(The temporary construction office used to build the actual stadium before the main grand opening.)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 18 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: C BOOT TELEMETRY PANEL</span>
+  <h2>Inspecting the Boot Process from User Space</h2>
+  <pre class="code-block"><span class="cm">// Inspecting the results of the boot process from user space</span>
+<span class="kw">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;unistd.h&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;sys/utsname.h&gt;</span>
+
+<span class="cm">// Helper: read a line from a virtual file, strip newline</span>
+<span class="kw">int</span> <span class="fn">read_first_line</span>(<span class="kw">const char</span>* path, <span class="kw">char</span>* buffer, <span class="kw">size_t</span> bufsize) {
+    FILE* f = <span class="fn">fopen</span>(path, <span class="str">"r"</span>);
+    <span class="kw">if</span> (!f) { buffer[<span class="num">0</span>] = <span class="str">'\0'</span>; <span class="kw">return</span> -<span class="num">1</span>; }
+    <span class="kw">if</span> (!<span class="fn">fgets</span>(buffer, bufsize, f)) { <span class="fn">fclose</span>(f); buffer[<span class="num">0</span>] = <span class="str">'\0'</span>; <span class="kw">return</span> -<span class="num">1</span>; }
+    <span class="fn">fclose</span>(f);
+    buffer[<span class="fn">strcspn</span>(buffer, <span class="str">"\n"</span>)] = <span class="str">'\0'</span>;
+    <span class="kw">return</span> <span class="num">0</span>;
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="fn">printf</span>(<span class="str">"=== Boot Process Telemetry ===\n\n"</span>);
+
+    <span class="cm">// --- What the kernel learned from UEFI/BIOS ---</span>
+    <span class="kw">char</span> bios_version[<span class="num">128</span>];
+    <span class="kw">if</span> (<span class="fn">read_first_line</span>(<span class="str">"/sys/class/dmi/id/bios_version"</span>, bios_version, <span class="kw">sizeof</span>(bios_version)) == <span class="num">0</span>) {
+        <span class="fn">printf</span>(<span class="str">"[STAGE 1 — UEFI/BIOS Handoff]\n"</span>);
+        <span class="fn">printf</span>(<span class="str">"  BIOS version:  %s\n"</span>, bios_version);
+    }
+
+    <span class="kw">char</span> bios_vendor[<span class="num">128</span>];
+    <span class="kw">if</span> (<span class="fn">read_first_line</span>(<span class="str">"/sys/class/dmi/id/bios_vendor"</span>, bios_vendor, <span class="kw">sizeof</span>(bios_vendor)) == <span class="num">0</span>) {
+        <span class="fn">printf</span>(<span class="str">"  BIOS vendor:   %s\n"</span>, bios_vendor);
+    }
+
+    <span class="cm">// --- What the bootloader loaded ---</span>
+    <span class="kw">struct</span> utsname uts;
+    <span class="kw">if</span> (<span class="fn">uname</span>(&amp;uts) == <span class="num">0</span>) {
+        <span class="fn">printf</span>(<span class="str">"\n[STAGE 2 &amp; 3 — Bootloader + Kernel Init]\n"</span>);
+        <span class="fn">printf</span>(<span class="str">"  Kernel:        %s\n"</span>, uts.sysname);
+        <span class="fn">printf</span>(<span class="str">"  Release:       %s\n"</span>, uts.release);
+        <span class="fn">printf</span>(<span class="str">"  Arch:          %s\n"</span>, uts.machine);
+    }
+
+    <span class="kw">char</span> cmdline[<span class="num">512</span>];
+    <span class="kw">if</span> (<span class="fn">read_first_line</span>(<span class="str">"/proc/cmdline"</span>, cmdline, <span class="kw">sizeof</span>(cmdline)) == <span class="num">0</span>) {
+        <span class="fn">printf</span>(<span class="str">"  Kernel cmdline: %s\n"</span>, cmdline);
+    }
+
+    <span class="kw">char</span> uptime[<span class="num">64</span>];
+    <span class="kw">if</span> (<span class="fn">read_first_line</span>(<span class="str">"/proc/uptime"</span>, uptime, <span class="kw">sizeof</span>(uptime)) == <span class="num">0</span>) {
+        <span class="fn">printf</span>(<span class="str">"  Uptime:        %s seconds since boot\n"</span>, uptime);
+    }
+
+    <span class="cm">// --- What the init system has launched ---</span>
+    <span class="fn">printf</span>(<span class="str">"\n[STAGE 4 — Init System]\n"</span>);
+    <span class="fn">printf</span>(<span class="str">"  PID 1 (init):  "</span>);
+    <span class="fn">fflush</span>(stdout);
+    <span class="fn">system</span>(<span class="str">"ps -p 1 -o comm= 2&gt;/dev/null"</span>);
+
+    <span class="fn">printf</span>(<span class="str">"  Total procs:   "</span>);
+    <span class="fn">fflush</span>(stdout);
+    <span class="fn">system</span>(<span class="str">"ps -e --no-headers | wc -l"</span>);
+
+    <span class="cm">// --- Kernel boot log excerpt ---</span>
+    <span class="fn">printf</span>(<span class="str">"\n[Boot Log Excerpt from dmesg]\n"</span>);
+    <span class="fn">system</span>(<span class="str">"dmesg 2&gt;/dev/null | grep -iE 'Linux version|Command line|ACPI:' | head -5"</span>);
+
+    <span class="kw">return</span> <span class="num">0</span>;
+}</pre>
+  <p class="hint">Use code with caution.</p>
+</section>
+
+<!-- ===== SLIDE 19 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 CODE DISSECTION: TRACING BOOT ARTIFACTS</span>
+  <h2>Walking the Boot Telemetry Trace</h2>
+  <div class="card-grid grid-2" style="margin-top:3vh">
+    <div class="card"><h3>/sys/class/dmi/id/bios_version</h3><p><strong>Stage 1 evidence.</strong> UEFI/BIOS populated the DMI tables with hardware identity. The BIOS version string is a direct artifact of the firmware's initialization.</p></div>
+    <div class="card"><h3>/sys/class/dmi/id/bios_vendor</h3><p><strong>Stage 1 evidence.</strong> Reports which firmware vendor ran at power-on (AMI, Award, Insyde, Apple, etc.).</p></div>
+    <div class="card"><h3>uname(&amp;uts)</h3><p><strong>Stage 2 and Stage 3 evidence.</strong> The kernel's version is the exact vmlinuz binary the bootloader loaded. Each minor kernel version corresponds to a specific boot entry.</p></div>
+    <div class="card"><h3>/proc/cmdline</h3><p><strong>Stage 2 evidence.</strong> The kernel command line is a bootloader-supplied string. On Ubuntu: <code>BOOT_IMAGE=/boot/vmlinuz-6.x.x root=UUID=... ro quiet splash</code> — literally what GRUB passed at startup.</p></div>
+    <div class="card"><h3>/proc/uptime</h3><p><strong>Stage 3 evidence.</strong> The kernel's monotonic clock began at t=0 during Stage 3. The current uptime counts seconds since that moment.</p></div>
+    <div class="card"><h3>ps -p 1 &amp; ps -e</h3><p><strong>Stage 4 evidence.</strong> PID 1 is the init system. Every process on the system is a descendant of PID 1. The count measures how many services init has launched.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 20 ===== -->
+<section class="slide">
+  <span class="badge badge-violet">🎯 INTERACTIVE WORKSHOP: THE PHYSICAL BOOT TIMING</span>
+  <h2>The Boot Time Synchronization Challenge</h2>
+  <div class="card-grid grid-3" style="margin-top:3vh">
+    <div class="card"><h3>Setup</h3><p>All students close laptops, fully shut down (not sleep). Student 01 prepares a stopwatch. On count of 3, everyone presses power simultaneously.</p></div>
+    <div class="card"><h3>The Race</h3><p>Each student stops the timer when their login screen or desktop draws. Record each participant's elapsed time.</p></div>
+    <div class="card emerald"><h3>The Analysis</h3><p>Compare times across students — desktop vs laptop, Mac vs Windows vs Linux, old vs new hardware. Which boot stage is the bottleneck for each system?</p></div>
+  </div>
+  <p class="subtitle" style="margin-top:3vh;max-width:900px"><strong>Pedagogic Takeaway:</strong> Physical intuition for the real-world timing of each boot stage. Students see that the boot process is <em>not</em> uniform — it varies dramatically by hardware, OS, and configuration.</p>
+</section>
+
+<!-- ===== SLIDE 21 ===== -->
+<section class="slide">
+  <span class="badge badge-blue">💻 TRY IT LIVE: AUDITING LIVE BOOT TELEMETRY</span>
+  <h2>Live Telemetry Audit</h2>
+  <pre class="terminal"><span class="cmd">$</span> systemd-analyze                      <span class="out"># Total boot time breakdown</span>
+<span class="cmd">$</span> systemd-analyze blame                <span class="out"># Per-service startup times</span>
+<span class="cmd">$</span> systemd-analyze critical-chain       <span class="out"># Dominant dependency chain</span>
+<span class="cmd">$</span> journalctl -b --no-pager | head -20   <span class="out"># Full boot log</span>
+<span class="cmd">$</span> journalctl -b -p err                  <span class="out"># Boot-time errors</span>
+<span class="cmd">$</span> dmesg | head -30                      <span class="out"># Kernel boot messages</span>
+<span class="cmd">$</span> cat /proc/cmdline                     <span class="out"># Bootloader-passed command line</span>
+<span class="cmd">$</span> cat /etc/fstab                        <span class="out"># Filesystem mounting config</span>
+<span class="cmd">$</span> lsblk                                 <span class="out"># Block devices mounted</span>
+<span class="cmd">$</span> cat /proc/uptime                      <span class="out"># Seconds since boot</span>
+<span class="cmd">$</span> ls /boot/                             <span class="out"># Kernel images and bootloader configs</span>
+<span class="cmd">$</span> tree /boot/efi/EFI/ -L 2              <span class="out"># UEFI boot entries on disk</span></pre>
+  <p class="hint">systemd-analyze reports: <code>Startup finished in Xs (firmware) + Ys (loader) + Zs (kernel) + Ws (userspace)</code> — the timing of all four stages.</p>
+</section>
+
+<!-- ===== SLIDE 22 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🌿 NAVIGATION HUB: MASTER DESIGN SYSTEM MATRIX</span>
+  <h2>Master Mindmap Matrix</h2>
+  <pre class="mindmap">CS 301: Operating Systems Curriculum Portal
+  └── Module 1: OS Structure &amp; Design
+        └── <span class="active">L04: The Boot Process (ACTIVE NODE 🌟)</span>
+              ├── UEFI → Bootloader → Kernel Init → Init System
+              └── The Bootstrap Chain &amp; Trust Handoffs</pre>
+  <p class="hint" style="margin-top:3vh">https://github.com</p>
+</section>
+
+<!-- ===== SLIDE 23 ===== -->
+<section class="slide">
+  <span class="badge badge-amber">🏆 RETROSPECTIVE: SYLLABUS DISSECTION SUMMARY</span>
+  <h2>Grand Lecture Summary</h2>
+  <div class="takeaway-list" style="margin-top:3vh">
+    <div class="takeaway-item"><div class="takeaway-num">01</div><p>The boot process is a <strong>four-stage relay</strong> — UEFI/BIOS verifies hardware (Stage 1), the bootloader locates and loads the kernel (Stage 2), the kernel initializes all subsystems (Stage 3), and the init system launches user-space services (Stage 4). Each stage has just enough capability to make the next stage possible.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">02</div><p>Stage 3 (kernel initialization) is the <strong>largest</strong> stage — it constructs every subsystem we will study in Modules 2–7: the scheduler, memory manager, filesystem, driver framework, and security layer. The boot process is literally the OS being <em>built</em> in real time.</p></div>
+    <div class="takeaway-item"><div class="takeaway-num">03</div><p>The four stages are not arbitrary — they are <strong>derived from the hardware constraint</strong> that the CPU cannot load an OS from disk directly. The chain of capability is the answer to "how do you build a complex system from nothing?" — build it in stages, each slightly more capable than the last.</p></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 24 ===== -->
+<section class="slide">
+  <span class="badge badge-emerald">🚀 THE HORIZON ROADMAP: MOVING TO THE NEXT BLOCK</span>
+  <h2>Module 1 Complete — Module 2 Begins</h2>
+  <div class="gateway-arrow">→</div>
+  <div class="callout callout-emerald" style="max-width:900px;text-align:left">
+    <strong>Lecture 05 — Process Anatomy &amp; The PCB Ledger (Module 2 Begins)</strong><br><br>
+    Module 1 is complete. We have studied the entire OS structure — its architecture, privilege barrier, syscall interface, and boot process. Now we enter <strong>Module 2: Process Management</strong>. We will dissect the four memory segments of a process (Text, Data, Heap, Stack), define every field of the Process Control Block (PID, state, registers, page table pointer, file descriptors, and scheduling metrics), and introduce the five process states (New, Ready, Running, Blocked, Terminated). The boot process we studied today is <em>exactly</em> what makes Module 2 possible — the kernel initialized the process subsystem at Stage 3, and PID 1 (from Stage 4) is the ancestor of every process we will study.
+  </div>
+  <p class="hint">File: L05.html</p>
+</section>
+
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+  <span id="counter">01 / 24</span>
+  <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+</div>
+
+<div class="progress">
+  <div class="progress-bar" id="progressBar" style="width: 4.16%"></div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+  const progressBar = document.getElementById('progressBar');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+
+  function show(index) {
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + slides.length;
+    progressBar.style.width = ((index + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = index === 0;
+    nextBtn.disabled = index === slides.length - 1;
+  }
+  function go(delta) {
+    current = Math.max(0, Math.min(slides.length - 1, current + delta));
+    show(current);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; show(current); }
+    if (e.key === 'End') { e.preventDefault(); current = slides.length - 1; show(current); }
+  });
+  let touchX = null;
+  document.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (dx < -50) go(1);
+    if (dx > 50) go(-1);
+    touchX = null;
+  });
+  show(0);
+</script>
+
+</body>
+</html>
