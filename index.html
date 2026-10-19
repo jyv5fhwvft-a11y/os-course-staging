@@ -103,6 +103,101 @@
 
 
   const btn = document.createelement('a');
+  <!-- ===== smart course map return link ===== -->
+<script>
+(function() {
+  const filename = window.location.pathname.split('/').pop().replace('.html', '');
+  let moduleanchor = '';
+  if (filename >= 'l00' && filename <= 'l04') moduleanchor = '#module-1';
+  else if (filename >= 'l05' && filename <= 'l09') moduleanchor = '#module-2';
+  else if (filename >= 'l10' && filename <= 'l13') moduleanchor = '#module-3';
+  else if (filename >= 'l14' && filename <= 'l15') moduleanchor = '#module-4';
+  else if (filename >= 'l16' && filename <= 'l19') moduleanchor = '#module-5';
+  else if (filename >= 'l20' && filename <= 'l21') moduleanchor = '#module-6';
+  else if (filename >= 'l22' && filename <= 'l28') moduleanchor = '#module-7';
+
+
+
+
+  const style = document.createelement('style');
+  style.textcontent = `
+    .course-map-btn {
+      position: fixed; top: 20px; right: 30px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 18px; background: #1e293b; color: #60a5fa;
+      border: 2px solid #3b82f6; border-radius: 8px;
+      font-family: -apple-system, blinkmacsystemfont, "sf mono", monospace;
+      font-size: 0.85rem; font-weight: 700; text-decoration: none; z-index: 1000;
+      transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .course-map-btn:hover {
+      background: #334155; color: #fff; border-color: #60a5fa;
+      transform: translatey(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+    }
+    .course-map-btn .icon { font-size: 1.1rem; }
+    @media (max-width: 768px) {
+      .course-map-btn { top: 15px; right: 15px; padding: 8px 14px; font-size: 0.75rem; }
+    }
+  `;
+  document.head.appendchild(style);
+
+
+
+
+  const btn = document.createelement('a');
+  btn.href = 'coursemap.html' + moduleanchor;
+  btn.classname = 'course-map-btn';
+  btn.innerhtml = '<span class="icon">🏠</span><span>course map</span>';
+  document.body.appendchild(btn);
+})();
+</script> + moduleanchor;
+  btn.classname = 'course-map-btn';
+  btn.innerhtml = '<span class="icon">🏠</span><span>course map</span>';
+  document.body.appendchild(btn);
+})();
+</script>
+<!-- ===== smart course map return link ===== -->
+<script>
+(function() {
+  const filename = window.location.pathname.split('/').pop().replace('.html', '');
+  let moduleanchor = '';
+  if (filename >= 'l00' && filename <= 'l04') moduleanchor = '#module-1';
+  else if (filename >= 'l05' && filename <= 'l09') moduleanchor = '#module-2';
+  else if (filename >= 'l10' && filename <= 'l13') moduleanchor = '#module-3';
+  else if (filename >= 'l14' && filename <= 'l15') moduleanchor = '#module-4';
+  else if (filename >= 'l16' && filename <= 'l19') moduleanchor = '#module-5';
+  else if (filename >= 'l20' && filename <= 'l21') moduleanchor = '#module-6';
+  else if (filename >= 'l22' && filename <= 'l28') moduleanchor = '#module-7';
+
+
+
+
+  const style = document.createelement('style');
+  style.textcontent = `
+    .course-map-btn {
+      position: fixed; top: 20px; right: 30px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 18px; background: #1e293b; color: #60a5fa;
+      border: 2px solid #3b82f6; border-radius: 8px;
+      font-family: -apple-system, blinkmacsystemfont, "sf mono", monospace;
+      font-size: 0.85rem; font-weight: 700; text-decoration: none; z-index: 1000;
+      transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .course-map-btn:hover {
+      background: #334155; color: #fff; border-color: #60a5fa;
+      transform: translatey(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+    }
+    .course-map-btn .icon { font-size: 1.1rem; }
+    @media (max-width: 768px) {
+      .course-map-btn { top: 15px; right: 15px; padding: 8px 14px; font-size: 0.75rem; }
+    }
+  `;
+  document.head.appendchild(style);
+
+
+
+
+  const btn = document.createelement('a');
   btn.href = 'coursemap.html' + moduleanchor;
   btn.classname = 'course-map-btn';
   btn.innerhtml = '<span class="icon">🏠</span><span>course map</span>';
