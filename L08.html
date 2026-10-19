@@ -627,6 +627,66 @@
   });
   show(0);
 </script>
+<!-- ===== COURSE MAP RETURN LINK ===== -->
+<script>
+(function() {
+  // Inject CSS for the course map button
+  const style = document.createElement('style');
+  style.textContent = `
+    .course-map-btn {
+      position: fixed;
+      top: 20px;
+      right: 30px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      background: #1E293B;
+      color: #60A5FA;
+      border: 2px solid #3B82F6;
+      border-radius: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Mono", "Menlo", monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-decoration: none;
+      z-index: 1000;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      cursor: pointer;
+    }
+    .course-map-btn:hover {
+      background: #334155;
+      color: #fff;
+      border-color: #60A5FA;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+    }
+    .course-map-btn:active {
+      transform: translateY(0);
+    }
+    .course-map-btn .icon {
+      font-size: 1.1rem;
+    }
+    @media (max-width: 768px) {
+      .course-map-btn {
+        top: 15px;
+        right: 15px;
+        padding: 8px 14px;
+        font-size: 0.75rem;
+      }
+    }
+  `;
+  document.head.appendChild(style);
 
+  // Create the button
+  const btn = document.createElement('a');
+  btn.href = 'coursemap.html';
+  btn.className = 'course-map-btn';
+  btn.innerHTML = '<span class="icon">🏠</span><span>Course Map</span>';
+  btn.setAttribute('aria-label', 'Return to Course Master Map');
+  document.body.appendChild(btn);
+})();
+</script>
+<!-- ===== END COURSE MAP RETURN LINK ===== -->
 </body>
 </html>
