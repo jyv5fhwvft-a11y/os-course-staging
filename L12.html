@@ -644,7 +644,11 @@
 
   // Create the button
   const btn = document.createElement('a');
-  btn.href = 'coursemap.html';
+  
+
+
+
+btn.href = 'coursemap.html#module-' + (filename >= 'l22' ? '7' : filename >= 'l16' ? '5' : filename >= 'l14' ? '4' : filename >= 'l10' ? '3' : filename >= 'l05' ? '2' : '1');
   btn.className = 'course-map-btn';
   btn.innerHTML = '<span class="icon">🏠</span><span>Course Map</span>';
   btn.setAttribute('aria-label', 'Return to Course Master Map');
