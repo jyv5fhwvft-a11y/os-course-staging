@@ -1,399 +1,64 @@
 <!DOCTYPE html>
+<html><head><title>CS 301: Operating Systems</title>
+<style>body{background:#0F172A;color:#E2E8F0;font-family:sans-serif;padding:40px;line-height:2.5}h1{background:linear-gradient(135deg,#60A5FA,#A78BFA,#F0ABFC);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:3em}h2{color:#60A5FA;margin-top:40px}a{color:#34D399;text-decoration:none}a:hover{color:#60A5FA}</style>
+</head><body>
+<h1>CS 301: Operating Systems</h1>
+<p style="color:#94A3B8">28 lectures · 7 modules · The Grand Synthesis</p>
 
-<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base { html, body { margin: 0; padding: 0; } body { overscroll-behavior: none; } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; }</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-error": "#690005", "secondary-fixed-dim": "#ddb7ff", "surface-dim": "#0f131d", "on-primary": "#003543", "outline": "#859399", "inverse-surface": "#dfe2f1", "on-primary-fixed-variant": "#004e60", "on-tertiary-fixed": "#002113", "surface-container-highest": "#313540", "primary-fixed": "#b6ebff", "surface-tint": "#47d6ff", "background": "#0f131d", "surface": "#0f131d", "inverse-primary": "#00677f", "error": "#ffb4ab", "secondary-fixed": "#f0dbff", "on-tertiary-fixed-variant": "#005236", "outline-variant": "#3c494e", "surface-container": "#1c1f2a", "on-secondary-container": "#d6a9ff", "secondary": "#ddb7ff", "on-tertiary": "#003824", "tertiary-fixed-dim": "#4edea3", "on-primary-container": "#00566a", "tertiary-fixed": "#6ffbbe", "on-tertiary-container": "#005b3d", "surface-container-low": "#171b26", "on-background": "#dfe2f1", "on-secondary": "#490080", "tertiary-container": "#48d99e", "on-secondary-fixed": "#2c0051", "on-primary-fixed": "#001f28", "error-container": "#93000a", "surface-container-high": "#262a35", "surface-bright": "#353944", "on-secondary-fixed-variant": "#6900b3", "primary": "#a5e7ff", "primary-fixed-dim": "#47d6ff", "on-surface": "#dfe2f1", "on-error-container": "#ffdad6", "secondary-container": "#6f00be", "surface-variant": "#313540", "surface-container-lowest": "#0a0e18", "on-surface-variant": "#bbc9cf", "tertiary": "#69f6b9", "inverse-on-surface": "#2c303b", "primary-container": "#00d2ff" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "space-sm": "0.5rem", "space-lg": "1.5rem", "space-xs": "0.25rem", "margin-mobile": "1.25rem", "space-xl": "2.5rem", "gutter-mobile": "1rem", "space-md": "1rem", "margin": "3rem", "gutter": "1.5rem" }, "fontFamily": { "headline-xl-mobile": [ "Space Grotesk" ], "label-code": [ "JetBrains Mono" ], "headline-sm": [ "Space Grotesk" ], "body-sm": [ "Plus Jakarta Sans" ], "headline-lg-mobile": [ "Space Grotesk" ], "headline-lg": [ "Space Grotesk" ], "headline-md": [ "Space Grotesk" ], "body-md": [ "Plus Jakarta Sans" ], "body-lg": [ "Plus Jakarta Sans" ], "headline-xl": [ "Space Grotesk" ], "label-tag": [ "JetBrains Mono" ] }, "fontSize": { "headline-xl-mobile": [ "2.25rem", { "lineHeight": "2.75rem", "letterSpacing": "-0.01em", "fontWeight": "700" } ], "label-code": [ "0.875rem", { "lineHeight": "1.25rem", "fontWeight": "500" } ], "headline-sm": [ "1.25rem", { "lineHeight": "1.75rem", "fontWeight": "600" } ], "body-sm": [ "0.875rem", { "lineHeight": "1.25rem", "fontWeight": "400" } ], "headline-lg-mobile": [ "1.75rem", { "lineHeight": "2.25rem", "fontWeight": "600" } ], "headline-lg": [ "2.5rem", { "lineHeight": "3rem", "letterSpacing": "-0.015em", "fontWeight": "600" } ], "headline-md": [ "1.75rem", { "lineHeight": "2.25rem", "fontWeight": "600" } ], "body-md": [ "1rem", { "lineHeight": "1.5rem", "fontWeight": "400" } ], "body-lg": [ "1.125rem", { "lineHeight": "1.75rem", "fontWeight": "400" } ], "headline-xl": [ "3.5rem", { "lineHeight": "4rem", "letterSpacing": "-0.02em", "fontWeight": "700" } ], "label-tag": [ "0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.06em", "fontWeight": "600" } ] } } } };</script></head><body class="bg-background font-body-md text-body-md text-on-surface"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-lowest z-50 flex flex-col justify-between border-r border-outline-variant/40"><div class="flex flex-col h-full overflow-hidden"><div class="h-16 px-space-md flex items-center gap-space-sm border-b border-outline-variant/40 shrink-0"><div class="w-8 h-8 rounded-lg bg-surface-container-high border border-primary-container/40 flex items-center justify-center text-primary-container"><span class="material-symbols-outlined text-[18px]">terminal</span></div><div><div class="font-headline-sm text-headline-sm text-primary tracking-tight leading-none">CS_CORE</div><div class="font-label-tag text-label-tag text-on-surface-variant uppercase tracking-widest mt-0.5">Systems &amp; Kernel</div></div></div><div class="px-space-md pt-space-md pb-space-xs shrink-0"><div class="flex items-center justify-between text-on-surface-variant font-label-tag text-label-tag uppercase tracking-wider mb-space-xs"><span class="flex items-center gap-1.5"><span class="text-xs">📚</span> LECTURE MODULES</span><span class="font-label-code text-label-code text-primary-fixed-dim text-[11px]">13 UNITS</span></div></div><nav class="flex-1 overflow-y-auto px-space-sm space-y-0.5" data-active-classes="bg-surface-container-high text-primary border-l-2 border-primary-container font-semibold"><a class="flex items-center justify-between px-space-sm py-2 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-code text-label-code" data-path="curriculum-overview" href="#"><span class="truncate">Course Outline</span><span class="font-label-tag text-label-tag text-outline text-[10px]">course-outline</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-code text-label-code" data-path="dashboard-index" href="#"><span class="truncate">Module Index</span><span class="font-label-tag text-label-tag text-outline text-[10px]">index.html</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-code text-label-code" data-path="lecture-1-os-architecture" href="#"><span class="truncate">L01: OS Architecture</span><span class="font-label-tag text-label-tag text-outline text-[10px]">L1.html</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-code text-label-code" data-path="lecture-2-process-management" href="#"><span class="truncate">L02: Process Mgmt</span><span class="font-label-tag text-label-tag text-outline text-[10px]">L2.html</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-code text-label-code" data-path="lecture-3-thread-concurrency" href="#"><span class="truncate">L03: Concurrency</span><span class="font-label-tag text-label-tag text-outline text-[10px]">L3.html</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-code text-label-code" data-path="lecture-4-cpu-scheduling" href="#"><span class="truncate">L04: CPU Scheduling</span><span class="font-label-tag text-label-tag text-outline text-[10px]">L4.html</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-code text-label-code" data-path="lecture-5b-synchronization-primitives" href="#"><span class="truncate">L05b: Sync Primitives</span><span class="font-label-tag text-label-tag text-outline text-[10px]">L5b.html</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-code text-label-code" data-path="lecture-6-deadlocks-prevention" href="#"><span class="truncate">L06: Deadlock Safety</span><span class="font-label-tag text-label-tag text-outline text-[10px]">L6.html</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-code text-label-code" data-path="lecture-7-memory-hierarchy" href="#"><span class="truncate">L07: Memory Paging</span><span class="font-label-tag text-label-tag text-outline text-[10px]">L7.html</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-code text-label-code" data-path="lecture-8-virtual-memory" href="#"><span class="truncate">L08: Virtual Memory</span><span class="font-label-tag text-label-tag text-outline text-[10px]">L8.html</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-code text-label-code" data-path="lecture-9-storage-io-systems" href="#"><span class="truncate">L09: Storage &amp; I/O</span><span class="font-label-tag text-label-tag text-outline text-[10px]">L9.html</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-code text-label-code" data-path="lecture-10-file-system-internals" href="#"><span class="truncate">L10: FS Internals</span><span class="font-label-tag text-label-tag text-outline text-[10px]">L10.html</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-code text-label-code" data-path="lecture-11-security-protection" href="#"><span class="truncate">L11: Security Model</span><span class="font-label-tag text-label-tag text-outline text-[10px]">L11.html</span></a></nav></div><div class="p-space-md border-t border-outline-variant/40 bg-surface-container-low shrink-0"><div class="flex items-center justify-between font-label-code text-label-code bg-surface-container-lowest px-space-sm py-space-xs rounded-DEFAULT border border-outline-variant/50"><div class="flex items-center gap-2"><span class="inline-block w-2 h-2 rounded-full bg-tertiary shadow-[0_0_8px_#69f6b9]"></span><span class="text-tertiary font-semibold tracking-wide text-xs">VM ONLINE</span></div><span class="text-on-surface-variant text-[11px]">PID 1024</span></div></div></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-16 bg-surface-container-lowest/90 backdrop-blur-xl border-b border-outline-variant/40 z-40 flex items-center justify-between px-space-lg shadow-[0_1px_8px_rgba(0,0,0,0.2)]"><div class="flex items-center gap-space-md"><div class="flex items-center gap-2 bg-surface-container-high/60 border border-outline-variant/60 rounded-DEFAULT px-space-sm py-1 font-label-code text-label-code"><span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span><span class="text-tertiary text-xs font-semibold">SYS: ONLINE</span></div><div class="flex items-center gap-1.5 bg-surface-container px-space-sm py-1 rounded-DEFAULT border border-primary-container/30 font-label-tag text-label-tag"><span class="material-symbols-outlined text-primary text-[14px]">shield</span><span class="text-primary text-[11px] font-semibold tracking-wider">KERNEL MODE (RING-0)</span></div><div class="hidden xl:flex items-center gap-1.5 bg-surface-container-low px-space-sm py-1 rounded-DEFAULT border border-outline-variant/40 font-label-tag text-label-tag"><span class="material-symbols-outlined text-tertiary-fixed-dim text-[14px]">verified</span><span class="text-on-surface-variant text-[11px]">ABET CAC COMPLIANT</span></div></div><div class="flex items-center gap-space-lg"><nav class="hidden md:flex items-center gap-space-md font-label-code text-label-code" data-active-classes="text-primary font-semibold border-b border-primary-container"><a class="text-on-surface-variant hover:text-on-surface transition-colors pb-0.5" data-path="dashboard-index" href="#">Terminal</a><a class="text-on-surface-variant hover:text-on-surface transition-colors pb-0.5" data-path="course-matrix" href="#">Course Matrix</a><a class="text-on-surface-variant hover:text-on-surface transition-colors pb-0.5" data-path="competency-mapping" href="#">ABET Rubric</a><a class="text-on-surface-variant hover:text-on-surface transition-colors pb-0.5" data-path="kernel-telemetry" href="#">Telemetry</a></nav><div class="flex items-center gap-space-sm"><button aria-label="Diagnostics Inspector" class="w-8 h-8 rounded-DEFAULT bg-surface-container hover:bg-surface-container-high border border-outline-variant/40 flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]">memory</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-16 bg-background min-h-screen px-space-lg py-space-md"><div class="flex flex-col w-full">
-<!-- Module Top Banner Header -->
-<header class="relative overflow-hidden rounded-xl bg-surface-container-low p-space-lg mb-space-lg shadow-xl">
-<div class="relative z-10 flex flex-col gap-space-xs">
-<div class="flex flex-wrap items-center gap-space-sm">
-<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-DEFAULT bg-tertiary/10 font-label-tag text-label-tag text-tertiary uppercase tracking-widest">
-<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
-          📦 MODULE 0 OF 7 BLOCKS (LECTURE 0 OF 24)
-        </span>
-<span class="font-label-code text-label-code text-primary-fixed-dim bg-surface-container px-space-sm py-0.5 rounded-DEFAULT">
-          SYS_ARCH: x86_64 / RING-0
-        </span>
-</div>
-<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight mt-1">
-        Operating Systems: L0 — Course Introduction
-      </h1>
-<p class="font-body-md text-body-md text-on-surface-variant flex items-center gap-2">
-<span>Interactive Visual Study Guide &amp; Conceptual Poster</span>
-<span class="text-outline">|</span>
-<span class="font-label-code text-label-code text-primary-fixed-dim flex items-center gap-1">
-          🔰 🏠 START HERE
-        </span>
-</p>
-</div>
-<div class="absolute -right-8 -bottom-10 pointer-events-none opacity-10 select-none">
-<span class="material-symbols-outlined text-[160px] text-primary">developer_board</span>
-</div>
-</header>
-<!-- Workspace Grid: Left In-Page Navigation / Telemetry & Right Reading Workspace -->
-<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
-<!-- Left Column: Sticky Sub-navigation & Live Telemetry Inspector (3 Cols) -->
-<aside class="lg:col-span-3 lg:sticky lg:top-20 flex flex-col gap-space-md order-2 lg:order-1">
-<!-- Sub-Navigation Jump Card -->
-<nav class="bg-surface-container-low rounded-xl p-space-md shadow-md flex flex-col gap-space-sm">
-<div class="flex items-center justify-between pb-space-xs">
-<span class="font-label-tag text-label-tag text-on-surface-variant uppercase tracking-wider flex items-center gap-1.5">
-<span class="material-symbols-outlined text-[16px] text-primary">toc</span>
-            MODULE OUTLINE
-          </span>
-<span class="font-label-code text-label-code text-outline text-[11px]">4 PHASES</span>
-</div>
-<div class="flex flex-col space-y-1">
-<a class="flex items-center gap-space-sm p-2 rounded-DEFAULT bg-surface-container hover:bg-surface-container-high transition-colors group" href="#section-1">
-<span class="w-6 h-6 rounded-DEFAULT bg-surface-container-highest flex items-center justify-center font-label-code text-label-code text-primary group-hover:text-primary-container">01</span>
-<span class="font-label-code text-label-code text-on-surface group-hover:text-primary">Core Concepts</span>
-</a>
-<a class="flex items-center gap-space-sm p-2 rounded-DEFAULT bg-surface-container/50 hover:bg-surface-container-high transition-colors group" href="#section-2">
-<span class="w-6 h-6 rounded-DEFAULT bg-surface-container-highest flex items-center justify-center font-label-code text-label-code text-outline group-hover:text-primary">02</span>
-<span class="font-label-code text-label-code text-on-surface-variant group-hover:text-primary">System Layers</span>
-</a>
-<a class="flex items-center gap-space-sm p-2 rounded-DEFAULT bg-surface-container/50 hover:bg-surface-container-high transition-colors group" href="#section-3">
-<span class="w-6 h-6 rounded-DEFAULT bg-surface-container-highest flex items-center justify-center font-label-code text-label-code text-outline group-hover:text-primary">03</span>
-<span class="font-label-code text-label-code text-on-surface-variant group-hover:text-primary">Evolutionary Arc</span>
-</a>
-<a class="flex items-center gap-space-sm p-2 rounded-DEFAULT bg-surface-container/50 hover:bg-surface-container-high transition-colors group" href="#section-4">
-<span class="w-6 h-6 rounded-DEFAULT bg-surface-container-highest flex items-center justify-center font-label-code text-label-code text-outline group-hover:text-primary">04</span>
-<span class="font-label-code text-label-code text-on-surface-variant group-hover:text-primary">Paradigm &amp; Guardrails</span>
-</a>
-</div>
-</nav>
-<!-- System State & Telemetry Card -->
-<div class="bg-surface-container-low rounded-xl p-space-md shadow-md flex flex-col gap-space-sm">
-<div class="flex items-center justify-between">
-<span class="font-label-tag text-label-tag text-on-surface-variant uppercase tracking-wider">ENVIRONMENT TELEMETRY</span>
-<span class="inline-flex items-center gap-1 font-label-tag text-label-tag text-tertiary">
-<span class="w-2 h-2 rounded-full bg-tertiary"></span>
-            ACTIVE
-          </span>
-</div>
-<div class="bg-surface-container-lowest p-space-sm rounded-DEFAULT flex flex-col gap-space-xs font-label-code text-label-code">
-<div class="flex justify-between items-center text-on-surface-variant">
-<span>KERNEL VM:</span>
-<span class="text-tertiary font-semibold">🟢 ONLINE</span>
-</div>
-<div class="flex justify-between items-center text-on-surface-variant">
-<span>THREAD PID:</span>
-<span class="text-primary-fixed-dim">1024 [INIT]</span>
-</div>
-<div class="flex justify-between items-center text-on-surface-variant">
-<span>SECURITY LEVEL:</span>
-<span class="text-secondary">PROTECTED</span>
-</div>
-</div>
-<div class="p-space-sm bg-surface-container rounded-DEFAULT flex items-start gap-2">
-<span class="material-symbols-outlined text-[16px] text-primary-container shrink-0 mt-0.5">info</span>
-<p class="font-body-sm text-body-sm text-on-surface-variant leading-snug">
-            All code segments in L0 illustrate boundary interfaces before low-level C scheduling labs in L1-L4.
-          </p>
-</div>
-</div>
-</aside>
-<!-- Right Column: Main Reading Workspace & Interactive Content (9 Cols) -->
-<div class="lg:col-span-9 flex flex-col gap-space-xl order-1 lg:order-2">
-<!-- SECTION 1: CORE CONCEPTS -->
-<section class="flex flex-col gap-space-md bg-surface-container-low rounded-xl p-space-lg shadow-md" id="section-1">
-<div class="flex flex-col gap-1">
-<div class="flex items-center gap-2">
-<span class="font-label-tag text-label-tag text-primary-container bg-surface-container-high px-space-sm py-0.5 rounded-DEFAULT">
-              🔰 THE FOUNDATIONAL QUESTION | 🏠 START HERE
-            </span>
-</div>
-<h2 class="font-headline-sm text-headline-sm text-on-surface flex items-center gap-2 mt-1">
-<span>1️⃣ Section 1: Core Conceptual Onboarding (The Boundary Line)</span>
-</h2>
-</div>
-<p class="font-body-md text-body-md text-on-surface leading-relaxed">
-          An <strong class="text-primary font-semibold">Operating System (OS)</strong> (the core background manager software acting as a strict referee) manages physical hardware and provides a protected environment for software applications. It includes the <span class="text-primary-fixed-dim font-semibold">Core Kernel</span> (residing in RAM), <span class="text-secondary font-semibold">Resource Arbitration</span> (acting as a strict hardware referee), and <span class="text-tertiary font-semibold">Hardware Abstraction</span> (hiding complex wiring behind simple interfaces).
-        </p>
-<!-- Core Responsibilities Visual Bento -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm my-space-xs">
-<div class="bg-surface-container p-space-md rounded-DEFAULT flex flex-col gap-space-xs">
-<div class="w-8 h-8 rounded-DEFAULT bg-primary/10 flex items-center justify-center text-primary">
-<span class="material-symbols-outlined text-[20px]">memory</span>
-</div>
-<div class="font-label-code text-label-code text-primary font-bold">1. Core Kernel</div>
-<p class="font-body-sm text-body-sm text-on-surface-variant">
-              The fundamental engine residing resident in protected RAM, managing hardware interrupts, tasks, and system calls.
-            </p>
-</div>
-<div class="bg-surface-container p-space-md rounded-DEFAULT flex flex-col gap-space-xs">
-<div class="w-8 h-8 rounded-DEFAULT bg-secondary/10 flex items-center justify-center text-secondary">
-<span class="material-symbols-outlined text-[20px]">gavel</span>
-</div>
-<div class="font-label-code text-label-code text-secondary font-bold">2. Resource Arbitration</div>
-<p class="font-body-sm text-body-sm text-on-surface-variant">
-              Decides which application gets CPU cycles, storage bandwidth, or memory addresses under strict access laws.
-            </p>
-</div>
-<div class="bg-surface-container p-space-md rounded-DEFAULT flex flex-col gap-space-xs">
-<div class="w-8 h-8 rounded-DEFAULT bg-tertiary/10 flex items-center justify-center text-tertiary">
-<span class="material-symbols-outlined text-[20px]">layers</span>
-</div>
-<div class="font-label-code text-label-code text-tertiary font-bold">3. Hardware Abstraction</div>
-<p class="font-body-sm text-body-sm text-on-surface-variant">
-              Replaces chaotic peripheral register maps with clean POSIX system calls like read(), write(), and open().
-            </p>
-</div>
-</div>
-<div class="bg-surface-container-high/60 p-space-md rounded-DEFAULT flex items-start gap-space-md">
-<span class="material-symbols-outlined text-primary-container text-[24px] shrink-0 mt-0.5">policy</span>
-<div class="flex flex-col gap-1">
-<span class="font-label-tag text-label-tag text-primary-container uppercase tracking-wider">Framing Context</span>
-<p class="font-body-md text-body-md text-on-surface">
-              The OS prevents selfish software applications (like concurrent instances of Google Chrome and Spotify) from overwriting data, crashing the machine, or fighting over scarce hardware resources by fairly splitting access.
-            </p>
-</div>
-</div>
-<!-- Everyday Simplified Callout -->
-<div class="bg-surface-container-lowest p-space-md rounded-DEFAULT flex flex-col gap-space-xs">
-<div class="flex items-center gap-2 text-tertiary font-label-code text-label-code">
-<span>💡 EVERYDAY SIMPLIFIED</span>
-</div>
-<p class="font-body-md text-body-md text-on-surface-variant italic">
-            “Imagine an OS is like a teacher at the front of a kindergarten room managing a single box of crayons so fifty students can take turns coloring fairly without fighting or breaking the crayons.”
-          </p>
-</div>
-</section>
-<!-- SECTION 2: SYSTEM LAYERS -->
-<section class="flex flex-col gap-space-md bg-surface-container-low rounded-xl p-space-lg shadow-md" id="section-2">
-<div class="flex flex-col gap-1">
-<div class="flex items-center gap-2">
-<span class="font-label-tag text-label-tag text-secondary bg-surface-container-high px-space-sm py-0.5 rounded-DEFAULT">
-              🔰 STRUCTURE &amp; RING PRIVILEGES | 🏠 START HERE
-            </span>
-</div>
-<h2 class="font-headline-sm text-headline-sm text-on-surface flex items-center gap-2 mt-1">
-<span>2️⃣ Section 2: Structural Dissection (The System Layers)</span>
-</h2>
-</div>
-<p class="font-body-md text-body-md text-on-surface leading-relaxed">
-          The machine architecture enforces strict privilege rings. Applications execute under restricted unprivileged instructions, relying upon deterministic trapdoors into higher privilege rings when requesting underlying physical machine interaction.
-        </p>
-<!-- Hierarchy Layer Map Visual Poster -->
-<div class="flex flex-col gap-space-xs my-space-xs">
-<!-- Layer 1: Ring 3 -->
-<div class="bg-surface-container p-space-md rounded-DEFAULT flex flex-col md:flex-row md:items-center justify-between gap-space-sm">
-<div class="flex items-center gap-space-md">
-<span class="w-8 h-8 rounded-DEFAULT bg-primary/20 text-primary flex items-center justify-center font-label-code text-label-code font-bold">R3</span>
-<div>
-<div class="font-label-code text-label-code text-primary font-bold">Ring 3 User Application Layer (Unprivileged)</div>
-<div class="font-body-sm text-body-sm text-on-surface-variant">Isolated user space sandbox. Cannot access raw disk or hardware directly.</div>
-</div>
-</div>
-<div class="flex flex-wrap gap-1 font-label-tag text-label-tag">
-<span class="bg-surface-container-highest px-2 py-0.5 rounded-DEFAULT text-on-surface">Chrome</span>
-<span class="bg-surface-container-highest px-2 py-0.5 rounded-DEFAULT text-on-surface">Spotify</span>
-<span class="bg-surface-container-highest px-2 py-0.5 rounded-DEFAULT text-on-surface">VS Code</span>
-<span class="bg-surface-container-highest px-2 py-0.5 rounded-DEFAULT text-on-surface">Discord</span>
-</div>
-</div>
-<!-- Gateway Bridge Indicator -->
-<div class="flex items-center justify-center py-1">
-<div class="bg-surface-container-highest px-space-md py-1 rounded-full flex items-center gap-2 text-primary-container font-label-code text-label-code text-xs">
-<span class="material-symbols-outlined text-[14px]">arrow_downward</span>
-<span>Gateway / System Call Trapdoor (POSIX API): fork(), execve(), read(), write(), mmap()</span>
-<span class="material-symbols-outlined text-[14px]">arrow_upward</span>
-</div>
-</div>
-<!-- Layer 2: Ring 0 -->
-<div class="bg-surface-container p-space-md rounded-DEFAULT flex flex-col md:flex-row md:items-center justify-between gap-space-sm">
-<div class="flex items-center gap-space-md">
-<span class="w-8 h-8 rounded-DEFAULT bg-secondary/20 text-secondary flex items-center justify-center font-label-code text-label-code font-bold">R0</span>
-<div>
-<div class="font-label-code text-label-code text-secondary font-bold">Ring 0 Kernel Space Referee (Privileged Core)</div>
-<div class="font-body-sm text-body-sm text-on-surface-variant">Unrestricted processor execution mode with direct hardware authority.</div>
-</div>
-</div>
-<div class="flex flex-wrap gap-1 font-label-tag text-label-tag">
-<span class="bg-secondary-container px-2 py-0.5 rounded-DEFAULT text-on-secondary-container">Scheduler</span>
-<span class="bg-secondary-container px-2 py-0.5 rounded-DEFAULT text-on-secondary-container">Virtual Memory</span>
-<span class="bg-secondary-container px-2 py-0.5 rounded-DEFAULT text-on-secondary-container">Page Allocator</span>
-<span class="bg-secondary-container px-2 py-0.5 rounded-DEFAULT text-on-secondary-container">Device Drivers</span>
-</div>
-</div>
-<!-- Layer 3: Physical Hardware -->
-<div class="bg-surface-container-highest p-space-md rounded-DEFAULT flex items-center gap-space-md mt-1">
-<span class="w-8 h-8 rounded-DEFAULT bg-tertiary/20 text-tertiary flex items-center justify-center font-label-code text-label-code font-bold">HW</span>
-<div class="flex-1">
-<div class="font-label-code text-label-code text-tertiary font-bold">Physical Silicon Hardware</div>
-<div class="font-body-sm text-body-sm text-on-surface-variant">Bare-metal physical hardware chips (x86_64 / ARM CPU Cores, DDR5 Memory, NVMe SSD, NIC, GPU).</div>
-</div>
-</div>
-</div>
-<!-- Telemetry Row -->
-<div class="bg-surface-container px-space-md py-space-sm rounded-DEFAULT flex items-center justify-between font-label-code text-label-code">
-<span class="text-on-surface-variant flex items-center gap-2">
-<span class="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
-            CPU Timeslices • Memory Segmentation • Storage I/O Queues
-          </span>
-<span class="text-primary-fixed-dim text-xs font-semibold">KERNEL SCHEDULER: DISPATCHING</span>
-</div>
-<!-- Everyday Simplified Callout -->
-<div class="bg-surface-container-lowest p-space-md rounded-DEFAULT flex flex-col gap-space-xs">
-<div class="flex items-center gap-2 text-tertiary font-label-code text-label-code">
-<span>💡 EVERYDAY SIMPLIFIED</span>
-</div>
-<p class="font-body-md text-body-md text-on-surface-variant italic">
-            “It is like a busy restaurant with a strict Staff Only kitchen door rule. The dining room where customers sit is the unprivileged User Space. The kitchen where the hot stoves sit is the privileged Kernel Space. The waiter acts as the System Call gateway, taking your order and crossing the boundary line to the kitchen for you so you never touch the dangerous stove directly.”
-          </p>
-</div>
-</section>
-<!-- SECTION 3: EVOLUTIONARY ARC -->
-<section class="flex flex-col gap-space-md bg-surface-container-low rounded-xl p-space-lg shadow-md" id="section-3">
-<div class="flex flex-col gap-1">
-<div class="flex items-center gap-2">
-<span class="font-label-tag text-label-tag text-tertiary bg-surface-container-high px-space-sm py-0.5 rounded-DEFAULT">
-              🔰 HISTORICAL SCHEDULING MILESTONES | 🏠 START HERE
-            </span>
-</div>
-<h2 class="font-headline-sm text-headline-sm text-on-surface flex items-center gap-2 mt-1">
-<span>3️⃣ Section 3: Linear Operational Pipeline (The Evolutionary History Arc)</span>
-</h2>
-</div>
-<p class="font-body-md text-body-md text-on-surface leading-relaxed">
-          Trace the historical milestones of scheduling computing tasks to understand why operating systems evolved to solve wasted processor idle time over computing history:
-        </p>
-<!-- Pipeline Timeline Track -->
-<div class="relative pl-6 flex flex-col gap-space-md my-space-xs before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-surface-container-highest">
-<!-- 1950s -->
-<div class="relative flex flex-col gap-1 bg-surface-container p-space-md rounded-DEFAULT">
-<span class="absolute -left-[27px] top-4 w-3.5 h-3.5 rounded-full bg-outline-variant"></span>
-<div class="flex items-center justify-between">
-<span class="font-label-code text-label-code text-error font-bold">1950s Single-Program Batch Processing</span>
-<span class="font-label-tag text-label-tag bg-surface-container-lowest px-2 py-0.5 rounded text-outline">100% IDLE PENALTY</span>
-</div>
-<p class="font-body-sm text-body-sm text-on-surface-variant">
-              One job ran at a time via punch cards. If the program paused to read a tape drive, the entire CPU sat completely idle, wasting precious computation cycles.
-            </p>
-</div>
-<!-- 1960s -->
-<div class="relative flex flex-col gap-1 bg-surface-container p-space-md rounded-DEFAULT">
-<span class="absolute -left-[27px] top-4 w-3.5 h-3.5 rounded-full bg-secondary"></span>
-<div class="flex items-center justify-between">
-<span class="font-label-code text-label-code text-secondary font-bold">1960s Multiprogramming</span>
-<span class="font-label-tag text-label-tag bg-surface-container-lowest px-2 py-0.5 rounded text-secondary">OVERLAPPED I/O</span>
-</div>
-<p class="font-body-sm text-body-sm text-on-surface-variant">
-              The OS began holding multiple separate programs in RAM blocks simultaneously. When Job A paused for slow I/O traffic, the OS quickly switched the CPU to execute Job B, keeping the hardware working.
-            </p>
-</div>
-<!-- 1970s -->
-<div class="relative flex flex-col gap-1 bg-surface-container p-space-md rounded-DEFAULT">
-<span class="absolute -left-[27px] top-4 w-3.5 h-3.5 rounded-full bg-primary-container"></span>
-<div class="flex items-center justify-between">
-<span class="font-label-code text-label-code text-primary font-bold">1970s Time-Sharing</span>
-<span class="font-label-tag text-label-tag bg-surface-container-lowest px-2 py-0.5 rounded text-primary-container">MILLISECOND QUANTA</span>
-</div>
-<p class="font-body-sm text-body-sm text-on-surface-variant">
-              Slicing precious CPU computation execution times into microscopic slots (millisecond quanta). The OS rotates through all active processes so fast that every single user feels like they have exclusive ownership of the hardware.
-            </p>
-</div>
-</div>
-<!-- Everyday Simplified Callout -->
-<div class="bg-surface-container-lowest p-space-md rounded-DEFAULT flex flex-col gap-space-xs">
-<div class="flex items-center gap-2 text-tertiary font-label-code text-label-code">
-<span>💡 EVERYDAY SIMPLIFIED</span>
-</div>
-<p class="font-body-md text-body-md text-on-surface-variant italic">
-            “Evolving from one single kid hogging a playground swing for an hour while others cry, to kids swapping spots only when someone stops to tie their shoe, to a strict teacher setting an automated 5-second countdown timer for perfect, rapid, fair rotation play.”
-          </p>
-</div>
-</section>
-<!-- SECTION 4: PARADIGM & GUARDRAILS -->
-<section class="flex flex-col gap-space-md bg-surface-container-low rounded-xl p-space-lg shadow-md" id="section-4">
-<div class="flex flex-col gap-1">
-<div class="flex items-center gap-2">
-<span class="font-label-tag text-label-tag text-primary-fixed bg-surface-container-high px-space-sm py-0.5 rounded-DEFAULT">
-              🔰 ARBITRATION MATRIX vs RESOURCE FAULTING | 🏠 START HERE
-            </span>
-</div>
-<h2 class="font-headline-sm text-headline-sm text-on-surface flex items-center gap-2 mt-1">
-<span>4️⃣ Section 4: Paradigm Showdown &amp; Guardrails</span>
-</h2>
-</div>
-<p class="font-body-md text-body-md text-on-surface leading-relaxed">
-<strong class="text-primary font-semibold">Abstraction</strong> hides messy wiring to simplify views for developers and users. <strong class="text-secondary font-semibold">Resource Management</strong> polices application behavior to enforce fair hardware sharing among competing chips.
-        </p>
-<!-- Comparison Matrix Table -->
-<div class="overflow-x-auto rounded-DEFAULT bg-surface-container">
-<table class="w-full text-left font-body-sm text-body-sm">
-<thead class="bg-surface-container-high font-label-code text-label-code text-primary uppercase text-xs">
-<tr>
-<th class="p-space-sm">Dimension</th>
-<th class="p-space-sm">Abstraction Model</th>
-<th class="p-space-sm">Resource Management</th>
-<th class="p-space-sm">Bare-Metal Execution</th>
-</tr>
-</thead>
-<tbody class="divide-y divide-outline-variant/20 font-body-sm text-body-sm">
-<tr class="hover:bg-surface-container-highest/40 transition-colors">
-<td class="p-space-sm font-label-code text-label-code text-on-surface font-semibold">Primary Goal</td>
-<td class="p-space-sm text-on-surface-variant">Hide complex hardware wiring behind standard APIs</td>
-<td class="p-space-sm text-on-surface-variant">Prevent starvation, arbitrate CPU/RAM contention</td>
-<td class="p-space-sm text-outline">Direct hardware control with zero protection layer</td>
-</tr>
-<tr class="hover:bg-surface-container-highest/40 transition-colors">
-<td class="p-space-sm font-label-code text-label-code text-on-surface font-semibold">Key Entity</td>
-<td class="p-space-sm text-on-surface-variant">Files, Sockets, Virtual Addresses, Processes</td>
-<td class="p-space-sm text-on-surface-variant">Schedulers, Page Tables, Semaphore Locks</td>
-<td class="p-space-sm text-outline">Physical Pins, Register Offsets, Raw Sectors</td>
-</tr>
-<tr class="hover:bg-surface-container-highest/40 transition-colors">
-<td class="p-space-sm font-label-code text-label-code text-on-surface font-semibold">Failure Impact</td>
-<td class="p-space-sm text-on-surface-variant">Clean error code returned to user application</td>
-<td class="p-space-sm text-on-surface-variant">Process terminated safely without system halt</td>
-<td class="p-space-sm text-error">Catastrophic complete processor freeze or lockup</td>
-</tr>
-</tbody>
-</table>
-</div>
-<!-- Student Pitfalls (Two Distinct Boxes) -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md mt-space-xs">
-<!-- Pitfall 1 -->
-<div class="bg-surface-container p-space-md rounded-DEFAULT flex flex-col gap-space-xs">
-<div class="flex items-center gap-1.5 font-label-code text-label-code text-error">
-<span class="material-symbols-outlined text-[18px]">error</span>
-<span>🛑 STUDENT PITFALL #1</span>
-</div>
-<p class="font-body-sm text-body-sm text-on-surface-variant">
-              The OS is a pure software management coordinator running in memory, not a physical hardware booster or magic extra speed injector. It optimizes lane efficiency, not raw copper speed limits.
-            </p>
-</div>
-<!-- Pitfall 2 -->
-<div class="bg-surface-container p-space-md rounded-DEFAULT flex flex-col gap-space-xs">
-<div class="flex items-center gap-1.5 font-label-code text-label-code text-error">
-<span class="material-symbols-outlined text-[18px]">dangerous</span>
-<span>🛑 STUDENT PITFALL #2</span>
-</div>
-<p class="font-body-sm text-body-sm text-on-surface-variant">
-              Attempting to write tricky bypass scripts within Microsoft VS Code that touch unauthorized memory addresses skips safety layers and triggers a violent, hardware-enforced system crash cutoff known as a <span class="text-error font-semibold">Segmentation Fault (SIGSEGV)</span> exception to protect the global machine state (Exit Code 139).
-            </p>
-</div>
-</div>
-</section>
-<!-- Module Completion Footer / Next Steps Bar -->
-<footer class="bg-surface-container-low rounded-xl p-space-lg shadow-md flex flex-col md:flex-row items-center justify-between gap-space-md mt-space-sm">
-<div class="flex flex-wrap items-center gap-space-sm">
-<button class="px-space-md py-2 rounded-DEFAULT bg-surface-container hover:bg-surface-container-high text-on-surface font-label-code text-label-code flex items-center gap-2 transition-colors" onclick="window.print()" type="button">
-<span class="material-symbols-outlined text-[18px]">print</span>
-<span>Print Module Notes</span>
-</button>
-<a class="px-space-md py-2 rounded-DEFAULT bg-surface-container hover:bg-surface-container-high text-on-surface font-label-code text-label-code flex items-center gap-2 transition-colors" data-path="course-matrix" href="#">
-<span class="material-symbols-outlined text-[18px]">grid_view</span>
-<span>Course Matrix</span>
-</a>
-</div>
-<a class="w-full md:w-auto px-space-lg py-2.5 rounded-DEFAULT bg-primary-container text-on-primary-fixed font-label-code text-label-code font-bold flex items-center justify-center gap-2 shadow-lg hover:shadow-[0_0_20px_rgba(0,210,255,0.4)] transition-all" href="L1.html">
-<span>Proceed to L1: Core Concepts</span>
-<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
-</a>
-</footer>
-</div>
-</div>
-</div></main></div></body></html>
+<h2>Module 1 — OS Structure & Design</h2>
+<ul>
+<li><a href="L00.html">L00 — Course Introduction</a></li>
+<li><a href="L01.html">L01 — The Architecture Matrix</a></li>
+<li><a href="L02.html">L02 — The Dual-Mode Barrier</a></li>
+<li><a href="L03.html">L03 — The Gatekeeper Mechanism</a></li>
+<li><a href="L04.html">L04 — The Boot Process</a></li>
+</ul>
+
+<h2>Module 2 — Process Management</h2>
+<ul>
+<li><a href="L05.html">L05 — Process Anatomy & The PCB Ledger</a></li>
+<li><a href="L06.html">L06 — Process Execution Mechanics</a></li>
+<li><a href="L07.html">L07 — CPU Scheduling I</a></li>
+<li><a href="L08.html">L08 — CPU Scheduling II</a></li>
+<li><a href="L09.html">L09 — Threads & Concurrency Models</a></li>
+</ul>
+
+<h2>Module 3 — Memory Management</h2>
+<ul>
+<li><a href="L10.html">L10 — Relocation Models & Base-and-Bound</a></li>
+<li><a href="L11.html">L11 — The Paging Model</a></li>
+<li><a href="L12.html">L12 — TLB Acceleration & Caching Math</a></li>
+<li><a href="L13.html">L13 — Virtual Memory & Demand Paging</a></li>
+</ul>
+
+<h2>Module 4 — Process Synchronization</h2>
+<ul>
+<li><a href="L14.html">L14 — Race Conditions & Mutual Exclusion</a></li>
+<li><a href="L15.html">L15 — Classic Sync Problems & Deadlock</a></li>
+</ul>
+
+<h2>Module 5 — File & Storage Management</h2>
+<ul>
+<li><a href="L16.html">L16 — Disk Geometry & Physical Storage</a></li>
+<li><a href="L17.html">L17 — File Abstraction & Directory Topology</a></li>
+<li><a href="L18.html">L18 — Inode Architecture & File System Layouts</a></li>
+<li><a href="L19.html">L19 — Crash Consistency & Journaling</a></li>
+</ul>
+
+<h2>Module 6 — I/O Device Management</h2>
+<ul>
+<li><a href="L20.html">L20 — The I/O Communication Matrix</a></li>
+<li><a href="L21.html">L21 — Uniform Device Drivers & /dev</a></li>
+</ul>
+
+<h2>Module 7 — Security & Protection</h2>
+<ul>
+<li><a href="L22.html">L22 — Access Control</a></li>
+<li><a href="L23.html">L23 — Authentication</a></li>
+<li><a href="L24.html">L24 — Program Exploits</a></li>
+<li><a href="L25.html">L25 — Encryption Fundamentals</a></li>
+<li><a href="L26.html">L26 — Firewalls & Intrusion Detection</a></li>
+<li><a href="L27.html">L27 — Modern Isolation Paradigms</a></li>
+<li><a href="L28.html">L28 — Grand Course Retrospective</a></li>
+</ul>
+</body></html>
