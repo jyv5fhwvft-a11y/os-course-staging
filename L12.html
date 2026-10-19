@@ -801,4 +801,33 @@ btn.href = 'coursemap.html#module-' + (filename >= 'l22' ? '7' : filename >= 'l1
 </script>
 </body>
 </html>
-</html>
+</html>   <script>
+(function() {
+  const filename = window.location.pathname.split('/').pop().replace('.html', '');
+  let moduleAnchor = '';
+  if (filename >= 'L00' && filename <= 'L04') moduleAnchor = '#module-1';
+  else if (filename >= 'L05' && filename <= 'L09') moduleAnchor = '#module-2';
+  else if (filename >= 'L10' && filename <= 'L13') moduleAnchor = '#module-3';
+  else if (filename >= 'L14' && filename <= 'L15') moduleAnchor = '#module-4';
+  else if (filename >= 'L16' && filename <= 'L19') moduleAnchor = '#module-5';
+  else if (filename >= 'L20' && filename <= 'L21') moduleAnchor = '#module-6';
+  else if (filename >= 'L22' && filename <= 'L28') moduleAnchor = '#module-7';
+
+  const btn = document.createElement('a');
+  btn.href = 'coursemap.html' + moduleAnchor;
+  btn.style.position = 'fixed';
+  btn.style.top = '20px';
+  btn.style.right = '30px';
+  btn.style.padding = '10px 18px';
+  btn.style.background = '#1E293B';
+  btn.style.color = '#60A5FA';
+  btn.style.border = '2px solid #3B82F6';
+  btn.style.borderRadius = '8px';
+  btn.style.fontFamily = 'monospace';
+  btn.style.fontWeight = 'bold';
+  btn.style.textDecoration = 'none';
+  btn.style.zIndex = '9999';
+  btn.innerHTML = '🏠 Course Map';
+  document.body.appendChild(btn);
+})();
+</script>
